@@ -1,0 +1,52 @@
+name: hotlayout_demo
+description: "HotLayout showcase: the renderer's own demo app. Not part of the published package."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The package itself is the parent folder. The demo is a CONSUMER app, not part
+  # of the library: it declares every asset it needs itself (below), so none of
+  # them ends up in another app's bundle.
+  hotlayout_flutter:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # On-device tests. They cover what a widget test cannot: a real app with real
+  # gestures and real text rendering. `flutter test` only pumps widgets, so the
+  # whole presentation scenario is checked on a simulator.
+  integration_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # The font family named by the built-in theme (`fontFamilies.*.primary: Inter`).
+  # The package ships no fonts; the app provides them. The demo bundles Inter
+  # (SIL OFL 1.1, `assets/fonts/OFL.txt`) as variable files: the weight comes from
+  # the `wght` axis, so 500 and 600 are real weights, not 400 or 700.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+        - asset: assets/fonts/Inter-Italic-Variable.ttf
+          style: italic
+
+  # The contract fixtures and the theme are assets of the DEMO, not of the package.
+  # `assets/contract` here is a symbolic link to `../assets/contract` (the single
+  # copy of the contract artifacts in the repository, also read from disk by the
+  # package tests), so there is no second copy that could drift.
+  assets:
+    - assets/contract/
+    - assets/contract/fixtures/
+    - assets/contract/fixtures/themes/
+    - assets/contract/fixtures/locale/

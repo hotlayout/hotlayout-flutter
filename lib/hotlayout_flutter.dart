@@ -1,0 +1,94 @@
+/// HotLayout for Flutter: draws server-driven screens published by the
+/// HotLayout builder.
+///
+/// This is the only public library of the package. A host needs four things,
+/// and each has one entry here:
+///
+///  * a **document** — [UiDocument], loaded through a [DocumentSource]
+///    ([BundledDocumentSource] from the app's assets,
+///    [PublishedDocumentSource] over HTTP with a bundled fallback);
+///  * a **theme** — [ThemeLoad] reads a [ThemeContract], from which the host
+///    picks one [RenderTheme];
+///  * **data** — a plain `Map<String, Object?>` of values for the paths the
+///    document is bound to;
+///  * the **widget** — [renderDocument], with [SduiActionCallback] for the
+///    actions the host performs itself ([runStandardAction] performs the
+///    checked ones, with executors the host passes in), [SduiTrackCallback]
+///    for analytics events and [SduiScreenShownCallback] for screen views.
+///
+/// A complete host is in the package's `example/`.
+///
+/// Everything under `src/` that is not exported here is internal and may
+/// change without notice.
+library;
+
+// The document and the actions it carries.
+export 'src/model/action.dart' show ButtonAction, runStandardAction;
+// The action catalog (9.8.0): what the host gets for `openUrl`, `deeplink` and
+// `close`, the analytics event of a press and the "screen shown" event.
+export 'src/model/action_catalog.dart'
+    show
+        ActionParamProblem,
+        CloseAction,
+        DeeplinkAction,
+        InvalidActionParam,
+        OpenUrlAction,
+        ScreenShown,
+        ScreenShownCause,
+        StandardAction,
+        TrackEvent;
+export 'src/model/node.dart' show UiNode;
+export 'src/model/tokens.dart' show ScreenPresentationToken;
+export 'src/model/ui_document.dart' show ScreenEntry, UiDocument;
+
+// Contract versions: what this renderer reads, and the verdict on a document.
+export 'src/model/compatibility.dart' show VersionVerdict, kSupportedSchemaVersion;
+// The icon drawings built into the renderer are versioned on their own: a
+// redrawn icon changes this number and not the document contract version.
+export 'src/model/icon_set.dart' show kIconSetVersion;
+
+// Languages: the document's table, the answer for one device locale, and the
+// writing direction of a locale.
+export 'src/model/locale_resolve.dart' show LocaleResolution;
+export 'src/model/localization.dart' show DocumentLocalization, LocalizedStrings;
+export 'src/render/direction.dart' show directionOfLocale, isRtlLocale;
+
+// Drawing: the entry functions, the screen flow and the host callbacks.
+export 'src/render/labels.dart' show RendererLabels;
+export 'src/render/render_document.dart'
+    show
+        ScreenFlow,
+        ScreenFlowBackCallback,
+        ScreenFlowController,
+        ScreenScopeRequest,
+        ScreenScopeResolver,
+        SduiActionCallback,
+        SduiRecordActionCallback,
+        SduiScreenShownCallback,
+        SduiTrackCallback,
+        SduiValueWrite,
+        renderDocument,
+        renderScreen;
+
+// The theme and how it is loaded.
+export 'src/theme/render_theme.dart' show RenderTheme;
+export 'src/theme/theme_contract.dart'
+    show
+        ThemeContract,
+        ThemeLoad,
+        ThemeLoadStatus,
+        kSupportedThemeContractVersion,
+        kThemeFetchTimeout;
+
+// Where a document comes from.
+export 'src/data/document_source.dart'
+    show
+        BundledDocumentSource,
+        DocumentLoad,
+        DocumentLoadStatus,
+        DocumentResponse,
+        DocumentSource,
+        DocumentTransport,
+        HttpDocumentTransport,
+        PublishedDocumentSource,
+        kDocumentFetchTimeout;

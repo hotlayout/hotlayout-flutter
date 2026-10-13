@@ -1,0 +1,100 @@
+name: hotlayout_flutter
+description: >-
+  Flutter renderer for HotLayout server-driven UI. Draws screens published by
+  the HotLayout builder from a JSON document, a theme and your data.
+homepage: https://hotlayout.com
+repository: https://github.com/hotlayout/hotlayout-flutter
+issue_tracker: https://github.com/hotlayout/hotlayout-flutter/issues
+topics:
+  - server-driven-ui
+  - sdui
+  - ui
+  - widget
+# The version of the PACKAGE (semver), not of the contract: the schema and theme versions it
+# reads are `kSupportedSchemaVersion` and `kSupportedThemeContractVersion`.
+version: 0.19.0
+
+environment:
+  sdk: ^3.11.5
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Documents arrive over HTTP. Not `dart:io` on purpose: the package also runs on the web,
+  # where `dart:io` does not compile. Tests do not mock `http`: the network sits behind the
+  # package's own `DocumentTransport` port.
+  http: ^1.6.0
+  # Text direction by language comes from CLDR, not from a list of our own.
+  # `Bidi.isRtlLanguage` answers the same question as `Intl.Locale` on the web, from the same
+  # data. A hand-written list of RTL languages would have to stay identical in every reader of
+  # the contract and would drift silently.
+  intl: ^0.20.0
+  # SVG in the image widget. The library neither runs scripts nor resolves external links —
+  # guarded by `test/svg_image_test.dart`, not taken on trust from its documentation.
+  flutter_svg: ^2.3.0
+  # The SVG parser `flutter_svg` is built on. A direct dependency because the package does its
+  # own fetching and parsing (see `svg_image.dart`): the stock network loader ignores the
+  # response status and lets a failure slip past the widget.
+  vector_graphics_compiler: ^1.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^6.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # The package declares NO assets, and that is a rule, not a forgotten section. Anything
+  # declared here ships in the bundle of EVERY consuming app (under
+  # `packages/hotlayout_flutter/…`). At runtime the package reads no asset of its own: the
+  # built-in theme is code (`lib/src/theme/fallback_theme.dart`), the document and the theme
+  # come from the host. `assets/contract/` is a directory of the REPOSITORY: tests read it from
+  # disk and the demo declares it (`demo/pubspec.yaml`).
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/to/resolution-aware-images
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/to/asset-from-package
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package

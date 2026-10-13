@@ -1,0 +1,435 @@
+// A snapshot of the `contract` block of the artifact `assets/contract/theme.json`, embedded in
+// code.
+//
+// GENERATED: dart run tool/generate_fallback_theme.dart. Do not edit by hand.
+//
+// This is NOT a second source of truth: the values live here for exactly one case, when the
+// artifact could not be read (missing file, corrupt data, a foreign theme contract major). The
+// app then draws this theme instead of an empty screen.
+//
+// The snapshot cannot drift from a fresh artifact silently: `test/theme_contract_test.dart`
+// compares this map with `assets/contract/theme.json` one to one. If that test fails,
+// regenerate the snapshot instead of weakening the assertion.
+//
+// The map goes through the SAME parser as the artifact; otherwise the fallback would be a
+// separate code path that nobody ever exercises.
+
+/// The last theme known to the renderer: a snapshot of the theme contract at build time.
+const Map<String, Object?> kFallbackThemeContractJson = {
+  'themeContractVersion': '4.0.1',
+  'defaultThemeId': 'light',
+  'themes': {
+    'light': {
+      'id': 'light',
+      'name': 'Default',
+      'source': 'Built-in starter palette. Replace it with the values of your own brand.',
+      'brightness': 'light',
+      'provisional': [
+        'color.primary',
+        'color.onPrimary',
+        'color.secondary',
+        'color.accent',
+        'color.surface',
+        'color.onSurface',
+        'color.muted',
+        'color.border',
+        'color.success',
+        'color.warning',
+        'color.danger',
+        'color.locked',
+        'color.inProgress',
+        'color.completed',
+        'typography.displayL',
+        'typography.titleM',
+        'typography.titleS',
+        'typography.bodyM',
+        'typography.bodyS',
+        'typography.caption',
+        'typography.numericL',
+        'elevation.low',
+        'elevation.medium',
+        'gradient.brandBackdrop',
+        'fontFamilies.body',
+        'fontFamilies.heading',
+      ],
+      'fontFamilies': {
+        'body': {
+          'primary': 'Inter',
+          'fallback': [
+            'system-ui',
+            '-apple-system',
+            'Segoe UI',
+            'Roboto',
+            'sans-serif',
+          ],
+        },
+        'heading': {
+          'primary': 'Inter',
+          'fallback': [
+            'system-ui',
+            '-apple-system',
+            'sans-serif',
+          ],
+        },
+      },
+      'spacing': {
+        'none': 0,
+        'xs': 4,
+        'sm': 8,
+        'md': 12,
+        'lg': 16,
+        'xl': 24,
+      },
+      'radius': {
+        'none': 0,
+        'sm': 8,
+        'md': 12,
+        'lg': 20,
+        'pill': 72,
+      },
+      'color': {
+        'primary': '#4f46e5',
+        'onPrimary': '#ffffff',
+        'secondary': '#eef0f6',
+        'accent': '#0369a1',
+        'surface': '#ffffff',
+        'onSurface': '#111827',
+        'muted': '#6b7280',
+        'border': '#e5e7eb',
+        'success': '#15803d',
+        'warning': '#b45309',
+        'danger': '#dc2626',
+        'locked': '#9ca3af',
+        'inProgress': '#0369a1',
+        'completed': '#166534',
+      },
+      'typography': {
+        'displayL': {
+          'fontSize': 24,
+          'lineHeight': 1.1667,
+          'fontWeight': 700,
+          'role': 'heading',
+        },
+        'titleM': {
+          'fontSize': 18,
+          'lineHeight': 1.3333,
+          'fontWeight': 700,
+          'role': 'heading',
+        },
+        'titleS': {
+          'fontSize': 16,
+          'lineHeight': 1.5,
+          'fontWeight': 500,
+          'role': 'body',
+        },
+        'bodyM': {
+          'fontSize': 14,
+          'lineHeight': 1.4286,
+          'fontWeight': 400,
+          'role': 'body',
+        },
+        'bodyS': {
+          'fontSize': 12,
+          'lineHeight': 1.3333,
+          'fontWeight': 400,
+          'role': 'body',
+        },
+        'caption': {
+          'fontSize': 10,
+          'lineHeight': 1.2,
+          'fontWeight': 500,
+          'role': 'body',
+        },
+        'numericL': {
+          'fontSize': 20,
+          'lineHeight': 1.2,
+          'fontWeight': 600,
+          'role': 'body',
+        },
+      },
+      'origins': <String, Object?>{},
+      'elevation': {
+        'none': <Object?>[],
+        'low': [
+          {
+            'offsetX': 0,
+            'offsetY': 1,
+            'blur': 2,
+            'spread': 0,
+            'color': '#111827',
+            'opacity': 0.12,
+          },
+        ],
+        'medium': [
+          {
+            'offsetX': 0,
+            'offsetY': 8,
+            'blur': 20,
+            'spread': 0,
+            'color': '#111827',
+            'opacity': 0.18,
+          },
+        ],
+      },
+      'gradient': {
+        'brandBackdrop': {
+          'angle': 90,
+          'stops': [
+            {
+              'color': '#eef2ff',
+              'position': 0,
+            },
+            {
+              'color': '#f0f9ff',
+              'position': 1,
+            },
+          ],
+        },
+      },
+      'roles': {
+        'badgeTone': {
+          'neutral': {
+            'background': 'secondary',
+            'foreground': 'onSurface',
+          },
+          'success': {
+            'background': 'success',
+            'foreground': 'onPrimary',
+          },
+          'warning': {
+            'background': 'warning',
+            'foreground': 'onPrimary',
+          },
+          'danger': {
+            'background': 'danger',
+            'foreground': 'onPrimary',
+          },
+          'accent': {
+            'background': 'accent',
+            'foreground': 'onPrimary',
+          },
+        },
+        'buttonVariant': {
+          'primary': {
+            'background': 'primary',
+            'foreground': 'onPrimary',
+          },
+          'secondary': {
+            'background': 'surface',
+            'foreground': 'primary',
+            'border': 'primary',
+          },
+          'ghost': {
+            'foreground': 'primary',
+          },
+        },
+      },
+    },
+    'dark': {
+      'id': 'dark',
+      'name': 'Default dark',
+      'source': 'Built-in starter palette. Replace it with the values of your own brand.',
+      'brightness': 'dark',
+      'provisional': [
+        'color.primary',
+        'color.onPrimary',
+        'color.secondary',
+        'color.accent',
+        'color.surface',
+        'color.onSurface',
+        'color.muted',
+        'color.border',
+        'color.success',
+        'color.warning',
+        'color.danger',
+        'color.locked',
+        'color.inProgress',
+        'color.completed',
+        'typography.displayL',
+        'typography.titleM',
+        'typography.titleS',
+        'typography.bodyM',
+        'typography.bodyS',
+        'typography.caption',
+        'typography.numericL',
+        'elevation.low',
+        'elevation.medium',
+        'gradient.brandBackdrop',
+        'fontFamilies.body',
+        'fontFamilies.heading',
+      ],
+      'fontFamilies': {
+        'body': {
+          'primary': 'Inter',
+          'fallback': [
+            'system-ui',
+            '-apple-system',
+            'Segoe UI',
+            'Roboto',
+            'sans-serif',
+          ],
+        },
+        'heading': {
+          'primary': 'Inter',
+          'fallback': [
+            'system-ui',
+            '-apple-system',
+            'sans-serif',
+          ],
+        },
+      },
+      'spacing': {
+        'none': 0,
+        'xs': 4,
+        'sm': 8,
+        'md': 12,
+        'lg': 16,
+        'xl': 24,
+      },
+      'radius': {
+        'none': 0,
+        'sm': 8,
+        'md': 12,
+        'lg': 20,
+        'pill': 72,
+      },
+      'color': {
+        'primary': '#5b55ea',
+        'onPrimary': '#ffffff',
+        'secondary': '#1f2937',
+        'accent': '#0b74b0',
+        'surface': '#111827',
+        'onSurface': '#f3f4f6',
+        'muted': '#9ca3af',
+        'border': '#374151',
+        'success': '#15803d',
+        'warning': '#b45309',
+        'danger': '#dc2626',
+        'locked': '#4b5563',
+        'inProgress': '#0b74b0',
+        'completed': '#166534',
+      },
+      'typography': {
+        'displayL': {
+          'fontSize': 24,
+          'lineHeight': 1.1667,
+          'fontWeight': 700,
+          'role': 'heading',
+        },
+        'titleM': {
+          'fontSize': 18,
+          'lineHeight': 1.3333,
+          'fontWeight': 700,
+          'role': 'heading',
+        },
+        'titleS': {
+          'fontSize': 16,
+          'lineHeight': 1.5,
+          'fontWeight': 500,
+          'role': 'body',
+        },
+        'bodyM': {
+          'fontSize': 14,
+          'lineHeight': 1.4286,
+          'fontWeight': 400,
+          'role': 'body',
+        },
+        'bodyS': {
+          'fontSize': 12,
+          'lineHeight': 1.3333,
+          'fontWeight': 400,
+          'role': 'body',
+        },
+        'caption': {
+          'fontSize': 10,
+          'lineHeight': 1.2,
+          'fontWeight': 500,
+          'role': 'body',
+        },
+        'numericL': {
+          'fontSize': 20,
+          'lineHeight': 1.2,
+          'fontWeight': 600,
+          'role': 'body',
+        },
+      },
+      'origins': <String, Object?>{},
+      'elevation': {
+        'none': <Object?>[],
+        'low': [
+          {
+            'offsetX': 0,
+            'offsetY': 1,
+            'blur': 2,
+            'spread': 0,
+            'color': '#05070b',
+            'opacity': 0.45,
+          },
+        ],
+        'medium': [
+          {
+            'offsetX': 0,
+            'offsetY': 8,
+            'blur': 20,
+            'spread': 0,
+            'color': '#05070b',
+            'opacity': 0.6,
+          },
+        ],
+      },
+      'gradient': {
+        'brandBackdrop': {
+          'angle': 90,
+          'stops': [
+            {
+              'color': '#1e1b4b',
+              'position': 0,
+            },
+            {
+              'color': '#0c2a3f',
+              'position': 1,
+            },
+          ],
+        },
+      },
+      'roles': {
+        'badgeTone': {
+          'neutral': {
+            'background': 'secondary',
+            'foreground': 'onSurface',
+          },
+          'success': {
+            'background': 'success',
+            'foreground': 'onPrimary',
+          },
+          'warning': {
+            'background': 'warning',
+            'foreground': 'onPrimary',
+          },
+          'danger': {
+            'background': 'danger',
+            'foreground': 'onPrimary',
+          },
+          'accent': {
+            'background': 'accent',
+            'foreground': 'onPrimary',
+          },
+        },
+        'buttonVariant': {
+          'primary': {
+            'background': 'primary',
+            'foreground': 'onPrimary',
+          },
+          'secondary': {
+            'background': 'surface',
+            'foreground': 'onSurface',
+            'border': 'primary',
+          },
+          'ghost': {
+            'foreground': 'onSurface',
+          },
+        },
+      },
+    },
+  },
+};

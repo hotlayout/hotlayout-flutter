@@ -1,0 +1,227 @@
+{
+  "description": "Record scope and data layers: cases shared by every reader of the contract (schema 9.2.0; the `carryRecord` rows — schema 9.8.0). Three tables. `readCases`: a screen has up to four data layers (`layerOrder`, strongest first); a binding or a condition reads `path` and must get `value` from `layer` (both null: the value is absent everywhere, so the binding shows its fallback). A layer answers only with an own key whose value is neither null nor missing. `recordCases`: the record scope of a node is the record its screen was opened with (`screenRecord`), overlaid by the records of the Repeater instances the node is drawn in, outer first (`instances`: the entity prefix from `Repeater.item` and the fields of one collection record); `expected` is the flat map of paths, null when the node has no record at all. `flowCases`: `screens` maps a screenId to its presentation, the flow starts on `start` without a record; every step is an action invoked on a node of the TOP screen, drawn inside `instances` (empty: outside any list). `navigate` opens `to` (with `carryRecord: true` on the step the action carries the field `carryRecord` of schema 9.8.0: the opened PAGE gets the record scope of the node even outside a list row; without it the rule of 9.2.0 applies); `back` is `navigate.back`; `host` is any action the reader passes to the host (`type`). A row may name where a modal layer lies (`modalPlacement`: screenId → `bottom` | `center`, schema 9.9.0, the field `ScreenEntry.modalPlacement`): a window in the middle is a modal layer like a sheet, and the record rule does not look at the placement at all. After each step the reader must hold `expect.stack`, the top screen must have the record `expect.record` (null: none), and for `host` the host must have been given `expect.hostRecord` together with the action.",
+  "layerOrder": ["record", "session", "host", "data"],
+  "readCases": [
+    { "name": "the record beats every other layer", "layers": { "record": { "item.name": "Bottle" }, "session": { "item.name": "Written" }, "host": { "item.name": "Addressed" }, "data": { "item.name": "Document" } }, "path": "item.name", "value": "Bottle", "layer": "record" },
+    { "name": "a row was pressed while the choice pointed at another record: the screen is about the row", "layers": { "record": { "item.id": "bottle", "item.selectedId": "bottle", "item.name": "Bottle" }, "session": { "item.selectedId": "backpack" }, "host": { "item.id": "backpack", "item.name": "Backpack" } }, "path": "item.name", "value": "Bottle", "layer": "record" },
+    { "name": "a path the record also carries is read from the record, not from the session", "layers": { "record": { "item.id": "bottle", "item.selectedId": "bottle" }, "session": { "item.selectedId": "backpack" } }, "path": "item.selectedId", "value": "bottle", "layer": "record" },
+    { "name": "a path the record does not carry falls to the session", "layers": { "record": { "item.id": "bottle" }, "session": { "item.selectedId": "backpack" }, "data": { "item.selectedId": "headphones" } }, "path": "item.selectedId", "value": "backpack", "layer": "session" },
+    { "name": "no record: the session beats what the host supplied", "layers": { "session": { "item.selectedId": "backpack" }, "host": { "item.selectedId": "headphones", "item.name": "Backpack" }, "data": { "item.selectedId": "coffee-set" } }, "path": "item.selectedId", "value": "backpack", "layer": "session" },
+    { "name": "no record: the entity the host supplied beats document data", "layers": { "session": { "item.selectedId": "backpack" }, "host": { "item.name": "Backpack" }, "data": { "item.name": "Headphones" } }, "path": "item.name", "value": "Backpack", "layer": "host" },
+    { "name": "nothing but document data", "layers": { "data": { "campaign.title": "Autumn" } }, "path": "campaign.title", "value": "Autumn", "layer": "data" },
+    { "name": "a path of another entity is read through the record untouched", "layers": { "record": { "item.name": "Bottle" }, "data": { "user.points": 1250 } }, "path": "user.points", "value": 1250, "layer": "data" },
+    { "name": "null in the record is absent: the next layer answers", "layers": { "record": { "item.name": "Bottle", "item.badge": null }, "data": { "item.badge": "New" } }, "path": "item.badge", "value": "New", "layer": "data" },
+    { "name": "null in the session is absent too", "layers": { "session": { "item.selectedId": null }, "data": { "item.selectedId": "headphones" } }, "path": "item.selectedId", "value": "headphones", "layer": "data" },
+    { "name": "false, zero and the empty string are values, not absence", "layers": { "record": { "item.inStock": false }, "data": { "item.inStock": true } }, "path": "item.inStock", "value": false, "layer": "record" },
+    { "name": "zero in the record is a value", "layers": { "record": { "item.price": 0 }, "data": { "item.price": 4900 } }, "path": "item.price", "value": 0, "layer": "record" },
+    { "name": "the empty string in the record is a value (the binding then shows its fallback)", "layers": { "record": { "item.description": "" }, "data": { "item.description": "Document" } }, "path": "item.description", "value": "", "layer": "record" },
+    { "name": "absent everywhere: the binding shows its fallback", "layers": { "record": { "item.name": "Bottle" }, "data": { "user.points": 1250 } }, "path": "item.image", "value": null, "layer": null },
+    { "name": "a screen opened without a record and without data: absent", "layers": {}, "path": "item.name", "value": null, "layer": null },
+    { "name": "a navigation parameter is not data: params.* is never a layer", "layers": { "data": { "item.name": "Document" } }, "path": "params.itemId", "value": null, "layer": null },
+    { "name": "an inherited name is not a value: only own keys answer", "layers": { "record": { "item.name": "Bottle" }, "data": {} }, "path": "constructor", "value": null, "layer": null }
+  ],
+  "recordCases": [
+    { "name": "outside any list on a screen opened without a record: no record", "screenRecord": null, "instances": [], "expected": null },
+    { "name": "a list row: the fields of the record under the entity prefix", "screenRecord": null, "instances": [{ "item": "item", "fields": { "id": "bottle", "name": "Bottle" } }], "expected": { "item.id": "bottle", "item.name": "Bottle" } },
+    { "name": "a field already spelled as a full path stays as it is", "screenRecord": null, "instances": [{ "item": "item", "fields": { "item.id": "bottle", "name": "Bottle" } }], "expected": { "item.id": "bottle", "item.name": "Bottle" } },
+    { "name": "a nested list: the outer record stays readable under its own prefix", "screenRecord": null, "instances": [{ "item": "group", "fields": { "id": "g1", "title": "Outdoor" } }, { "item": "item", "fields": { "id": "bottle" } }], "expected": { "group.id": "g1", "group.title": "Outdoor", "item.id": "bottle" } },
+    { "name": "a nested list over the same entity: the inner record wins field by field", "screenRecord": null, "instances": [{ "item": "item", "fields": { "id": "outer", "name": "Outer" } }, { "item": "item", "fields": { "id": "inner" } }], "expected": { "item.id": "inner", "item.name": "Outer" } },
+    { "name": "outside any list on a screen opened with a record: that record", "screenRecord": { "item.id": "bottle" }, "instances": [], "expected": { "item.id": "bottle" } },
+    { "name": "a list row on a screen opened with a record: the row overlays the screen record", "screenRecord": { "group.id": "g1", "item.id": "opened" }, "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expected": { "group.id": "g1", "item.id": "bottle" } },
+    { "name": "a null field of a row does not hide the outer value", "screenRecord": { "item.badge": "New" }, "instances": [{ "item": "item", "fields": { "id": "bottle", "badge": null } }], "expected": { "item.badge": "New", "item.id": "bottle" } }
+  ],
+  "flowCases": [
+    {
+      "name": "a list row opens the details of ITS record",
+      "screens": { "list": "page", "details": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle", "name": "Bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle", "item.name": "Bottle" } } }
+      ]
+    },
+    {
+      "name": "back drops the record; another row opens another record",
+      "screens": { "list": "page", "details": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list"], "record": null } },
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "backpack" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "backpack" } } }
+      ]
+    },
+    {
+      "name": "a button outside the list opens the page without a record",
+      "screens": { "list": "page", "details": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [], "expect": { "stack": ["list", "details"], "record": null } }
+      ]
+    },
+    {
+      "name": "the details screen opened from outside (an entry point): no record",
+      "screens": { "list": "page", "details": "page" },
+      "start": "details",
+      "steps": [
+        { "do": "host", "type": "submit", "instances": [], "expect": { "stack": ["details"], "record": null, "hostRecord": null } }
+      ]
+    },
+    {
+      "name": "an action of a list row tells the host which record",
+      "screens": { "list": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "host", "type": "submit", "instances": [{ "item": "item", "fields": { "id": "bottle", "name": "Bottle" } }], "expect": { "stack": ["list"], "record": null, "hostRecord": { "item.id": "bottle", "item.name": "Bottle" } } }
+      ]
+    },
+    {
+      "name": "a button on the details screen tells the host the record the screen was opened with",
+      "screens": { "list": "page", "details": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } },
+        { "do": "host", "type": "submit", "instances": [], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" }, "hostRecord": { "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "a modal sheet opened from a row gets the row record",
+      "screens": { "list": "page", "sheet": "modal" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "sheet", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "sheet"], "record": { "item.id": "bottle" } } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list"], "record": null } }
+      ]
+    },
+    {
+      "name": "a modal sheet opened by a screen button sees the record of the screen beneath, and tells the host",
+      "screens": { "list": "page", "details": "page", "confirm": "modal" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "confirm", "instances": [], "expect": { "stack": ["list", "details", "confirm"], "record": { "item.id": "bottle" } } },
+        { "do": "host", "type": "submit", "instances": [], "expect": { "stack": ["list", "details", "confirm"], "record": { "item.id": "bottle" }, "hostRecord": { "item.id": "bottle" } } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "a page opened by a screen button does NOT inherit: back to the catalog by navigate is a clean catalog",
+      "screens": { "list": "page", "details": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "list", "instances": [], "expect": { "stack": ["list", "details", "list"], "record": null } },
+        { "do": "navigate", "to": "details", "instances": [], "expect": { "stack": ["list", "details", "list", "details"], "record": null } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "details", "list"], "record": null } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "a modal sheet over a page without a record has none",
+      "screens": { "list": "page", "sheet": "modal" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "sheet", "instances": [], "expect": { "stack": ["list", "sheet"], "record": null } }
+      ]
+    },
+    {
+      "name": "a nested list: the row carries both records, and a row of the next list overlays them",
+      "screens": { "groups": "page", "items": "page", "details": "page" },
+      "start": "groups",
+      "steps": [
+        { "do": "navigate", "to": "items", "instances": [{ "item": "group", "fields": { "id": "g1" } }, { "item": "item", "fields": { "id": "teaser" } }], "expect": { "stack": ["groups", "items"], "record": { "group.id": "g1", "item.id": "teaser" } } },
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["groups", "items", "details"], "record": { "group.id": "g1", "item.id": "bottle" } } },
+        { "do": "host", "type": "submit", "instances": [], "expect": { "stack": ["groups", "items", "details"], "record": { "group.id": "g1", "item.id": "bottle" }, "hostRecord": { "group.id": "g1", "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "back on the first screen is the host's, and it gets the record of the row it was pressed in",
+      "screens": { "list": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "host", "type": "navigate.back", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list"], "record": null, "hostRecord": { "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "carryRecord: a page opened by a screen button is about the same record",
+      "screens": { "list": "page", "details": "page", "delivery": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle", "name": "Bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle", "item.name": "Bottle" } } },
+        { "do": "navigate", "to": "delivery", "carryRecord": true, "instances": [], "expect": { "stack": ["list", "details", "delivery"], "record": { "item.id": "bottle", "item.name": "Bottle" } } },
+        { "do": "host", "type": "submit", "instances": [], "expect": { "stack": ["list", "details", "delivery"], "record": { "item.id": "bottle", "item.name": "Bottle" }, "hostRecord": { "item.id": "bottle", "item.name": "Bottle" } } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle", "item.name": "Bottle" } } }
+      ]
+    },
+    {
+      "name": "carryRecord does not change the default: a plain navigate from the carried page opens a clean page",
+      "screens": { "list": "page", "details": "page", "delivery": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "delivery", "carryRecord": true, "instances": [], "expect": { "stack": ["list", "details", "delivery"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "list", "instances": [], "expect": { "stack": ["list", "details", "delivery", "list"], "record": null } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "details", "delivery"], "record": { "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "carryRecord chains only while every action says the word",
+      "screens": { "list": "page", "details": "page", "delivery": "page", "payment": "page", "done": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "delivery", "carryRecord": true, "instances": [], "expect": { "stack": ["list", "details", "delivery"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "payment", "carryRecord": true, "instances": [], "expect": { "stack": ["list", "details", "delivery", "payment"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "done", "instances": [], "expect": { "stack": ["list", "details", "delivery", "payment", "done"], "record": null } }
+      ]
+    },
+    {
+      "name": "carryRecord on a screen opened without a record carries nothing",
+      "screens": { "list": "page", "details": "page" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "carryRecord": true, "instances": [], "expect": { "stack": ["list", "details"], "record": null } },
+        { "do": "host", "type": "submit", "instances": [], "expect": { "stack": ["list", "details"], "record": null, "hostRecord": null } }
+      ]
+    },
+    {
+      "name": "carryRecord from a list row is the row rule itself: the row laid over the screen record",
+      "screens": { "groups": "page", "items": "page", "details": "page" },
+      "start": "groups",
+      "steps": [
+        { "do": "navigate", "to": "items", "instances": [{ "item": "group", "fields": { "id": "g1" } }], "expect": { "stack": ["groups", "items"], "record": { "group.id": "g1" } } },
+        { "do": "navigate", "to": "details", "carryRecord": true, "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["groups", "items", "details"], "record": { "group.id": "g1", "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "carryRecord to a modal sheet changes nothing: the sheet inherits anyway",
+      "screens": { "list": "page", "details": "page", "confirm": "modal" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "confirm", "carryRecord": true, "instances": [], "expect": { "stack": ["list", "details", "confirm"], "record": { "item.id": "bottle" } } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "a window in the middle is a modal layer: opened by a screen button it sees the record of the screen beneath",
+      "screens": { "list": "page", "details": "page", "done": "modal" },
+      "modalPlacement": { "done": "center" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "details", "instances": [{ "item": "item", "fields": { "id": "bottle" } }], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } },
+        { "do": "navigate", "to": "done", "instances": [], "expect": { "stack": ["list", "details", "done"], "record": { "item.id": "bottle" } } },
+        { "do": "host", "type": "share", "instances": [], "expect": { "stack": ["list", "details", "done"], "record": { "item.id": "bottle" }, "hostRecord": { "item.id": "bottle" } } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "details"], "record": { "item.id": "bottle" } } }
+      ]
+    },
+    {
+      "name": "a window opened from a list row gets the row record, and closing it leaves the list without one",
+      "screens": { "list": "page", "done": "modal" },
+      "modalPlacement": { "done": "center" },
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "done", "instances": [{ "item": "task", "fields": { "id": "walk", "title": "Walk 5 km" } }], "expect": { "stack": ["list", "done"], "record": { "task.id": "walk", "task.title": "Walk 5 km" } } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list"], "record": null } }
+      ]
+    }
+  ]
+}

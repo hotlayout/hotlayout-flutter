@@ -1,0 +1,10 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # The demo lives in the same repository as the package and deliberately
+    # imports its `src/`: the service strips take their look from the resolved
+    # style of the root (`resolveNodeStyle`, `ScreenData`), which is not public
+    # API. A third-party app must not do this; its example is in `example/` and
+    # imports only `package:hotlayout_flutter/hotlayout_flutter.dart`.
+    implementation_imports: ignore

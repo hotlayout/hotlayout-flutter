@@ -1,0 +1,34 @@
+# A `.pubignore` in a directory REPLACES that directory's `.gitignore`, so the
+# tooling directories are repeated here.
+.dart_tool/
+.idea/
+*.iml
+build/
+coverage/
+pubspec.lock
+.metadata
+.firebase/
+
+# Development notes that are not part of the package.
+/CL*.md
+CONTRIBUTING.md
+/CONTRACT-*.md
+
+# The demo app: a package of its own (`demo/pubspec.yaml`) that depends on this
+# one by path. The public entry imports nothing from it.
+/demo/
+
+# Contract artifacts and fixtures. The package does NOT declare them as assets
+# and does not read them at runtime: tests read them from disk, and the demo
+# has its own assets (`demo/assets/contract` links here).
+/assets/
+
+# Guard tests and the fallback-theme generator: they read contract artifacts
+# from disk and weigh about a megabyte; a package consumer does not need them.
+/test/
+/tool/
+
+# The example ships (the Example tab on pub.dev), without generated files.
+/example/build/
+/example/.dart_tool/
+/example/pubspec.lock
