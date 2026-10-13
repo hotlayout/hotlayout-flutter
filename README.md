@@ -687,7 +687,7 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.19.0` | — |
+| Package | `0.19.1` | — |
 | Document contract (schema) | `9.19.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |

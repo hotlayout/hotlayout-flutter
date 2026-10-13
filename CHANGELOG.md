@@ -1,3 +1,7 @@
+## 0.19.1
+
+Documentation only: the README opens with what the package is, how to install it and the minimal example; the reference is grouped into tables by contract version. No code changes.
+
 ## 0.19.0
 
 The first version published on pub.dev.
