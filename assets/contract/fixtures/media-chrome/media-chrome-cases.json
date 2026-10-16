@@ -615,7 +615,7 @@
     { "name": "true: zero", "safeTop": true, "height": 852, "effective": 0 },
     { "name": "a screen of zero height: zero", "safeTop": 59, "height": 0, "effective": 0 }
   ],
-  "scrolledNote": "Schema 9.21.0 — the app bar after scrolling, by the form of decision 611: «styleScrolled» of the app bar node and «titleShown: scrolled» (rules: x-style.layout.appBarScrolled). «scrolledThresholdCases» — whether the bar is scrolled: scrolled <=> scrollTop > max(0, barBottom − bodyTop), logical pixels from the top of the screen. «scrolledLayerCases» — the style of the bar while scrolled: the layer lies last, over the base and the state. «scrolledDocumentCases» — documents the schema accepts or refuses.",
+  "scrolledNote": "Schema 9.21.0 — the app bar after scrolling: «styleScrolled» of the app bar node and «titleShown: scrolled» (rules: x-style.layout.appBarScrolled). «scrolledThresholdCases» — whether the bar is scrolled: scrolled <=> scrollTop > max(0, barBottom − bodyTop), logical pixels from the top of the screen. «scrolledLayerCases» — the style of the bar while scrolled: the layer lies last, over the base and the state. «scrolledDocumentCases» — documents the schema accepts or refuses.",
   "scrolledThresholdCases": [
     {
       "name": "at rest under the app bar — not scrolled",
