@@ -30,6 +30,7 @@ final class ScreenEntry {
     this.backdropBlur,
     this.source,
     this.tooDeep = false,
+    this.dismissible = true,
   });
 
   /// The tree is deeper than the reader's parse limit ([exceedsParseLimit]): the screen is not drawn, a notice
@@ -68,6 +69,12 @@ final class ScreenEntry {
   /// none. Read only for a modal screen drawn as a layer: a page has no layer to blur under
   /// (`x-backdropBlur.onPage`).
   final int? backdropBlur;
+
+  /// Whether a person can close the layer of this screen (9.26.0, `dismissible`): `false` on a modal screen means
+  /// the layer waits for an action inside it, so no drag down, no tap on the scrim and no Esc close it. The system
+  /// "back" stays with the host, and `navigate.back` inside the layer still closes it. Only the word `false` is
+  /// read, and only for a modal screen (on a page the field means nothing).
+  final bool dismissible;
 
   /// The status bar icon colour this screen asks the host for (`light` or
   /// `dark`), or `null` when it asks for nothing.
@@ -371,6 +378,7 @@ final class UiDocument {
       modalPlacement: ModalPlacement.tryParse(json['modalPlacement']),
       statusBarIcons: StatusBarIcons.of(json['statusBarIcons']),
       backdropBlur: backdropBlurOf(json['backdropBlur']),
+      dismissible: json['dismissible'] != false,
     );
   }
 }

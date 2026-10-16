@@ -7,10 +7,12 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../model/media_chrome_rules.dart';
+import '../model/sheet_dismiss.dart';
 import '../model/wide_chrome_rules.dart';
 import 'motion.dart';
 import 'screen_transitions.dart';
 import 'screen_zones.dart';
+import 'sheet_drag.dart';
 
 /// Key of the modal layer's box, for tests that measure its rectangle.
 @visibleForTesting
@@ -67,7 +69,12 @@ class ModalLayer extends StatefulWidget {
     this.animateIn = true,
     this.closing = false,
     this.onClosed,
+    this.dismissible = true,
   });
+
+  /// Whether a person can close the layer: a tap on the scrim and a drag down (schema 9.26.0, `dismissible: false`
+  /// turns both off; Esc is the flow's and checks the same word).
+  final bool dismissible;
 
   final VoidCallback onDismiss;
   final Widget sheet;
@@ -96,11 +103,27 @@ class ModalLayer extends StatefulWidget {
   State<ModalLayer> createState() => _ModalLayerState();
 }
 
-class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateMixin {
+class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
   // The layer moves between sheet and window when the area changes its width class (rotation,
   // split screen): the key keeps the same subtree, so typed text and focus are not lost.
   final GlobalKey _layerSlot = GlobalKey(debugLabel: 'hotlayout-modal-layer');
   late final AnimationController _controller = AnimationController(vsync: this, duration: Motion.sheet);
+
+  // THE DRAG DOWN (schema 9.26.0). [_offset] is how far the sheet is pulled from its place, logical pixels. The way
+  // back or out is [_settle], which moves [_offset] from [_settleFrom] to [_settleTo] along [_settleCurve].
+  // [_bodyScrolled] is how far the body of the sheet is scrolled from its top (the drag starts only at the top).
+  // [_exiting]: the sheet is on its way out by a drag, and only then does the stack go back; [_exited]: it has left.
+  late final AnimationController _settle = AnimationController(vsync: this)..addListener(_onSettle);
+  double _offset = 0;
+  double _settleFrom = 0;
+  double _settleTo = 0;
+  Curve _settleCurve = Curves.linear;
+  double _bodyScrolled = 0;
+  double _sheetHeight = 0;
+  bool _exiting = false;
+  bool _exited = false;
+  VoidCallback? _settled;
+
 
   @override
   void initState() {
@@ -132,6 +155,11 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
   void _close() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // The sheet already left by a drag: there is nothing to play, it only has to be taken off.
+      if (_exited) {
+        _controller.value = 0;
+        return;
+      }
       // Closing from where the appearance is now: a sheet closed half-way sinks from there.
       _controller.duration = transitionDurationOf(context, Motion.sheet);
       _controller.reverse();
@@ -148,9 +176,97 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _settle.dispose();
     _controller.dispose();
     super.dispose();
   }
+
+  void _onSettle() {
+    final eased = _settleCurve.transform(_settle.value);
+    setState(() => _offset = _settleFrom + (_settleTo - _settleFrom) * eased);
+  }
+
+  /// Moves the sheet to [to] over [duration] (instantly under "reduce motion" or without transitions), then runs
+  /// [then].
+  void _moveSheet(double to, SheetMotion motion, VoidCallback? then) {
+    final duration = transitionDurationOf(context, Duration(milliseconds: motion.durationMs));
+    _settle.stop();
+    _settled = null;
+    if (duration == Duration.zero || _offset == to) {
+      setState(() => _offset = to);
+      then?.call();
+      return;
+    }
+    _settleFrom = _offset;
+    _settleTo = to;
+    _settleCurve = Cubic(motion.curve[0], motion.curve[1], motion.curve[2], motion.curve[3]);
+    _settled = then;
+    _settle.duration = duration;
+    _settle.forward(from: 0).whenComplete(() {
+      if (!mounted || !_settle.isCompleted) return;
+      final done = _settled;
+      _settled = null;
+      done?.call();
+    });
+  }
+
+  double _measuredHeight() {
+    final box = _layerSlot.currentContext?.findRenderObject();
+    return box is RenderBox && box.hasSize ? box.size.height : _sheetHeight;
+  }
+
+  void _dragStarted() {
+    _settle.stop();
+    _settled = null;
+    _sheetHeight = _measuredHeight();
+  }
+
+  void _dragged(double dy) => setState(() => _offset = dy);
+
+  /// The finger was lifted (`sheetDragOutcome`): the sheet returns, or goes out and then the stack goes back.
+  void _released(double dragged, double velocity) {
+    final outcome = sheetDragOutcome(sheetHeight: _sheetHeight, dragged: dragged, velocity: velocity);
+    if (outcome == SheetDragOutcome.returns) {
+      _moveSheet(0, kSheetReturn, null);
+      return;
+    }
+    setState(() => _exiting = true);
+    _moveSheet(_sheetHeight + MediaQuery.viewInsetsOf(context).bottom, kSheetExit, () {
+      if (!mounted) return;
+      setState(() => _exited = true);
+      widget.onDismiss();
+    });
+  }
+
+  /// A sheet that was cancelled by the system returns without a word.
+  void _dragCancelled() => _moveSheet(0, kSheetReturn, null);
+
+  /// The sheet with the drag over it: the recognizer that follows the finger, a note of how far the body is scrolled,
+  /// and a body that does not stretch past its top (the drag takes over there).
+  Widget _dragZone(Widget slot) => RawGestureDetector(
+    behavior: HitTestBehavior.translucent,
+    gestures: {
+      SheetDragRecognizer: GestureRecognizerFactoryWithHandlers<SheetDragRecognizer>(
+        SheetDragRecognizer.new,
+        (recognizer) => recognizer
+          ..scrolled = (() => _bodyScrolled)
+          ..onStart = _dragStarted
+          ..onUpdate = _dragged
+          ..onEnd = _released
+          ..onCancel = _dragCancelled,
+      ),
+    },
+    child: NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        // The body of the sheet is the scroll view nearest to it; the rows and carousels inside are deeper.
+        if (notification.depth == 0 && notification.metrics.axis == Axis.vertical) {
+          _bodyScrolled = (notification.metrics.pixels - notification.metrics.minScrollExtent).clamp(0.0, double.infinity);
+        }
+        return false;
+      },
+      child: slot,
+    ),
+  );
 
   /// The blur under the scrim (schema 9.20.0): exactly the area of the scrim, the blur first and the scrim over it.
   /// It grows with the layer's appearance, like the scrim, and is the named radius once the layer is in place.
@@ -233,21 +349,26 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
           ),
         );
         final slot = KeyedSubtree(key: _layerSlot, child: layer);
+        // Only a sheet from the bottom, that a person may close, is dragged (a window in the middle is not).
+        final draggable = shape == ModalShape.sheet && widget.dismissible && !widget.closing;
+        // The scrim fades with the share of the sheet that is still visible.
+        final visible = _offset <= 0 || _sheetHeight <= 0 ? 1.0 : (1 - _offset / _sheetHeight).clamp(0.0, 1.0);
 
         return AnimatedBuilder(
           animation: progress,
           builder: (context, _) => IgnorePointer(
-            ignoring: widget.closing,
+            ignoring: widget.closing || _exiting,
             child: Stack(
               children: [
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: widget.onDismiss,
+                    // `dismissible: false`: the scrim still takes the touch, so it does not fall to the page, but does nothing.
+                    onTap: widget.dismissible ? widget.onDismiss : null,
                     // The scrim thickens along with the layer's appearance: otherwise the screen under it would
                     // darken before it becomes clear why.
                     child: _blurUnder(
-                      ColoredBox(color: Colors.black.withValues(alpha: kModalScrimOpacity * progress.value)),
+                      ColoredBox(color: Colors.black.withValues(alpha: kModalScrimOpacity * progress.value * visible)),
                       progress.value,
                     ),
                   ),
@@ -275,7 +396,13 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
                      * rows or half the screen, and both must slide in the same way, from behind their own
                      * bottom edge. Pixels would give short sheets a long path from nowhere.
                      */
-                      child: FractionalTranslation(translation: Offset(0, 1 - progress.value), child: slot),
+                      child: Transform.translate(
+                        offset: Offset(0, _offset),
+                        child: FractionalTranslation(
+                          translation: Offset(0, 1 - progress.value),
+                          child: draggable ? _dragZone(slot) : slot,
+                        ),
+                      ),
                     ),
                   ),
               ],

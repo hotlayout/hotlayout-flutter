@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../data/screen_data.dart';
 import '../model/composition_rules.dart' show kReaderParseLimit;
+import '../model/live_record.dart';
 import '../model/localization.dart';
 import '../model/record_scope.dart';
 import '../model/tokens.dart';
@@ -38,6 +39,7 @@ Widget screenWidget(
   bool autofill = true,
   CarouselMemory? memory,
   ScreenPresentationToken? presentation,
+  RecordChain links = const [],
 }) {
   // A tree deeper than the reader's parse limit is a screen the reader does not draw (`depth.readerAboveParseLimit`):
   // a neutral notice stands in its place, the host's app goes on.
@@ -85,6 +87,7 @@ Widget screenWidget(
         labels: labels,
         carouselMemory: memory,
         shownScreenId: screen.screenId,
+        links: links,
       );
       // Root of THIS screen's input fields: the registry for the "next" key and the host's
       // `autofill` parameter. One per screen, so "next" does not jump to the screen under a modal.

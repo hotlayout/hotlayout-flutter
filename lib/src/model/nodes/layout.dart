@@ -56,7 +56,7 @@ ColumnNode _parseColumn(_RawNode node, VisibilityCondition? visibleIf) {
     pin: node.pin,
     pinTop: node.pinTop,
     pressFeedbackOff: node.pressFeedbackOff,
-    press: readPressTarget(props, labelKey: node.key('label')),
+    press: readPressTarget(props, labelKey: node.key('label'), longPressLabelKey: node.key(kLongPressLabelKey)),
     children: node.childNodes(),
     gap: FieldSpacing.parse(props['gap'], fieldDefault: SpacingToken.sm),
     align: AlignToken.parse(props['align']),
@@ -133,7 +133,7 @@ RowNode _parseRow(_RawNode node, VisibilityCondition? visibleIf) {
     pin: node.pin,
     pinTop: node.pinTop,
     pressFeedbackOff: node.pressFeedbackOff,
-    press: readPressTarget(props, labelKey: node.key('label')),
+    press: readPressTarget(props, labelKey: node.key('label'), longPressLabelKey: node.key(kLongPressLabelKey)),
     children: node.childNodes(),
     gap: FieldSpacing.parse(props['gap'], fieldDefault: SpacingToken.sm),
     align: AlignToken.parse(props['align'], fallback: AlignToken.center),
@@ -211,7 +211,7 @@ ContainerNode _parseContainer(_RawNode node, VisibilityCondition? visibleIf) {
     pin: node.pin,
     pinTop: node.pinTop,
     pressFeedbackOff: node.pressFeedbackOff,
-    press: readPressTarget(props, labelKey: node.key('label')),
+    press: readPressTarget(props, labelKey: node.key('label'), longPressLabelKey: node.key(kLongPressLabelKey)),
     children: node.childNodes(),
     direction: ContainerDirectionToken.parse(props['direction']),
     gap: FieldSpacing.parse(props['gap'], fieldDefault: SpacingToken.none),
@@ -353,7 +353,7 @@ StackNode _parseStack(_RawNode node, VisibilityCondition? visibleIf) {
     pin: node.pin,
     pinTop: node.pinTop,
     pressFeedbackOff: node.pressFeedbackOff,
-    press: readPressTarget(props, labelKey: node.key('label')),
+    press: readPressTarget(props, labelKey: node.key('label'), longPressLabelKey: node.key(kLongPressLabelKey)),
     children: node.childNodes(),
     alignHorizontal: AlignToken.parse(props['alignHorizontal'], fallback: AlignToken.center),
     alignVertical: AlignToken.parse(props['alignVertical'], fallback: AlignToken.center),
@@ -385,6 +385,7 @@ final class RepeaterNode extends ChildNode {
     this.limit,
     this.carousel,
     this.where,
+    this.groupBy,
   });
 
   @override
@@ -397,6 +398,15 @@ final class RepeaterNode extends ChildNode {
   /// Carousel (9.11.0): `null` means there is no field, it is out of place or not an object. A list
   /// with the field scrolls by itself.
   final ReaderCarousel? carousel;
+
+  /// Grouping of the drawn records (9.26.0): the path of the RECORD whose value, equal for records that follow one
+  /// another, makes a group. `null` means there is no field, or the list is not a column (a grid, a row and a
+  /// carousel are not grouped: the document is drawn as without the field). With it the SECOND child of the list is
+  /// the header of a group, drawn before each group in the scope of its first record.
+  final String? groupBy;
+
+  /// The header of a group (9.26.0): the second child, when the list is grouped.
+  ChildNode? get groupHeader => groupBy == null || children.length <= kGroupHeaderIndex ? null : children[kGroupHeaderIndex];
 
   /// Path to the collection in the data.
   final String source;
@@ -450,6 +460,10 @@ RepeaterNode _parseRepeater(_RawNode node, VisibilityCondition? visibleIf) {
     columns: props['columns'] == null ? null : _gridColumns(props['columns'], overridden: node.columnsFromOverride),
     limit: _intIn(props, 'limit', 1, kMaxRepeaterItems),
     where: props['where'] is Map ? _listWhere(props['where']) : null,
+    // 9.26.0. A column only: with `columns` (any class) or in a row the field is not read.
+    groupBy: props['columns'] == null && ContainerDirectionToken.parse(props['direction']) != ContainerDirectionToken.row
+        ? readGroupBy(props[kGroupByKey])
+        : null,
     // 9.11.0. The host is a list into a row WITHOUT `columns`: a grid does not read the direction at all,
     // and it is never a carousel.
     carousel: props['columns'] == null && ContainerDirectionToken.parse(props['direction']) == ContainerDirectionToken.row

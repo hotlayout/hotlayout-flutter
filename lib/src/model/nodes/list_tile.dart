@@ -171,6 +171,8 @@ final class ListTileNode extends ChildNode {
     required this.subtitle,
     required this.trailing,
     this.action,
+    this.longPress,
+    this.longPressLabel,
     this.titleMaxLines,
     this.subtitleMaxLines,
   });
@@ -190,6 +192,13 @@ final class ListTileNode extends ChildNode {
   /// `null` means the row cannot be pressed. The field was added as a minor precisely because it is
   /// optional: a 6.1.0 document is shown in full by a 6.0.0 reader, whose row simply stays neutral.
   final ButtonAction? action;
+
+  /// The long press of the row (9.26.0): the same form as [action]. `null` means there is none, or it does nothing.
+  /// A row that is an option of a choice does not run it: the touch belongs to the choice.
+  final ButtonAction? longPress;
+
+  /// The name of the long press for assistive technology (9.26.0).
+  final BindableString? longPressLabel;
 
   /// Whether this row is an option of a mutually exclusive choice.
   ///
@@ -231,6 +240,10 @@ ListTileNode _parseListTile(_RawNode node, VisibilityCondition? visibleIf) {
     // expressed by the field's absence. The difference is visible: a row without `action` is not a touch
     // target at all.
     action: props['action'] == null ? null : ButtonAction.parse(props['action']),
+    longPress: readLongPress(props),
+    longPressLabel: props[kLongPressLabelKey] is Map
+        ? BindableString.parse(props[kLongPressLabelKey], key: node.key(kLongPressLabelKey))
+        : null,
     titleMaxLines: props['titleMaxLines'],
     subtitleMaxLines: props['subtitleMaxLines'],
   );

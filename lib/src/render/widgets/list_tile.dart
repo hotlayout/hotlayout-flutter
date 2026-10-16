@@ -4,12 +4,14 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../model/layout_rules.dart' show isSilentAccessibleName;
 import '../../model/list_tile_parts.dart';
 import '../../model/node.dart';
 import '../../model/tokens.dart';
 import '../choice_scope.dart';
 import '../icon_glyph.dart';
 import '../layout/quiet_flex.dart';
+import '../long_press_row.dart';
 import '../node_renderer.dart';
 import '../press_feedback.dart';
 import '../../model/press_feedback.dart';
@@ -123,18 +125,30 @@ extension ListTileWidgets on NodeRenderer {
     // (see [ScreenFlow]) and hands the rest to the host as opaque. Nothing special for a row, which
     // is the point: a new entry point is not a new way of describing an action.
     final action = node.action;
-    if (action == null) return row;
+    final longPress = node.longPress;
+    if (action == null && longPress == null) return row;
 
-    final tapped = TapTarget(
-      child: PressFeedback(
-        kind: pressFeedbackKindOf(node),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => emit(action, node.id),
-          child: row,
-        ),
-      ),
-    );
+    // A long press (9.26.0) makes the row a control even without an action: it takes the tap, and a tap does nothing.
+    final longLabel = node.longPressLabel == null ? '' : text(node.longPressLabel!);
+    final Widget tapped = longPress == null
+        ? TapTarget(
+            child: PressFeedback(
+              kind: pressFeedbackKindOf(node),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => emit(action!, node.id),
+                child: row,
+              ),
+            ),
+          )
+        : LongPressRow(
+            feedback: pressFeedbackKindOf(node),
+            longPressLabel: isSilentAccessibleName(longLabel) ? null : longLabel,
+            onPress: action == null ? null : () => emit(action, node.id),
+            onLongPress: () => emit(longPress, node.id),
+            child: row,
+          );
+    if (action == null) return tapped;
     final control = controlOfAction(action);
     if (control == null) return Semantics(button: true, child: tapped);
     return withWriteControl(

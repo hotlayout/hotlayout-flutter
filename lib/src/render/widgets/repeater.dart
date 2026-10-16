@@ -9,6 +9,7 @@ import '../../model/compatibility.dart';
 import '../../model/list_marker.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
+import '../../model/repeater_group.dart';
 import '../../model/tokens.dart';
 import '../layout/quiet_flex.dart';
 import '../node_renderer.dart';
@@ -67,7 +68,7 @@ extension RepeaterWidgets on NodeRenderer {
     ];
     final instanceNumbers = numberedTemplate ? listInstanceNumbers(templateVisible) : const <int?>[];
     NodeRenderer itemRenderer(int index) {
-      final renderer = withListItem(node.item, records[index], index);
+      final renderer = withListItem(node.source, node.item, records[index], index);
       final number = numberedTemplate ? instanceNumbers[index] : null;
       return number == null
           ? renderer
@@ -93,15 +94,39 @@ extension RepeaterWidgets on NodeRenderer {
         ],
       );
     }
+    /*
+     * GROUPS (schema 9.26.0, `x-repeaterGroup`): records that follow one another with the same value under `groupBy`
+     * are one group, and the second child of the list, the header, is drawn before each group in the scope of its
+     * FIRST record. The groups are made of the records the list draws (after the filter and the limit), in the order
+     * of the data. A header hidden by its own condition takes no place, and its gap with it. The header is not a
+     * list item: it has no number, and numbered items count records only.
+     */
+    final header = node.groupHeader;
+    final groupBy = node.groupBy;
+    final starts = header == null || groupBy == null
+        ? const <int>{}
+        : groupStartsOf([
+            for (var index = 0; index < count; index += 1) data.withItem(node.item, records[index]).record?[groupBy],
+          ]);
+    Widget? headerAt(int index) {
+      if (header == null || !starts.contains(index)) return null;
+      final scoped = withListItem(node.source, node.item, records[index], index);
+      if (header.hasVisibilityRule && !header.isVisible(scoped.data)) return null;
+      return scoped.inTightSlot(header, flow: Axis.vertical, tight: false);
+    }
+
     final items = <Widget>[
-      for (final index in shownIndexes)
-        itemRenderer(index).inTightSlot(
-          template,
-          // In a grid the cell has a definite width, so the node inside behaves as in a
-          // column, the same as in `Grid`.
-          flow: columns == null ? flowOf(node.direction) : Axis.vertical,
-          tight: columns != null,
-        ),
+      for (var index = 0; index < count; index += 1) ...[
+        ?headerAt(index),
+        if (templateVisible[index])
+          itemRenderer(index).inTightSlot(
+            template,
+            // In a grid the cell has a definite width, so the node inside behaves as in a
+            // column, the same as in `Grid`.
+            flow: columns == null ? flowOf(node.direction) : Axis.vertical,
+            tight: columns != null,
+          ),
+      ],
     ];
 
     /*

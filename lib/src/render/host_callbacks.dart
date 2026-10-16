@@ -5,6 +5,7 @@ library;
 import '../model/action.dart';
 import '../model/action_catalog.dart';
 import '../model/haptic.dart';
+import '../model/live_record.dart';
 
 /// Receives every action the renderer did not perform itself, together with
 /// the id of the node that was tapped.
@@ -118,10 +119,14 @@ typedef SduiValueWrite = void Function(String path, Object value);
 // `read` reads a data path with THIS NODE'S scope at the moment of the press, the same one
 // the text binding on it uses (`paramBindings`, schema 9.8.0): node record, session, host
 // scope, data.
+//
+// `links` is the chain of `Repeater` instances the record came from (9.27.0): the stack keeps it so the record of a
+// page opened from a row can follow the data. It is for the stack, not for the host.
 typedef ActionOrigin = ({
   Map<String, Object?>? record,
   bool insideListItem,
   Object? Function(String path) read,
+  RecordChain links,
 });
 
 Object? readNothing(String path) => null;

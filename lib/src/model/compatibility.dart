@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.25.0';
+const String kSupportedSchemaVersion = '9.27.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -466,6 +466,15 @@ const Map<String, String> kFeatureCatalog = {
   'shadowColor': '9.25.0',
   'pressFeedback': '9.25.0',
   'haptic': '9.25.0',
+  // 9.26.0: a long press, a grouped list, a sheet that closes by a drag. A 9.25 reader keeps the long hold as a
+  // press, draws the records without headers, and closes a sheet by the scrim and Esc only (`dismissible: false` is
+  // not read) (`olderReader`).
+  'longPress': '9.26.0',
+  'repeaterGroup': '9.26.0',
+  'sheetDismiss': '9.26.0',
+  // 9.27.0: the record of a page opened from a row follows the data. A 9.26 reader keeps the record the screen was
+  // opened with until the screen leaves the stack (`olderReader`).
+  'liveRecord': '9.27.0',
 };
 
 /// Whether THIS code supports a capability the document names.

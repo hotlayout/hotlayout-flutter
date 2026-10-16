@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/widgets.dart';
 
+import '../model/long_press.dart';
 import '../model/press_feedback.dart';
+import 'long_press_hold.dart';
 
 /// Makes the node that performs a press sink a little under the finger (schema 9.25.0, `x-pressFeedback`).
 ///
@@ -15,13 +19,25 @@ import '../model/press_feedback.dart';
 /// reaches the pressed pose and then returns. The finger leaving the node, moving farther than the touch slop, a
 /// lifted finger and a cancelled press all return the node. "Reduce motion" keeps only the fade to 0.7.
 /// It changes the paint, never the layout.
+///
+/// The same listener times the long press (schema 9.26.0): a node that has one gives [onLongPress], which fires at the
+/// threshold while the finger is still down, unless the finger went farther than the long press slop first. Only the
+/// innermost control takes the pointer, so a button in a card does not give the hold to the card, and a node without
+/// a long press (or a disabled one) keeps the hold to itself. What the hold came to is written to [hold], which the
+/// tap of the same node reads. The pose stays down, as it does for the press, until the finger is lifted.
 class PressFeedback extends StatefulWidget {
-  const PressFeedback({super.key, required this.kind, required this.child});
+  const PressFeedback({super.key, required this.kind, required this.child, this.onLongPress, this.hold});
 
   /// How the node answers, or `null` when it gives no feedback and only claims the press.
   final PressFeedbackKind? kind;
 
   final Widget child;
+
+  /// Runs at the threshold of the long press; `null` for a node without one.
+  final VoidCallback? onLongPress;
+
+  /// Where the hold is written, for the tap of the same node; only filled when [onLongPress] is given.
+  final HoldTrace? hold;
 
   @override
   State<PressFeedback> createState() => _PressFeedbackState();
@@ -42,6 +58,7 @@ class _PressFeedbackState extends State<PressFeedback> with SingleTickerProvider
 
   int? _pointer;
   Offset? _downAt;
+  Timer? _holdTimer;
 
   /// The finger was lifted before the way down was over; the node returns when it gets there.
   bool _releaseQueued = false;
@@ -67,27 +84,48 @@ class _PressFeedbackState extends State<PressFeedback> with SingleTickerProvider
     // Someone deeper took this pointer: this node is not the one that performs the press.
     if (_claimed.contains(event.pointer) || _pointer != null) return;
     _claimed.add(event.pointer);
-    if (widget.kind == null) {
-      _pointer = event.pointer;
-      return;
-    }
     _pointer = event.pointer;
     _downAt = event.position;
+    _armHold();
+    if (widget.kind == null) return;
     _releaseQueued = false;
     _go(1);
   }
 
+  void _armHold() {
+    _holdTimer?.cancel();
+    final onLongPress = widget.onLongPress;
+    widget.hold?.begin();
+    if (onLongPress == null) return;
+    _holdTimer = Timer(const Duration(milliseconds: kLongPressMs), () {
+      _holdTimer = null;
+      if (_pointer == null) return;
+      widget.hold?.fired = true;
+      onLongPress();
+    });
+  }
+
   void _move(PointerMoveEvent event) {
-    if (event.pointer != _pointer || widget.kind == null) return;
+    if (event.pointer != _pointer) return;
+    final moved = _downAt != null && (event.position - _downAt!).distance > kLongPressSlop;
+    if (moved && widget.onLongPress != null && _holdTimer != null) {
+      // Past the slop before the threshold: neither the long press nor the press, the finger scrolls or drags.
+      _holdTimer!.cancel();
+      _holdTimer = null;
+      widget.hold?.movedFar = true;
+    }
+    if (widget.kind == null) return;
     final box = context.findRenderObject();
     final size = box is RenderBox && box.hasSize ? box.size : null;
     final outside = size != null && !(Offset.zero & size).inflate(kTouchSlop).contains(event.localPosition);
-    final moved = _downAt != null && (event.position - _downAt!).distance > kTouchSlop;
-    if (outside || moved) _release(event.pointer);
+    final farMove = _downAt != null && (event.position - _downAt!).distance > kTouchSlop;
+    if (outside || farMove) _release(event.pointer);
   }
 
   void _release(int pointer) {
     if (pointer != _pointer) return;
+    _holdTimer?.cancel();
+    _holdTimer = null;
     _claimed.remove(pointer);
     _pointer = null;
     _downAt = null;
@@ -101,6 +139,7 @@ class _PressFeedbackState extends State<PressFeedback> with SingleTickerProvider
 
   @override
   void dispose() {
+    _holdTimer?.cancel();
     final pointer = _pointer;
     if (pointer != null) _claimed.remove(pointer);
     _controller.dispose();

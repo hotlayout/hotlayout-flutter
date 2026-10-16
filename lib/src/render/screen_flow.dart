@@ -10,6 +10,7 @@ import '../data/screen_data.dart';
 import '../model/action.dart';
 import '../model/action_catalog.dart';
 import '../model/bottom_zone_rules.dart';
+import '../model/live_record.dart';
 import '../model/locale_resolve.dart';
 import '../model/record_scope.dart';
 import '../model/tokens.dart';
@@ -73,6 +74,11 @@ class ScreenFlowController extends ChangeNotifier {
   /// The `screenId` of the screen shown now (the topmost one, a modal sheet
   /// included); `null` while the controller is not attached to a flow.
   String? get currentScreenId => _flow?._stack.last.screen.screenId;
+
+  /// The record of every frame of the stack, bottom first (`null`: a frame without one). For tests of the live record
+  /// (9.27.0): the lower frames of a stack are not painted, and this is the only way to see what they hold.
+  @visibleForTesting
+  List<Map<String, Object?>?> get frameRecords => [for (final frame in _flow?._stack ?? const <_Frame>[]) frame.record];
 
   /// Goes one screen back inside the document — exactly what the document's
   /// own `navigate.back` action and the arrow of its `AppBar` do; a modal
@@ -302,6 +308,10 @@ class ScreenFlow extends StatefulWidget {
 ///
 /// [params] are for the host ([ScreenScopeRequest]); they are not the screen's data.
 ///
+/// [links] are the `Repeater` instances [record] came from, outer first (9.27.0): the record of the frame is their
+/// overlay, and whenever the host gives new data every link looks for its record again (`refreshRecordChain`). A
+/// frame without a record, or one whose record the host named itself, has none.
+///
 /// [memory] is the frame's carousel memory (`carousel.active.heldBy: 'stack-frame'`): which
 /// card is open in each of the screen's carousels. It lives while the frame is in the stack,
 /// even when the screen under the top one is not built.
@@ -309,6 +319,7 @@ typedef _Frame = ({
   ScreenEntry screen,
   Map<String, String> params,
   Map<String, Object?>? record,
+  RecordChain links,
   CarouselMemory memory,
 });
 
@@ -372,7 +383,7 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
   /// (the "detail screen without a record" case), which is the
   /// host's business.
   _Frame get _initialFrame =>
-      (screen: widget.doc.screenForEntry(widget.entry), params: const {}, record: null, memory: CarouselMemory());
+      (screen: widget.doc.screenForEntry(widget.entry), params: const {}, record: null, links: const [], memory: CarouselMemory());
 
   @override
   void initState() {
@@ -395,11 +406,13 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
     if (!mounted || _stack.length < 2) return false;
     final top = _stack.length - 1;
     if (_presentationAt(top) != ScreenPresentationToken.modal) return false;
+    // `dismissible: false`: the layer waits for an action inside it, Esc included.
+    if (!_stack[top].screen.dismissible) return false;
     if (!(ModalRoute.of(context)?.isCurrent ?? true)) return false;
     _handleAction(
       const ButtonAction(ButtonAction.navigateBack),
       _stack[top].screen.screenId,
-      (record: _stack[top].record, insideListItem: false, read: readNothing),
+      (record: _stack[top].record, insideListItem: false, read: readNothing, links: _stack[top].links),
     );
     return true;
   }
@@ -445,9 +458,45 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
       _stack = [_initialFrame];
       _settle();
       _stackChanged(ScreenShownCause.entry, duringBuild: true);
-    } else if (controllerChanged) {
-      _notifyController(duringBuild: true);
+    } else {
+      // New data, or a new object of the same document: the records of the frames look for themselves again. Not a
+      // show: the stack, the events and the memory of the frames stay.
+      if (!identical(oldWidget.data, widget.data) || !identical(oldWidget.doc, widget.doc)) _refreshRecords();
+      if (controllerChanged) _notifyController(duringBuild: true);
     }
+  }
+
+  /// The collections of every entity as the document names them (`entitySourcesOf`), asked once per document object.
+  EntitySources get _entitySources {
+    final cached = _sourcesCache;
+    if (cached != null && identical(cached.$1, widget.doc)) return cached.$2;
+    final fresh = entitySourcesOf([for (final screen in widget.doc.screens) screen.source?.root]);
+    _sourcesCache = (widget.doc, fresh);
+    return fresh;
+  }
+
+  (UiDocument, EntitySources)? _sourcesCache;
+
+  /// THE LIVE RECORD (`x-liveRecord`): every link of every frame looks for its record in the collections the host
+  /// gives now. A frame whose links did not change is the same frame; one that changed keeps its screen, params and
+  /// memory, so nothing is mounted again. The comparison runs after `instanceRecord`, so a new object with the same
+  /// records changes nothing.
+  void _refreshRecords() {
+    if (_stack.every((frame) => frame.links.isEmpty)) return;
+    final collections = ScreenData(widget.data);
+    final sources = _entitySources;
+    var changed = false;
+    final next = <_Frame>[];
+    for (final frame in _stack) {
+      final links = refreshRecordChain(frame.links, collections.lookup, sources);
+      if (identical(links, frame.links)) {
+        next.add(frame);
+        continue;
+      }
+      changed = true;
+      next.add((screen: frame.screen, params: frame.params, record: recordOfChain(links), links: links, memory: frame.memory));
+    }
+    if (changed) _stack = next;
   }
 
   /// The value of [path] in the host's data, the way a binding reads it (flat key or nested maps).
@@ -483,7 +532,7 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
     for (final frame in _stack) {
       final screen = widget.doc.screenById(frame.screen.screenId);
       if (screen == null) return false;
-      remapped.add((screen: screen, params: frame.params, record: frame.record, memory: frame.memory));
+      remapped.add((screen: screen, params: frame.params, record: frame.record, links: frame.links, memory: frame.memory));
     }
     _stack = remapped;
     return true;
@@ -641,7 +690,17 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
         );
         final before = _stack;
         setState(() {
-          _stack = [...before, (screen: screen, params: action.params, record: record, memory: CarouselMemory())];
+          _stack = [
+            ...before,
+            (
+              screen: screen,
+              params: action.params,
+              record: record,
+              // The record of the new frame follows the data: the links it came through go with it. No record, no links.
+              links: record == null ? const [] : origin.links,
+              memory: CarouselMemory(),
+            ),
+          ];
           _moveOnStep(before, ScreenShownCause.forward);
         });
         _stackChanged(ScreenShownCause.forward);
@@ -674,7 +733,7 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
         // `_presentationAt`).
         final before = _stack;
         setState(() {
-          _stack = [(screen: screen, params: action.params, record: null, memory: CarouselMemory())];
+          _stack = [(screen: screen, params: action.params, record: null, links: const [], memory: CarouselMemory())];
           _moveOnStep(before, ScreenShownCause.switchSection);
         });
         _stackChanged(ScreenShownCause.switchSection);

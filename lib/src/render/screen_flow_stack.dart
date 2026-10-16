@@ -19,6 +19,7 @@ extension _ScreenFlowStack on _ScreenFlowState {
           data: widget.data,
           params: frame.params,
           record: frame.record,
+          links: frame.links,
           session: _session,
           // The scope is asked for on EVERY frame, not at navigation: host data may arrive later than
           // the navigation (network), and the screen must then repaint with it rather than stay with
@@ -63,6 +64,7 @@ extension _ScreenFlowStack on _ScreenFlowState {
     placement: frame.screen.placement,
     backdropBlur: frame.screen.backdropBlur,
     windowMargin: _windowMargin,
+    dismissible: frame.screen.dismissible,
     animateIn: identical(frame.memory, _enteringLayer),
     closing: closing,
     onClosed: closing ? () => _layerClosed(frame.memory) : null,
@@ -71,7 +73,7 @@ extension _ScreenFlowStack on _ScreenFlowState {
     onDismiss: () => _handleAction(
       const ButtonAction(ButtonAction.navigateBack),
       frame.screen.screenId,
-      (record: frame.record, insideListItem: false, read: readNothing),
+      (record: frame.record, insideListItem: false, read: readNothing, links: frame.links),
     ),
     sheet: _frameAt(frame, index),
   );

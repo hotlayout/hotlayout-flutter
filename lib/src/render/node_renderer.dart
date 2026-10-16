@@ -9,6 +9,7 @@ import '../model/action.dart';
 import '../model/bindable.dart';
 import '../model/carousel_rules.dart';
 import '../model/list_marker.dart';
+import '../model/live_record.dart';
 import '../model/localization.dart';
 import '../model/media_chrome_rules.dart';
 import '../model/node.dart';
@@ -61,7 +62,12 @@ class NodeRenderer {
     this.shownScreenId = '',
     this.form,
     this.listInstance,
+    this.links = const [],
   });
+
+  /// The `Repeater` instances this node is drawn in, over the links of its screen's frame, outer first (9.27.0). An
+  /// action carries them to the stack, which keeps them so the record of the page it opens follows the data.
+  final RecordChain links;
 
   /// Instance of a list-item template from data: the number and group size of THIS instance.
   /// Only for a `Repeater` template that is itself a numbered item.
@@ -112,6 +118,7 @@ class NodeRenderer {
     record: data.record,
     insideListItem: insideListItem,
     read: data.lookup,
+    links: links,
   ));
 
   /// Where to write what the user changed in a bound field.
@@ -143,6 +150,7 @@ class NodeRenderer {
     bool? insideListItem,
     List<int>? instance,
     ListInstance? listInstance,
+    RecordChain? links,
   }) => NodeRenderer(
     theme: theme,
     data: data ?? this.data,
@@ -160,6 +168,7 @@ class NodeRenderer {
     shownScreenId: shownScreenId,
     form: form,
     listInstance: listInstance ?? this.listInstance,
+    links: links ?? this.links,
   );
 
   /// The same renderer, but with a LIST RECORD in scope.
@@ -169,8 +178,14 @@ class NodeRenderer {
   /// method must know about it.
   ///
   /// [index] is the instance number; it goes into the carousel state key chain.
-  NodeRenderer withListItem(String item, Object? value, int index) =>
-      copy(data: data.withItem(item, value), insideListItem: true, instance: [...instance, index]);
+  ///
+  /// [source] is the collection the list read: the link remembers it so the record can be found again in new data.
+  NodeRenderer withListItem(String source, String item, Object? value, int index) => copy(
+    data: data.withItem(item, value),
+    insideListItem: true,
+    instance: [...instance, index],
+    links: [...links, RecordLink(source: source, item: item, fields: value)],
+  );
 
   /// The same renderer, but for the subtree of a group.
   NodeRenderer withChoice(ChoiceScope scope) => copy(choice: scope);

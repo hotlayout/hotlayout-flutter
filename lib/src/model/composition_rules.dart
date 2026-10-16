@@ -1,5 +1,7 @@
 import 'action.dart';
 import 'bindable.dart';
+import 'long_press.dart' show kLongPressKey, kLongPressLabelKey;
+import 'action_catalog.dart' show kSetValueActionType, kToggleValueActionType;
 
 /// FREE COMPOSITION (schema 9.19.0, `x-style.layout.composition`).
 ///
@@ -42,14 +44,25 @@ const Set<String> kPressableTypes = {'Column', 'Row', 'Container', 'Stack'};
 
 /// The press of a container as the document wrote it.
 final class PressTarget {
-  const PressTarget({required this.action, this.label});
+  const PressTarget({required this.action, this.label, this.longPress, this.longPressLabel});
 
-  /// The action, exactly as a button's: catalog, `track`, `paramBindings`, `carryRecord`.
+  /// The action, exactly as a button's: catalog, `track`, `paramBindings`, `carryRecord`. A card that holds only a
+  /// long press has [ButtonAction.none] here: a tap on it does nothing.
   final ButtonAction action;
 
   /// The accessible name of the card. It goes FIRST; the text of the content follows. `null` means there
   /// is no field.
   final BindableString? label;
+
+  /// The long press (9.26.0): the same form as [action] and the same way of running. `null` when the node has none,
+  /// or its action does nothing.
+  final ButtonAction? longPress;
+
+  /// The name of the long press for assistive technology (9.26.0); `null` means there is no field.
+  final BindableString? longPressLabel;
+
+  /// Whether the tap of [action] does something (otherwise the card is a control for its long press only).
+  bool get hasAction => isPressAction(action);
 }
 
 /// Whether [action] makes its holder a control: any type but `none`, or `none` that carries an analytics
@@ -57,19 +70,33 @@ final class PressTarget {
 /// an ordinary card: a button that does nothing would lie to the screen reader.
 bool isPressAction(ButtonAction action) => action.type != ButtonAction.noneType || action.track != null;
 
-/// Reads `action` and `label` of a container's props. `null` means the node is not pressable: no field,
-/// a field of the wrong shape, `none` without an event.
-///
-/// [labelKey] is the localization key of the `label` field of this node (`null` for a document without
-/// translations).
-PressTarget? readPressTarget(Map<String, Object?> props, {String? labelKey}) {
-  final raw = props['action'];
+/// The long press of a node's props (9.26.0), or `null`: no field, a field of the wrong shape, an action that does
+/// nothing, or a write action (`setValue` / `toggleValue` are not published there, and the reader does not run them
+/// on a long press).
+ButtonAction? readLongPress(Map<String, Object?> props) {
+  final raw = props[kLongPressKey];
   if (raw is! Map) return null;
   final action = ButtonAction.parse(raw);
-  if (!isPressAction(action)) return null;
+  if (!isPressAction(action) || (action.type == kSetValueActionType || action.type == kToggleValueActionType)) return null;
+  return action;
+}
+
+/// Reads `action` and `label` of a container's props, and the long press with its name (9.26.0). `null` means the
+/// node is not pressable: no field, a field of the wrong shape, `none` without an event, and no long press either.
+///
+/// [labelKey] and [longPressLabelKey] are the localization keys of the `label` and `longPressLabel` fields of this
+/// node (`null` for a document without translations).
+PressTarget? readPressTarget(Map<String, Object?> props, {String? labelKey, String? longPressLabelKey}) {
+  final raw = props['action'];
+  final action = raw is Map ? ButtonAction.parse(raw) : ButtonAction.none;
+  final longPress = readLongPress(props);
+  if (!isPressAction(action) && longPress == null) return null;
   final label = props['label'];
+  final longLabel = props[kLongPressLabelKey];
   return PressTarget(
-    action: action,
+    action: isPressAction(action) ? action : ButtonAction.none,
     label: label is Map ? BindableString.parse(label, key: labelKey) : null,
+    longPress: longPress,
+    longPressLabel: longLabel is Map ? BindableString.parse(longLabel, key: longPressLabelKey) : null,
   );
 }

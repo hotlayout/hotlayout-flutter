@@ -10,6 +10,7 @@ import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/tokens.dart';
 import '../key_repeat_guard.dart';
+import '../long_press_hold.dart';
 import '../press_feedback.dart';
 import '../../model/press_feedback.dart';
 import '../../model/write_action.dart';
@@ -28,14 +29,19 @@ extension PressableWidgets on NodeRenderer {
     final press = node.press;
     if (press == null) return null;
     final label = press.label == null ? '' : text(press.label!);
+    final longPress = press.longPress;
+    final longLabel = press.longPressLabel == null ? '' : text(press.longPressLabel!);
     return (box) => PressableCard(
       key: ValueKey<String>('sdui-press-${node.id}@${instance.join('.')}'),
       label: isSilentAccessibleName(label) ? null : label,
+      longPressLabel: isSilentAccessibleName(longLabel) ? null : longLabel,
       control: controlOfAction(press.action),
       feedback: pressFeedbackKindOf(node),
       focusRing: theme.color(ColorToken.primary),
       focusRadius: theme.resolveBoxRadius(own?.radius),
-      onPress: () => emit(press.action, node.id),
+      // A card that holds only a long press has no tap: the press does nothing, but it still takes the tap.
+      onPress: press.hasAction ? () => emit(press.action, node.id) : null,
+      onLongPress: longPress == null ? null : () => emit(longPress, node.id),
       child: box,
     );
   }
@@ -55,11 +61,18 @@ extension PressableWidgets on NodeRenderer {
 ///
 /// *Keyboard.* A focus stop before the controls inside; Enter and Space press; a held key's auto-repeat
 /// is not a press ([KeyRepeatGuard]).
+///
+/// *Long press* (schema 9.26.0). [onLongPress] fires at the threshold while the finger is down, and the lifted finger
+/// then presses nothing; the context menu key and Shift+F10 perform it at once on the focused card. A screen reader
+/// gets it as a custom action named by [longPressLabel]. A card that has only a long press has no [onPress]: it is
+/// still a control (it is focused, named and sinks under the finger), and a tap on it does nothing.
 class PressableCard extends StatefulWidget {
   const PressableCard({
     super.key,
     required this.onPress,
     required this.child,
+    this.onLongPress,
+    this.longPressLabel,
     this.label,
     this.control,
     this.feedback,
@@ -67,8 +80,13 @@ class PressableCard extends StatefulWidget {
     this.focusRadius,
   });
 
-  final VoidCallback onPress;
+  /// The tap; `null` for a card that has only a long press.
+  final VoidCallback? onPress;
+  final VoidCallback? onLongPress;
   final Widget child;
+
+  /// The name of the long press for a screen reader, or `null` when there is none that can be heard.
+  final String? longPressLabel;
 
   /// The hidden name, or `null` when there is none (then the name is the text of the content).
   final String? label;
@@ -97,23 +115,37 @@ class PressableCard extends StatefulWidget {
 
 class _PressableCardState extends State<PressableCard> {
   bool _focused = false;
+  final HoldTrace _hold = HoldTrace();
 
   @override
   Widget build(BuildContext context) {
     final control = widget.control;
     final onPress = widget.onPress;
+    final onLongPress = widget.onLongPress;
+    final long = longPressSemantics(onLongPress: onLongPress, name: widget.longPressLabel);
     // The ring is shown for the keyboard only, like the ring of a switch or a checkbox.
     final ring = _focused && widget.focusRing != null && FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
     return Shortcuts(
-      shortcuts: PressableCard._keys,
+      shortcuts: {
+        if (onPress != null) ...PressableCard._keys,
+        if (onLongPress != null) ...kLongPressKeyBindings,
+      },
       child: Actions(
         actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              onPress();
-              return null;
-            },
-          ),
+          if (onPress != null)
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                onPress();
+                return null;
+              },
+            ),
+          if (onLongPress != null)
+            LongPressIntent: CallbackAction<LongPressIntent>(
+              onInvoke: (_) {
+                onLongPress();
+                return null;
+              },
+            ),
         },
         child: KeyRepeatGuard(
           child: Focus(
@@ -129,14 +161,23 @@ class _PressableCardState extends State<PressableCard> {
                 checked: control?.role == WriteControlRole.option ? control!.on : null,
                 label: widget.label,
                 onTap: onPress,
+                onLongPress: long.onLongPress,
+                customSemanticsActions: long.custom,
                 // The recognizer does not describe itself: the node above already says "button" and
                 // carries the tap action, and a second one would split the node and the text content.
                 child: PressFeedback(
                   kind: widget.feedback,
+                  onLongPress: onLongPress,
+                  hold: _hold,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     excludeFromSemantics: true,
-                    onTap: onPress,
+                    // Always a recognizer, so a tap on a card with no tap of its own does not fall to the card around
+                    // it; after a long press that fired, or a finger that moved off, the tap is dropped.
+                    onTap: () {
+                      if (_hold.suppressTap) return;
+                      onPress?.call();
+                    },
                     // The structure is the same with and without the ring, so the state of what is inside survives
                     // the focus coming and going.
                     child: DecoratedBox(
