@@ -99,6 +99,12 @@
             "dark"
           ]
         },
+        "backdropBlur": {
+          "description": "Blur of everything under the modal layer (9.20.0): the screens below with their app bar and navigation bar, in logical pixels — the standard deviation of a Gaussian blur. The scrim lies over the blur. Read only when `presentation` is `modal`. No field — no blur, exactly as before 9.20.0. Rules — «x-backdropBlur».",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
+        },
         "root": {
           "$ref": "#/$defs/ScreenNode"
         }
@@ -258,6 +264,12 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        },
+        "backdropBlur": {
+          "description": "Blur of whatever is painted UNDER the box of this node, clipped by its «radius» (9.20.0) — frosted glass on a card, a navigation bar or a button. Logical pixels, the standard deviation of a Gaussian blur; the node own background lies over the blur, the node and its children are never blurred. Not inherited. No field — no blur. Rules — «x-backdropBlur.style».",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
         }
       },
       "additionalProperties": false,
@@ -878,7 +890,8 @@
           "border",
           "background",
           "shadow",
-          "opacity"
+          "opacity",
+          "backdropBlur"
         ]
       },
       "uniqueItems": true
@@ -1091,6 +1104,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         },
         "children": {
           "maxItems": 3,
@@ -1445,6 +1461,12 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        },
+        "backdropBlur": {
+          "description": "Blur of whatever is painted UNDER the box of this node, clipped by its «radius» (9.20.0) — frosted glass on a card, a navigation bar or a button. Logical pixels, the standard deviation of a Gaussian blur; the node own background lies over the blur, the node and its children are never blurred. Not inherited. No field — no blur. Rules — «x-backdropBlur.style».",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
         }
       },
       "additionalProperties": false,
@@ -1655,10 +1677,97 @@
           "border",
           "background",
           "shadow",
-          "opacity"
+          "opacity",
+          "backdropBlur"
         ]
       },
       "uniqueItems": true
+    },
+    "NodeMotion": {
+      "description": "An endless motion of this node that never changes the layout (9.20.0): only a paint transform. «float» — the node drifts along «axis» by up to «amplitude» logical pixels; «pulse» — it breathes in scale and, optionally, opacity. One cycle lasts «duration» ms, the first starts after «delay» ms. The curve is a sine, not a field; the pose at any moment, the clock, «reduce motion», taps and clipping — «x-motion». No field — the node stands still, exactly as before 9.20.0.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "float"
+            },
+            "axis": {
+              "type": "string",
+              "enum": [
+                "vertical",
+                "horizontal",
+                "both"
+              ]
+            },
+            "amplitude": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 48,
+              "description": "Largest shift from rest along each moving axis, in logical pixels."
+            },
+            "duration": {
+              "type": "integer",
+              "minimum": 400,
+              "maximum": 60000,
+              "description": "Length of one cycle, in milliseconds."
+            },
+            "delay": {
+              "description": "Milliseconds the node stands at rest before its first cycle. No field — the cycle starts at once.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60000
+            }
+          },
+          "required": [
+            "kind",
+            "axis",
+            "amplitude",
+            "duration"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "pulse"
+            },
+            "scale": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 1.5,
+              "description": "Scale at the peak of the cycle, about the centre of the box; 1 — no change of scale."
+            },
+            "opacity": {
+              "description": "Opacity factor at the peak of the cycle (multiplies the node own opacity). No field — opacity does not change.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "duration": {
+              "type": "integer",
+              "minimum": 400,
+              "maximum": 60000,
+              "description": "Length of one cycle, in milliseconds."
+            },
+            "delay": {
+              "description": "Milliseconds the node stands at rest before its first cycle. No field — the cycle starts at once.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60000
+            }
+          },
+          "required": [
+            "kind",
+            "scale",
+            "duration"
+          ],
+          "additionalProperties": false
+        }
+      ]
     },
     "ColumnNode": {
       "type": "object",
@@ -1710,6 +1819,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         },
         "propsOn": {
           "$ref": "#/$defs/ColumnPropsOn"
@@ -1937,6 +2049,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "propsOn": {
           "$ref": "#/$defs/RowPropsOn"
         },
@@ -2132,6 +2247,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "propsOn": {
           "$ref": "#/$defs/ContainerPropsOn"
         },
@@ -2285,6 +2403,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "propsOn": {
           "$ref": "#/$defs/GridPropsOn"
         },
@@ -2404,6 +2525,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "children": {
           "maxItems": 5,
           "type": "array",
@@ -2496,6 +2620,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "children": {
           "maxItems": 5,
           "type": "array",
@@ -2578,6 +2705,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "children": {
           "maxItems": 15,
           "type": "array",
@@ -2655,6 +2785,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         },
         "children": {
           "maxItems": 10,
@@ -2738,6 +2871,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         },
         "children": {
           "maxItems": 20,
@@ -2890,6 +3026,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "propsOn": {
           "$ref": "#/$defs/RepeaterPropsOn"
         },
@@ -3036,6 +3175,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -3121,6 +3263,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -3203,6 +3348,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -3393,6 +3541,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -3532,6 +3683,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -3970,6 +4124,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "zone": {
           "$ref": "#/$defs/NodeZone"
         }
@@ -4112,6 +4269,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "zone": {
           "$ref": "#/$defs/NodeZone"
         }
@@ -4230,6 +4390,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -4544,6 +4707,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -4703,6 +4869,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -4828,6 +4997,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -4922,6 +5094,9 @@
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
         },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
+        },
         "children": {
           "maxItems": 5,
           "type": "array",
@@ -5001,6 +5176,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -5084,6 +5262,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -5305,6 +5486,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -5382,6 +5566,9 @@
         },
         "styleOn": {
           "$ref": "#/$defs/StyleOn"
+        },
+        "motion": {
+          "$ref": "#/$defs/NodeMotion"
         }
       },
       "required": [
@@ -5473,7 +5660,7 @@
   },
   "$id": "https://hotlayout.com/schema/ui-document.json",
   "title": "UiDocument",
-  "x-schemaVersion": "9.19.0",
+  "x-schemaVersion": "9.20.0",
   "x-compatibility": {
     "policy": {
       "majorMustMatch": true,
@@ -5777,7 +5964,9 @@
       "modalSheetOnWide": "9.18.0",
       "sameTypeNesting": "9.19.0",
       "treeDepthEight": "9.19.0",
-      "pressableContainer": "9.19.0"
+      "pressableContainer": "9.19.0",
+      "nodeMotion": "9.20.0",
+      "backdropBlur": "9.20.0"
     }
   },
   "x-budget": {
@@ -9381,6 +9570,109 @@
       "absent": "x-compatibility.policy.missingConditionValue"
     },
     "cases": "contract/fixtures/inputs/input-cases.json"
+  },
+  "x-motion": {
+    "prop": "motion",
+    "on": "every node except the root «Screen»",
+    "kinds": [
+      "float",
+      "pulse"
+    ],
+    "clock": "milliseconds since the node appeared on the shown screen; a node that appears again starts from zero",
+    "phase": "theta = 2 * pi * ((t - delay) mod duration) / duration; while t < delay the node stands at rest",
+    "curve": "sine — not a field",
+    "float": {
+      "axes": [
+        "vertical",
+        "horizontal",
+        "both"
+      ],
+      "x": {
+        "vertical": "0",
+        "horizontal": "amplitude * sin(theta)",
+        "both": "amplitude * sin(theta)"
+      },
+      "y": {
+        "vertical": "-amplitude * sin(theta)",
+        "horizontal": "0",
+        "both": "-amplitude * sin(2 * theta)"
+      },
+      "xTowards": "end-of-line — mirrored in right-to-left",
+      "yTowards": "down — the vertical drift goes up first"
+    },
+    "pulse": {
+      "progress": "p = (1 - cos(theta)) / 2",
+      "scale": "1 + (scale - 1) * p, about the centre of the box",
+      "opacity": "1 + (opacity - 1) * p; no «opacity» — 1"
+    },
+    "rest": {
+      "x": 0,
+      "y": 0,
+      "scale": 1,
+      "opacity": 1
+    },
+    "reducedMotion": "rest — the node stands where it stands without the field",
+    "layout": "unchanged: the box at rest sizes the parent, siblings do not move",
+    "order": "after the node own place («layer» offset and rotation): the shift goes along the screen axes, the scale about the centre of the box",
+    "opacity": "multiplies the node own opacity («style.opacity»)",
+    "taps": "promised inside the box at rest where the node is also drawn; outside that, readers may differ",
+    "clip": "no new clipping: whoever clipped the node at rest clips it while it moves",
+    "ranges": {
+      "duration": {
+        "min": 400,
+        "max": 60000
+      },
+      "delay": {
+        "min": 1,
+        "max": 60000
+      },
+      "amplitude": {
+        "min": 1,
+        "max": 48
+      },
+      "scale": {
+        "min": 0.5,
+        "max": 1.5
+      },
+      "opacity": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    "olderReader": "skips the field — the node stands at rest",
+    "cases": "contract/fixtures/motion/motion-cases.json"
+  },
+  "x-backdropBlur": {
+    "prop": "backdropBlur",
+    "on": "ScreenEntry",
+    "readWhen": "presentation is modal",
+    "onPage": "ignored by the reader; the editor does not publish it",
+    "radius": {
+      "unit": "logical-pixel",
+      "meaning": "standard deviation of a Gaussian blur",
+      "min": 1,
+      "max": 40
+    },
+    "web": "backdrop-filter: blur(<radius>px)",
+    "flutter": "ImageFilter.blur(sigmaX: radius, sigmaY: radius)",
+    "covers": "exactly the area of the scrim («x-style.layout.modalLayer.scrim.covers»): every layer below, with its app bar and navigation bar",
+    "order": "the blur first, the scrim over it",
+    "ownContent": "the layer itself is never blurred",
+    "reducedTransparency": "not read: the blur is drawn as named",
+    "withoutField": "no blur — only the scrim, exactly as before 9.20.0",
+    "style": {
+      "prop": "style.backdropBlur",
+      "covers": "the box of the node (border box), clipped by its «radius»",
+      "blurs": "whatever is painted under that box: the backgrounds of ancestors, earlier siblings and stack layers, the page under a modal layer",
+      "order": "the blur first, then the node own background (usually a translucent colour) over it, then its content",
+      "ownContent": "the node itself and its children are never blurred",
+      "onRoleWidget": "on «Button», «IconButton» and «Badge» the blur lies on the role surface — where its background and radius are",
+      "inherited": false,
+      "states": "a style field like any other: «styleWhen» and «styleOn» may name or unset it",
+      "withoutField": "no blur — exactly as before 9.20.0"
+    },
+    "olderReader": "skips both fields — only the scrim, and no glass under a node",
+    "cases": "contract/fixtures/motion/motion-cases.json"
   },
   "x-generatedFrom": "src/entities/component-schema — generated, do not edit by hand"
 }

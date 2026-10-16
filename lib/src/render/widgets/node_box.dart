@@ -2,6 +2,8 @@
 /// widget are applied.
 library;
 
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../../model/bindable.dart';
@@ -10,6 +12,7 @@ import '../../model/node_style.dart';
 import '../../model/style_values.dart';
 import '../../model/tokens.dart';
 import '../layout/styled_size.dart';
+import '../node_motion.dart';
 import '../node_renderer.dart';
 import '../render_scope.dart';
 import 'image.dart';
@@ -93,9 +96,18 @@ extension NodeBoxWidgets on NodeRenderer {
       slot: slot,
       paddingInside: (node is RowNode && node.scrollable) || (node is RepeaterNode && node.carousel != null),
       stretchAlign: stretchAlign,
-      around: around ?? renderer.pressWrapperOf(node, own),
+      around: _withMotion(node, around ?? renderer.pressWrapperOf(node, own)),
       extraTop: extraTop,
     );
+  }
+
+  /// [around] with the node's endless motion (9.20.0) on the outside of the box: the shift, scale and opacity are
+  /// painted over the box the node has at rest, inside its margin. A node this reader does not understand is not
+  /// moved.
+  Widget Function(Widget box)? _withMotion(ChildNode node, Widget Function(Widget box)? around) {
+    final motion = node is UnknownNode ? null : node.motion;
+    if (motion == null) return around;
+    return (box) => NodeMotionBox(motion: motion, child: around == null ? box : around(box));
   }
 
   /// THE NODE BOX. One model for all types:
@@ -118,6 +130,9 @@ extension NodeBoxWidgets on NodeRenderer {
   ///
   /// [extraTop] adds room at the top of the box, above the padding and the content: the padding grows by
   /// it and so does every height the style names, so the box is exactly [extraTop] taller.
+  ///
+  /// The glass of the node (`style.backdropBlur`, 9.20.0) blurs whatever lies under the box, within its radius.
+  /// On a widget with a role the field is not in the box style: it lies on the role surface.
   Widget nodeBox(
     NodeStyle? style,
     Widget child, {
@@ -152,6 +167,7 @@ extension NodeBoxWidgets on NodeRenderer {
       radius: radius,
       shadow: style.shadow == null ? null : theme.resolveShadow(style.shadow!),
       border: border,
+      blur: style.backdropBlur,
       child: result,
     );
 
@@ -186,6 +202,10 @@ extension NodeBoxWidgets on NodeRenderer {
   /// The border is the same on all sides, which is why it can be drawn together with DIFFERENT
   /// corner radii: Flutter does not draw different side widths with rounding, and the contract
   /// has no such shape.
+  ///
+  /// [blur] is the glass (schema 9.20.0, `style.backdropBlur`): whatever lies under the box is blurred within the
+  /// radius, the background lies over the blur, and the content stays sharp. The shadow lies OUTSIDE the clip that
+  /// bounds the blur, or it would vanish with what is past the edge.
   Widget nodeSurface({
     Color? color,
     Gradient? gradient,
@@ -193,6 +213,7 @@ extension NodeBoxWidgets on NodeRenderer {
     BorderRadiusGeometry? radius,
     List<BoxShadow>? shadow,
     BorderSide? border,
+    int? blur,
     required Widget child,
   }) {
     final hasRadius = radius != null && radius != BorderRadiusDirectional.zero && radius != BorderRadius.zero;
@@ -231,17 +252,29 @@ extension NodeBoxWidgets on NodeRenderer {
       );
     }
 
+    final glass = blur != null;
+    // With glass the shadow is drawn outside the blur clip (below), not by the background box.
     final plain = color == null && gradient == null && !hasShadow && (frame == null || image != null);
-    if (plain) return content;
+    final Widget surface = plain
+        ? content
+        : DecoratedBox(
+            decoration: BoxDecoration(
+              color: color,
+              gradient: gradient,
+              borderRadius: hasRadius ? radius : null,
+              boxShadow: hasShadow && !glass ? shadow : null,
+              border: image == null ? frame : null,
+            ),
+            child: content,
+          );
+    if (!glass) return surface;
+
+    final blurred = BackdropFilter(filter: ImageFilter.blur(sigmaX: blur.toDouble(), sigmaY: blur.toDouble()), child: surface);
+    final clipped = hasRadius ? ClipRRect(borderRadius: radius, child: blurred) : ClipRect(child: blurred);
+    if (!hasShadow) return clipped;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        gradient: gradient,
-        borderRadius: hasRadius ? radius : null,
-        boxShadow: hasShadow ? shadow : null,
-        border: image == null ? frame : null,
-      ),
-      child: content,
+      decoration: BoxDecoration(borderRadius: hasRadius ? radius : null, boxShadow: shadow),
+      child: clipped,
     );
   }
 

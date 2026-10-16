@@ -60,6 +60,7 @@ final class RoleSurface {
     this.shadow,
     this.padding,
     this.typography,
+    this.blur,
   });
 
   final Color foreground;
@@ -71,6 +72,9 @@ final class RoleSurface {
   final List<BoxShadow>? shadow;
   final EdgeInsetsGeometry? padding;
   final TextStyle? typography;
+
+  /// Glass on the surface (9.20.0, `style.backdropBlur`): the blur under the box, where the background and the radius are.
+  final int? blur;
 
   bool get hasBackground => color != null || gradient != null || image != null;
   bool get hasShadow => shadow != null && shadow!.isNotEmpty;

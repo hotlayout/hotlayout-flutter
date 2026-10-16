@@ -7,6 +7,7 @@ import 'composition_rules.dart' show exceedsParseLimit;
 import 'locale_resolve.dart';
 import 'localization.dart';
 import 'media_chrome_rules.dart';
+import 'motion_rules.dart' show backdropBlurOf;
 import 'node.dart';
 import 'style_values.dart' show isForbiddenKey;
 import 'tokens.dart';
@@ -25,6 +26,7 @@ final class ScreenEntry {
     this.presentation = ScreenPresentationToken.page,
     this.modalPlacement,
     this.statusBarIcons,
+    this.backdropBlur,
     this.source,
     this.tooDeep = false,
   });
@@ -60,6 +62,11 @@ final class ScreenEntry {
   ModalPlacement get placement => presentation == ScreenPresentationToken.modal
       ? (modalPlacement ?? ModalPlacement.bottom)
       : ModalPlacement.bottom;
+
+  /// The blur of everything under the modal layer of this screen (9.20.0), in logical pixels, or `null` for
+  /// none. Read only for a modal screen drawn as a layer: a page has no layer to blur under
+  /// (`x-backdropBlur.onPage`).
+  final int? backdropBlur;
 
   /// The status bar icon colour this screen asks the host for (`light` or
   /// `dark`), or `null` when it asks for nothing.
@@ -340,6 +347,7 @@ final class UiDocument {
       presentation: ScreenPresentationToken.parse(json['presentation']),
       modalPlacement: ModalPlacement.tryParse(json['modalPlacement']),
       statusBarIcons: StatusBarIcons.of(json['statusBarIcons']),
+      backdropBlur: backdropBlurOf(json['backdropBlur']),
     );
   }
 }

@@ -2,6 +2,7 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
@@ -58,6 +59,7 @@ class ModalLayer extends StatefulWidget {
     required this.sheet,
     required this.placement,
     required this.windowMargin,
+    this.backdropBlur,
   });
 
   final VoidCallback onDismiss;
@@ -66,6 +68,11 @@ class ModalLayer extends StatefulWidget {
 
   /// Margin of the window (`center.margin`, step `xl`), dp.
   final double windowMargin;
+
+  /// Blur of everything under the layer (schema 9.20.0, `ScreenEntry.backdropBlur`), in logical pixels: the
+  /// standard deviation of a Gaussian blur. The scrim lies over it and the layer itself is never blurred.
+  /// `null` means only the scrim, as before 9.20.0.
+  final int? backdropBlur;
 
   @override
   State<ModalLayer> createState() => _ModalLayerState();
@@ -96,6 +103,17 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  /// The blur under the scrim (schema 9.20.0): exactly the area of the scrim, the blur first and the scrim over it.
+  /// It grows with the layer's appearance, like the scrim, and is the named radius once the layer is in place.
+  Widget _blurUnder(Widget scrim, double progress) {
+    final radius = widget.backdropBlur;
+    if (radius == null || progress <= 0) return scrim;
+    final sigma = radius * progress;
+    return ClipRect(
+      child: BackdropFilter(filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma), child: scrim),
+    );
   }
 
   @override
@@ -179,7 +197,10 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
                   onTap: widget.onDismiss,
                   // The scrim thickens along with the layer's appearance: otherwise the screen under it would
                   // darken before it becomes clear why.
-                  child: ColoredBox(color: Colors.black.withValues(alpha: kModalScrimOpacity * progress.value)),
+                  child: _blurUnder(
+                    ColoredBox(color: Colors.black.withValues(alpha: kModalScrimOpacity * progress.value)),
+                    progress.value,
+                  ),
                 ),
               ),
               if (window)

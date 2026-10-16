@@ -14,6 +14,7 @@ import 'input_rules.dart';
 import 'list_marker.dart';
 import 'localization.dart';
 import 'media_chrome_rules.dart';
+import 'motion_rules.dart';
 import 'node_style.dart';
 import 'offset_rules.dart';
 import 'part_style.dart';
@@ -161,6 +162,7 @@ sealed class UiNode {
           fill: node.fill,
           weight: node.weight,
           layer: node.layer,
+          motion: node.motion,
           pull: node.pull,
           pin: node.pin,
         );
@@ -183,6 +185,7 @@ sealed class UiNode {
           fill: node.fill,
           weight: node.weight,
           layer: node.layer,
+          motion: node.motion,
           pull: node.pull,
           pin: node.pin,
         );
@@ -264,6 +267,7 @@ sealed class ChildNode extends UiNode {
     this.fill = false,
     this.weight,
     this.layer,
+    this.motion,
     this.pull,
     this.pin = false,
   });
@@ -303,6 +307,10 @@ sealed class ChildNode extends UiNode {
   /// no field or it is not an object (`unreadableLayer`: an ordinary layer). This is only what the
   /// document says; whether it is read HERE is decided by [readerLayerOf].
   final LayerPlacement? layer;
+
+  /// AN ENDLESS MOTION of the node (9.20.0, `motion`): `null` means there is no field or it is not a form this
+  /// reader can draw, and the node stands. It is a paint transform only; it never changes the layout.
+  final NodeMotion? motion;
 
   /// PULLING IN THE FLOW (9.10.0): a spacing reference. `null` means there is no field or it is
   /// unreadable (`unreadablePull`). Whether it is read HERE is decided by [effectivePull].
@@ -345,6 +353,7 @@ final class UnknownNode extends ChildNode {
     super.fill,
     super.weight,
     super.layer,
+    super.motion,
     super.pull,
     super.pin,
     required this.type,

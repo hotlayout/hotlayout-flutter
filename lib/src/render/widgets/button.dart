@@ -271,7 +271,7 @@ extension ButtonWidgets on NodeRenderer {
      * `backgroundColor`, so a button without a style of its own is built exactly as before schema
      * 9.0.0.
      */
-    final decorated = surface.gradient != null || surface.image != null || surface.hasShadow;
+    final decorated = surface.gradient != null || surface.image != null || surface.hasShadow || surface.blur != null;
     final backgroundBuilder = decorated
         ? (BuildContext context, Set<WidgetState> states, Widget? child) => nodeSurface(
             color: surface.color,
@@ -279,6 +279,7 @@ extension ButtonWidgets on NodeRenderer {
             image: surface.image,
             radius: radius ?? fallbackRadius,
             shadow: surface.shadow,
+            blur: surface.blur,
             child: child ?? const SizedBox.shrink(),
           )
         : null;
@@ -395,6 +396,7 @@ extension ButtonWidgets on NodeRenderer {
       shadow: own?.shadow == null ? null : theme.resolveShadow(own!.shadow!),
       padding: theme.resolveBoxSpacing(own?.padding),
       typography: own?.typography == null ? null : theme.resolveTypography(own!.typography!),
+      blur: own?.backdropBlur,
     );
   }
 
@@ -418,6 +420,7 @@ extension ButtonWidgets on NodeRenderer {
       radius: surface.radius ?? theme.borderRadius(RadiusToken.pill),
       shadow: surface.shadow,
       border: surface.border,
+      blur: surface.blur,
       child: Padding(
         // The border consumes layout pixels, as in the node box.
         padding: EdgeInsetsDirectional.all(surface.border?.width ?? 0).add(

@@ -1,3 +1,15 @@
+## 0.20.0
+
+Reads document contract **9.20.0** (theme 4.0.1, icon set 1.0.0 and data dictionary 1.5.0 unchanged). Three optional fields, none of which changes the layout; a document without them is drawn exactly as by 0.19.1.
+
+- **Motion of a node** (`motion`, any node but the root screen): `float` drifts a node along an axis, `pulse` breathes in scale and opacity. The position is the contract's one formula (a sine of the phase `2π · ((t − delay) mod duration) / duration`), driven by a ticker that starts when the node is mounted, so a node that appears again counts from zero. The shift goes toward the end of the line (mirrored right to left) and along the axes of the screen even inside a rotated stack layer; the scale is about the centre of the box; the opacity multiplies `style.opacity` and the node stays in the semantics tree at zero. Nothing is clipped, nothing is laid out again. `MediaQuery.disableAnimations` leaves the node at rest and runs no ticker. A form the reader cannot draw (an unknown kind, a missing or extra field, a number out of bounds) is no motion.
+- **Blur under a modal layer** (`ScreenEntry.backdropBlur`, 1–40 dp): a `BackdropFilter` over exactly the area of the scrim, under the scrim, so the screens below with their app bar and navigation bar are blurred and the layer is not. It grows with the layer's appearance and ends at the named radius. A page has no layer, and the field is ignored on it.
+- **Glass** (`style.backdropBlur`, 1–40 dp): the blur of what is painted under the box of a node, clipped by its radius, with the node's own background over it and the shadow outside the clip. On `Button`, `IconButton` and `Badge` it lies on the surface of the role, once. A state and a width layer can name it or `unset` it. Not inherited.
+- The mirrors of `x-motion` and `x-backdropBlur` and the two capabilities `nodeMotion` and `backdropBlur` are checked against the artifact.
+- Shared tables run by this release: `motion-cases.json`, all four groups: `poseCases` (29, by the formula and by a real document whose clock is advanced to the moment), `documentCases` (28), `blurCases` (11, by a real flow that opens the screen as a layer), `glassCases` (11).
+- Fixture `motion-blur-screens` is in the catalog and the demo (`--dart-define=fixture=motion-blur-screens`).
+- A moving node keeps a ticker alive: in a widget test advance time with `pump(Duration)`; `pumpAndSettle` does not settle on such a screen.
+
 ## 0.19.1
 
 Documentation only: the README opens with what the package is, how to install it and the minimal example; the reference is grouped into tables by contract version. No code changes.

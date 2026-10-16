@@ -525,6 +525,8 @@ class RenderTheme {
       minHeight: style.minHeight,
       maxHeight: style.maxHeight,
       opacity: style.opacity,
+      // A number needs no token: the theme has nothing to say about it.
+      backdropBlur: style.backdropBlur,
     );
     return applicable.isEmpty ? null : applicable;
   }

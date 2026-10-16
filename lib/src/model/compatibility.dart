@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.19.0';
+const String kSupportedSchemaVersion = '9.20.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -428,6 +428,10 @@ const Map<String, String> kFeatureCatalog = {
   'sameTypeNesting': '9.19.0',
   'treeDepthEight': '9.19.0',
   'pressableContainer': '9.19.0',
+  // 9.20.0: motion of a node and blur. A 9.19 reader skips the fields: the node stands, the modal layer has only
+  // its scrim, and a node has no glass (`olderReader`).
+  'nodeMotion': '9.20.0',
+  'backdropBlur': '9.20.0',
 };
 
 /// Whether THIS code supports a capability the document names.

@@ -7,6 +7,7 @@ import '../../model/layout_rules.dart';
 import '../../model/node.dart';
 import '../../model/offset_rules.dart';
 import '../layer_place.dart';
+import '../node_motion.dart';
 import '../node_renderer.dart';
 import '../render_scope.dart';
 import 'node_box.dart';
@@ -105,13 +106,21 @@ extension OverlayWidgets on NodeRenderer {
       return by == null ? null : LayerPixelOffset(axis.toward, by);
     }
 
-    return LayerPlace(
+    final placed = LayerPlace(
       alignHorizontal: place.alignHorizontal ?? stack.alignHorizontal,
       alignVertical: place.alignVertical ?? stack.alignVertical,
       offsetX: pixels(place.offsetX),
       offsetY: pixels(place.offsetY),
       rotate: place.rotate,
       child: renderNode(layer, flow: Axis.vertical, naturalRow: true),
+    );
+    if (place.rotate == 0) return placed;
+    // A motion inside a rotated layer shifts along the axes of the screen: tell it how far the frame is turned.
+    return Builder(
+      builder: (context) {
+        final turned = Directionality.of(context) == TextDirection.rtl ? -place.rotate : place.rotate;
+        return PaintRotation(degrees: PaintRotation.of(context) + turned, child: placed);
+      },
     );
   }
 }

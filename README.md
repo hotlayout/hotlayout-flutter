@@ -73,7 +73,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.19.0
+  hotlayout_flutter: ^0.20.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -687,8 +687,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.19.1` | — |
-| Document contract (schema) | `9.19.0` | `kSupportedSchemaVersion` |
+| Package | `0.20.0` | — |
+| Document contract (schema) | `9.20.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -710,7 +710,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.19.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.20.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -764,6 +764,7 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.17.0 | italic, underline and strike-through, list items, the style of a ring label | [Text emphasis and list items](#text-emphasis-and-list-items) |
 | 9.18.0 | layout by width class; navigation at the top and a window on a wide screen | [Adaptive layout by width](#adaptive-layout-by-width) |
 | 9.19.0 | pressable cards, write actions, parts of a list row and of a field, money, the top of the screen, `alt`, `iconPath`, `dateParts`, `unset` | [Pressable cards](#pressable-cards) and the sections after it |
+| 9.20.0 | endless motion of a node, blur under a modal layer, glass | [Motion, blur and glass](#motion-blur-and-glass) |
 
 ### Behaviour that changed between package versions
 
@@ -777,6 +778,7 @@ If you update from an older version of the package, these are the places where t
 | 0.9.0 | The title of the app bar is centred in the bar and a long title gets all the room between the zones (it used to be centred in what was left after a counterweight the size of the arrow, and was cut shorter). `aspectRatio: { width, height }` is read (it used to be `16:9`). |
 | 0.14.0 | `onWrite` may give a `num` (a number field). Host code that stored every value as a string must be reviewed. |
 | 0.17.0 | On a wide screen the navigation bar goes to the top and a modal sheet becomes a window. |
+| 0.20.0 | A document that names `motion` runs a ticker for as long as the node is on screen, so `pumpAndSettle` in a widget test never settles on such a screen (use `pump` with a duration). |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
 
 ## Platform notes
@@ -870,7 +872,7 @@ This part is a reference. Nothing in it needs code in your app unless a section 
 | Text and numbers | [Rich text](#rich-text) · [Text emphasis and list items](#text-emphasis-and-list-items) · [Money](#money-sign-symbol-and-parts-of-an-amount) · [Dates](#parts-of-a-date) |
 | Pictures and progress | [Images](#images) · [Icons from data and descriptions](#descriptions-and-icons-from-data) · [Progress bar and ring](#progress-bar-and-ring) · [Carousel and segmented progress](#carousel-and-segmented-progress) |
 | Lists and fields | [Parts of a list row](#parts-of-a-list-row) · [Forms](#forms-text-fields-switches-and-checkboxes) · [A form for a survey](#a-form-for-a-survey) · [Parts of a text field](#parts-of-a-text-field) |
-| The screen | [The app bar](#the-app-bar) · [The top of the screen](#the-top-of-the-screen) · [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block) · [Windows and modal sheets](#windows-and-modal-sheets) · [The status bar](#the-status-bar) |
+| The screen | [The app bar](#the-app-bar) · [The top of the screen](#the-top-of-the-screen) · [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block) · [Windows and modal sheets](#windows-and-modal-sheets) · [The status bar](#the-status-bar) · [Motion, blur and glass](#motion-blur-and-glass) |
 | Layout | [Alignment](#alignment) · [Overlays and pulled children](#overlays-and-pulled-children) · [Adaptive layout by width](#adaptive-layout-by-width) |
 
 ### Buttons, icon buttons and chips
@@ -1189,6 +1191,22 @@ A screen with `presentation: 'modal'` is a layer over the previous screen. Witho
 
 - **The layer has no look of its own**: background, radius, shadow and padding are the `style` of the screen's root, and a root without a background is a transparent layer.
 - **The window is a modal layer in every rule**: it inherits the record of the screen beneath, and it is a "modal" in `ScreenShown`.
+
+### Motion, blur and glass
+
+Three optional fields, none of which changes the layout. A document without them is drawn exactly as before.
+
+| Field | Where | What the renderer does |
+|---|---|---|
+| `motion` | any node but the root `Screen` | `float` drifts the node along `axis` by up to `amplitude` dp; `pulse` breathes in scale (about the centre of the box) and, if named, opacity. One cycle lasts `duration` ms; the first starts after `delay` ms. |
+| `backdropBlur` | a modal screen | blurs everything under the layer, app bar and navigation bar of the screens below included; the scrim lies over the blur and the layer itself is never blurred. Ignored on a page. |
+| `style.backdropBlur` | any node, a state, a width layer, the root of a screen | glass: blurs whatever is painted under the box of the node, within its radius; the node's own background lies over the blur, the node and its children stay sharp. On a button, an icon button and a badge it lies on the surface of the role. Not inherited. |
+
+- **The curve is a sine, not a field.** The position at the moment `t` is one formula for every reader of the contract; `t` counts from the moment the node appears on the shown screen, and a node that appears again starts from zero. Horizontal drift goes toward the end of the line (mirrored in right-to-left); vertical drift goes up first.
+- **Only the painting moves.** The box at rest sizes the parent, the siblings stand still, nothing new is clipped, and the opacity of a pulse multiplies the node's own `style.opacity`. A touch is promised inside the box at rest where the node is also painted; outside it the hit test follows the painted node.
+- **"Reduce motion"** (`MediaQuery.disableAnimations`) leaves every moving node at rest and runs no ticker.
+- **Numbers are checked, not clamped.** A `motion` of an unknown form, with a field missing, extra or out of bounds, is no motion; a blur outside 1–40 or not a whole number is no blur.
+- **In tests**, a moving node keeps a ticker alive: advance time with `pump(Duration)`; `pumpAndSettle` does not settle on such a screen.
 
 ### The status bar
 

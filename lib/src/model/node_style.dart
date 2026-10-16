@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/screen_data.dart';
 import 'bindable.dart';
+import 'motion_rules.dart';
 import 'style_values.dart';
 import 'text_emphasis.dart';
 import 'visibility.dart';
@@ -42,6 +43,7 @@ final class NodeStyle {
     this.background,
     this.shadow,
     this.opacity,
+    this.backdropBlur,
   });
 
   /// Foreground color. INHERITED down the tree.
@@ -76,6 +78,10 @@ final class NodeStyle {
   /// 0…1.
   final double? opacity;
 
+  /// Glass (9.20.0): blur of whatever is painted UNDER the box of the node, within its radius, in logical
+  /// pixels (the standard deviation of a Gaussian blur, 1…40). Not inherited. `null` means no blur.
+  final int? backdropBlur;
+
   /// `null` if there is no style or no understandable field is left in it.
   ///
   /// Implements `unknownStyleField: 'ignore-field'`: a field this code does not know (a later minor will
@@ -102,6 +108,7 @@ final class NodeStyle {
       background: NodeBackground.tryParse(raw['background']),
       shadow: ShadowRef.tryParse(raw['shadow']),
       opacity: _boundedOpacity(raw),
+      backdropBlur: backdropBlurOf(raw['backdropBlur']),
     );
 
     return style.isEmpty ? null : style;
@@ -134,7 +141,8 @@ final class NodeStyle {
       border == null &&
       background == null &&
       shadow == null &&
-      opacity == null;
+      opacity == null &&
+      backdropBlur == null;
 
   /// This style over [base], FIELD BY FIELD AT THE TOP LEVEL (`x-style.caseMerge: 'top-level-fields'`).
   ///
@@ -161,6 +169,7 @@ final class NodeStyle {
       background: background ?? base.background,
       shadow: shadow ?? base.shadow,
       opacity: opacity ?? base.opacity,
+      backdropBlur: backdropBlur ?? base.backdropBlur,
     );
   }
 
@@ -187,6 +196,7 @@ final class NodeStyle {
       background: keep('background') ? background : null,
       shadow: keep('shadow') ? shadow : null,
       opacity: keep('opacity') ? opacity : null,
+      backdropBlur: keep('backdropBlur') ? backdropBlur : null,
     );
     return rest.isEmpty ? null : rest;
   }
@@ -211,6 +221,7 @@ final class NodeStyle {
     background: background,
     shadow: shadow,
     opacity: opacity,
+    backdropBlur: backdropBlur,
   );
 
   /// The style of a screen root: without `margin` and sizes (`screenBoxFields: 'ignore'`). Schema 9.0.0
@@ -228,6 +239,7 @@ final class NodeStyle {
       background: background,
       shadow: shadow,
       opacity: opacity,
+      backdropBlur: backdropBlur,
     );
     return rest.isEmpty ? null : rest;
   }

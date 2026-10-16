@@ -96,6 +96,8 @@ const List<String> fixtureIds = [
   'parts-screens',
   // 9.19.0: description of a picture, icon from data, parts of a date, "none" in a width layer.
   'alt-icon-date-screens',
+  // 9.20.0: floating and breathing nodes, glass on a card, a sheet over a blurred screen; en and uk.
+  'motion-blur-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

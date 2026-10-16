@@ -237,6 +237,8 @@ void main() {
         'background': {'kind': 'color', 'color': 'surface'},
         'shadow': 'low',
         'opacity': 0.5,
+        // 9.20.0: glass.
+        'backdropBlur': 12,
       };
       expect(propertiesOf('NodeStyle').keys.toSet(), sample.keys.toSet());
 

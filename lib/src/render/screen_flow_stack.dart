@@ -63,9 +63,11 @@ extension _ScreenFlowStack on _ScreenFlowState {
     required Map<String, Object?>? record,
     required ModalPlacement placement,
     required double windowMargin,
+    int? backdropBlur,
   }) =>
       ModalLayer(
         placement: placement,
+        backdropBlur: backdropBlur,
         windowMargin: windowMargin,
         // The scrim is not a node, so it has no record of its own: the host (if "back" would leave the
         // flow) gets the layer's record.
@@ -112,6 +114,7 @@ extension _ScreenFlowStack on _ScreenFlowState {
             record: _stack[i].record,
             placement: _stack[i].screen.placement,
             windowMargin: _windowMargin,
+            backdropBlur: _stack[i].screen.backdropBlur,
           ),
       ],
     );

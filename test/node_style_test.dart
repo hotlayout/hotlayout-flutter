@@ -205,7 +205,7 @@ void main() {
     });
 
     test('a style made ONLY of unknown fields reads as absent', () {
-      expect(style({'backdropBlur': 12}), isNull);
+      expect(style({'blurRadius': 12, 'mood': 'glass'}), isNull);
     });
 
     test('an empty style and garbage instead of a style both mean "no style"', () {
