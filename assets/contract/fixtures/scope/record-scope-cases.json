@@ -1,5 +1,5 @@
 {
-  "description": "Record scope and data layers: cases shared by every reader of the contract (schema 9.2.0; the `carryRecord` rows — schema 9.8.0). Three tables. `readCases`: a screen has up to four data layers (`layerOrder`, strongest first); a binding or a condition reads `path` and must get `value` from `layer` (both null: the value is absent everywhere, so the binding shows its fallback). A layer answers only with an own key whose value is neither null nor missing. `recordCases`: the record scope of a node is the record its screen was opened with (`screenRecord`), overlaid by the records of the Repeater instances the node is drawn in, outer first (`instances`: the entity prefix from `Repeater.item` and the fields of one collection record); `expected` is the flat map of paths, null when the node has no record at all. `flowCases`: `screens` maps a screenId to its presentation, the flow starts on `start` without a record; every step is an action invoked on a node of the TOP screen, drawn inside `instances` (empty: outside any list). `navigate` opens `to` (with `carryRecord: true` on the step the action carries the field `carryRecord` of schema 9.8.0: the opened PAGE gets the record scope of the node even outside a list row; without it the rule of 9.2.0 applies); `back` is `navigate.back`; `host` is any action the reader passes to the host (`type`). A row may name where a modal layer lies (`modalPlacement`: screenId → `bottom` | `center`, schema 9.9.0, the field `ScreenEntry.modalPlacement`): a window in the middle is a modal layer like a sheet, and the record rule does not look at the placement at all. After each step the reader must hold `expect.stack`, the top screen must have the record `expect.record` (null: none), and for `host` the host must have been given `expect.hostRecord` together with the action.",
+  "description": "Record scope and data layers: cases shared by every reader of the contract (schema 9.2.0; the `carryRecord` rows — schema 9.8.0; the live record — schema 9.27.0, three more groups described in `liveRecordNote`). Three tables of 9.2.0. `readCases`: a screen has up to four data layers (`layerOrder`, strongest first); a binding or a condition reads `path` and must get `value` from `layer` (both null: the value is absent everywhere, so the binding shows its fallback). A layer answers only with an own key whose value is neither null nor missing. `recordCases`: the record scope of a node is the record its screen was opened with (`screenRecord`), overlaid by the records of the Repeater instances the node is drawn in, outer first (`instances`: the entity prefix from `Repeater.item` and the fields of one collection record); `expected` is the flat map of paths, null when the node has no record at all. `flowCases`: `screens` maps a screenId to its presentation, the flow starts on `start` without a record; every step is an action invoked on a node of the TOP screen, drawn inside `instances` (empty: outside any list). `navigate` opens `to` (with `carryRecord: true` on the step the action carries the field `carryRecord` of schema 9.8.0: the opened PAGE gets the record scope of the node even outside a list row; without it the rule of 9.2.0 applies); `back` is `navigate.back`; `host` is any action the reader passes to the host (`type`). A row may name where a modal layer lies (`modalPlacement`: screenId → `bottom` | `center`, schema 9.9.0, the field `ScreenEntry.modalPlacement`): a window in the middle is a modal layer like a sheet, and the record rule does not look at the placement at all. After each step the reader must hold `expect.stack`, the top screen must have the record `expect.record` (null: none), and for `host` the host must have been given `expect.hostRecord` together with the action.",
   "layerOrder": ["record", "session", "host", "data"],
   "readCases": [
     { "name": "the record beats every other layer", "layers": { "record": { "item.name": "Bottle" }, "session": { "item.name": "Written" }, "host": { "item.name": "Addressed" }, "data": { "item.name": "Document" } }, "path": "item.name", "value": "Bottle", "layer": "record" },
@@ -221,6 +221,297 @@
       "steps": [
         { "do": "navigate", "to": "done", "instances": [{ "item": "task", "fields": { "id": "walk", "title": "Walk 5 km" } }], "expect": { "stack": ["list", "done"], "record": { "task.id": "walk", "task.title": "Walk 5 km" } } },
         { "do": "back", "instances": [], "expect": { "stack": ["list"], "record": null } }
+      ]
+    }
+  ],
+  "liveRecordNote": "Live record (schema 9.27.0, the block x-liveRecord): the record a frame of the stack holds is kept up to date with the data. A record is a CHAIN: one link per Repeater instance it came from, outer first; a link is the collection the list read (`source`), the entity (`item`, the Repeater prefix) and the fields of the record. The record of the frame is the overlay of the links, the inner one stronger. The key of a link is the value of `<item>.id` (a short `id` field or the full path): a non-empty string or a finite number, compared by JSON type and value without conversion; any other value or no field, and the link is not live. Whenever the reader is given new collections, every link is searched for: first in its own collection, then in every other collection the document names for the same entity (`entitySourceCases`), the first record with the key wins; a link found takes the new record whole, a link not found keeps the last record it had. `liveRecordCases`: `lists` is what the document names, in document order (source and item of every Repeater); `chain` is the record of the frame when the screen was opened; every update gives the collections the host gives now (a collection missing from the map is absent) and the record the frame must show after it (`record`, a flat map of paths); `same: true` means nothing changed and the reader keeps the frame as it was. `read`, when present, reads one path through the layers with `session` beside the refreshed record (the layer order does not change). `liveFlowCases`: the stack as in `flowCases`, with instances that name their `source`; the step `data` gives new collections; `expect.records` is the record of every frame of the stack, bottom first (null: none). A data step is not a show: the stack stays. `entitySourceCases`: `screens` are the roots of the screens in document order; `expected` maps every entity to the collections the document names for it, in order, each once.",
+  "entitySourceCases": [
+    {
+      "name": "the collections of an entity follow the document: screens in order, depth first, each once",
+      "screens": [
+        { "type": "Screen", "children": [ { "type": "Repeater", "props": { "source": "missions", "item": "mission" }, "children": [ { "type": "Text" } ] }, { "type": "Column", "children": [ { "type": "Repeater", "props": { "source": "offers", "item": "offer" } } ] } ] },
+        { "type": "Screen", "children": [ { "type": "Repeater", "props": { "source": "doneMissions", "item": "mission" } }, { "type": "Repeater", "props": { "source": "missions", "item": "mission" } } ] }
+      ],
+      "expected": { "mission": ["missions", "doneMissions"], "offer": ["offers"] }
+    },
+    {
+      "name": "a nested list names its own collection after the outer one",
+      "screens": [
+        { "type": "Screen", "children": [ { "type": "Repeater", "props": { "source": "taskGroups", "item": "taskGroup" }, "children": [ { "type": "Repeater", "props": { "source": "taskGroup.tasks", "item": "task" } } ] }, { "type": "Repeater", "props": { "source": "tasks", "item": "task" } } ] }
+      ],
+      "expected": { "taskGroup": ["taskGroups"], "task": ["taskGroup.tasks", "tasks"] }
+    },
+    {
+      "name": "a Repeater without a source or an item names nothing",
+      "screens": [
+        { "type": "Screen", "children": [ { "type": "Repeater", "props": { "source": "", "item": "task" } }, { "type": "Repeater", "props": { "source": "tasks" } }, { "type": "Repeater", "props": { "source": 7, "item": "task" } } ] }
+      ],
+      "expected": {}
+    }
+  ],
+  "liveRecordCases": [
+    {
+      "name": "a field changed in the source collection: the record follows",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "title": "Five rides", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "walk", "title": "Walk", "progress": 1 }, { "id": "ride", "title": "Five rides", "progress": 4 }] }, "record": { "mission.id": "ride", "mission.title": "Five rides", "mission.progress": 4 } }
+      ]
+    },
+    {
+      "name": "the new record is taken whole: a field it lacks is gone",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "title": "Five rides", "badge": "New" } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride", "title": "Five rides" }] }, "record": { "mission.id": "ride", "mission.title": "Five rides" } }
+      ]
+    },
+    {
+      "name": "fields spelled as full paths are found the same way",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "mission.id": "ride", "mission.progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride", "progress": 5 }] }, "record": { "mission.id": "ride", "mission.progress": 5 } },
+        { "collections": { "missions": [{ "mission.id": "ride", "mission.progress": 6 }] }, "record": { "mission.id": "ride", "mission.progress": 6 } }
+      ]
+    },
+    {
+      "name": "the record left its collection and appears in another collection of the same entity",
+      "lists": [{ "source": "missions", "item": "mission" }, { "source": "doneMissions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "title": "Five rides", "progress": 4, "status": "inProgress" } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "walk", "progress": 1 }], "doneMissions": [{ "id": "ride", "title": "Five rides", "progress": 5, "status": "completed" }] }, "record": { "mission.id": "ride", "mission.title": "Five rides", "mission.progress": 5, "mission.status": "completed" } }
+      ]
+    },
+    {
+      "name": "its own collection is searched first, whatever the document order",
+      "lists": [{ "source": "doneMissions", "item": "mission" }, { "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "doneMissions": [{ "id": "ride", "progress": 5 }], "missions": [{ "id": "ride", "progress": 4 }] }, "record": { "mission.id": "ride", "mission.progress": 4 } }
+      ]
+    },
+    {
+      "name": "after moving, the next update is searched from its own collection again",
+      "lists": [{ "source": "missions", "item": "mission" }, { "source": "doneMissions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 4 } }],
+      "updates": [
+        { "collections": { "missions": [], "doneMissions": [{ "id": "ride", "progress": 5 }] }, "record": { "mission.id": "ride", "mission.progress": 5 } },
+        { "collections": { "missions": [{ "id": "ride", "progress": 0 }], "doneMissions": [{ "id": "ride", "progress": 5 }] }, "record": { "mission.id": "ride", "mission.progress": 0 } }
+      ]
+    },
+    {
+      "name": "a collection of another entity is not searched",
+      "lists": [{ "source": "missions", "item": "mission" }, { "source": "offers", "item": "offer" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [], "offers": [{ "id": "ride", "progress": 9 }] }, "record": { "mission.id": "ride", "mission.progress": 3 }, "same": true }
+      ]
+    },
+    {
+      "name": "a collection the document does not name is not searched",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [], "archive": [{ "id": "ride", "progress": 9 }] }, "record": { "mission.id": "ride", "mission.progress": 3 }, "same": true }
+      ]
+    },
+    {
+      "name": "not found anywhere: the last known record stays, not the record of the navigation",
+      "lists": [{ "source": "missions", "item": "mission" }, { "source": "doneMissions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride", "progress": 4 }] }, "record": { "mission.id": "ride", "mission.progress": 4 } },
+        { "collections": { "missions": [], "doneMissions": [] }, "record": { "mission.id": "ride", "mission.progress": 4 }, "same": true },
+        { "collections": {}, "record": { "mission.id": "ride", "mission.progress": 4 }, "same": true }
+      ]
+    },
+    {
+      "name": "no id field: the record is not live",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "title": "Five rides", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "title": "Five rides", "progress": 4 }] }, "record": { "mission.title": "Five rides", "mission.progress": 3 }, "same": true }
+      ]
+    },
+    {
+      "name": "a number key and a string key are two records: 7 is not \"7\"",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": 7, "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "7", "progress": 9 }] }, "record": { "mission.id": 7, "mission.progress": 3 }, "same": true },
+        { "collections": { "missions": [{ "id": "7", "progress": 9 }, { "id": 7, "progress": 4 }] }, "record": { "mission.id": 7, "mission.progress": 4 } }
+      ]
+    },
+    {
+      "name": "an empty string is not a key",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "", "progress": 4 }] }, "record": { "mission.id": "", "mission.progress": 3 }, "same": true }
+      ]
+    },
+    {
+      "name": "a boolean is not a key",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": true, "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": true, "progress": 4 }] }, "record": { "mission.id": true, "mission.progress": 3 }, "same": true }
+      ]
+    },
+    {
+      "name": "a record whose key is null or missing is not the record with the key",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": null, "progress": 9 }, { "progress": 8 }] }, "record": { "mission.id": "ride", "mission.progress": 3 }, "same": true }
+      ]
+    },
+    {
+      "name": "duplicate keys: the first record of the collection wins",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride", "progress": 4 }, { "id": "ride", "progress": 5 }] }, "record": { "mission.id": "ride", "mission.progress": 4 } }
+      ]
+    },
+    {
+      "name": "a collection that is not a list holds no records",
+      "lists": [{ "source": "missions", "item": "mission" }, { "source": "doneMissions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": { "id": "ride", "progress": 9 }, "doneMissions": [{ "id": "ride", "progress": 5 }] }, "record": { "mission.id": "ride", "mission.progress": 5 } }
+      ]
+    },
+    {
+      "name": "an entry that is not an object is skipped",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [null, "ride", ["ride"], { "id": "ride", "progress": 4 }] }, "record": { "mission.id": "ride", "mission.progress": 4 } }
+      ]
+    },
+    {
+      "name": "a null field in the new record is absent",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3, "badge": "New" } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride", "progress": 3, "badge": null }] }, "record": { "mission.id": "ride", "mission.progress": 3 } }
+      ]
+    },
+    {
+      "name": "the same data: the reader keeps the frame as it was",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride", "progress": 3 }] }, "record": { "mission.id": "ride", "mission.progress": 3 }, "same": true }
+      ]
+    },
+    {
+      "name": "a nested record: every instance is found in its own collection",
+      "lists": [{ "source": "taskGroups", "item": "taskGroup" }, { "source": "taskGroup.tasks", "item": "task" }],
+      "chain": [
+        { "source": "taskGroups", "item": "taskGroup", "fields": { "id": "week", "title": "Weekly streak", "completedTasks": 3 } },
+        { "source": "taskGroup.tasks", "item": "task", "fields": { "id": "walk", "status": "inProgress" } }
+      ],
+      "updates": [
+        { "collections": { "taskGroups": [{ "id": "week", "title": "Weekly streak", "completedTasks": 4 }], "taskGroup.tasks": [{ "id": "walk", "status": "completed" }] }, "record": { "taskGroup.id": "week", "taskGroup.title": "Weekly streak", "taskGroup.completedTasks": 4, "task.id": "walk", "task.status": "completed" } },
+        { "collections": { "taskGroups": [{ "id": "week", "title": "Weekly streak", "completedTasks": 5 }] }, "record": { "taskGroup.id": "week", "taskGroup.title": "Weekly streak", "taskGroup.completedTasks": 5, "task.id": "walk", "task.status": "completed" } }
+      ]
+    },
+    {
+      "name": "a nested record over the same entity: the inner instance still wins field by field",
+      "lists": [{ "source": "missions", "item": "mission" }, { "source": "steps", "item": "mission" }],
+      "chain": [
+        { "source": "missions", "item": "mission", "fields": { "id": "ride", "title": "Five rides" } },
+        { "source": "steps", "item": "mission", "fields": { "id": "ride-4", "title": "Fourth ride" } }
+      ],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride", "title": "Five rides", "progress": 4 }], "steps": [{ "id": "ride-4", "title": "Fourth ride", "done": true }] }, "record": { "mission.id": "ride-4", "mission.title": "Fourth ride", "mission.progress": 4, "mission.done": true } }
+      ]
+    },
+    {
+      "name": "the layer order does not change: the refreshed record beats the session",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride", "progress": 4 }] }, "record": { "mission.id": "ride", "mission.progress": 4 }, "read": { "session": { "mission.progress": 9 }, "path": "mission.progress", "value": 4, "layer": "record" } }
+      ]
+    },
+    {
+      "name": "a path the refreshed record lost falls to the session",
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "chain": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "note": "Keep going" } }],
+      "updates": [
+        { "collections": { "missions": [{ "id": "ride" }] }, "record": { "mission.id": "ride" }, "read": { "session": { "mission.note": "Written" }, "path": "mission.note", "value": "Written", "layer": "session" } }
+      ]
+    }
+  ],
+  "liveFlowCases": [
+    {
+      "name": "the page opened from a row shows the new data in place; the stack stays",
+      "screens": { "list": "page", "mission": "page" },
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "mission", "instances": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }], "expect": { "stack": ["list", "mission"], "records": [null, { "mission.id": "ride", "mission.progress": 3 }] } },
+        { "do": "data", "collections": { "missions": [{ "id": "ride", "progress": 4 }] }, "expect": { "stack": ["list", "mission"], "records": [null, { "mission.id": "ride", "mission.progress": 4 }] } }
+      ]
+    },
+    {
+      "name": "a modal layer over the page inherits the live record: both frames follow the data",
+      "screens": { "list": "page", "mission": "page", "peek": "modal" },
+      "lists": [{ "source": "missions", "item": "mission" }, { "source": "doneMissions", "item": "mission" }],
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "mission", "instances": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 4 } }], "expect": { "stack": ["list", "mission"], "records": [null, { "mission.id": "ride", "mission.progress": 4 }] } },
+        { "do": "navigate", "to": "peek", "instances": [], "expect": { "stack": ["list", "mission", "peek"], "records": [null, { "mission.id": "ride", "mission.progress": 4 }, { "mission.id": "ride", "mission.progress": 4 }] } },
+        { "do": "data", "collections": { "missions": [], "doneMissions": [{ "id": "ride", "progress": 5 }] }, "expect": { "stack": ["list", "mission", "peek"], "records": [null, { "mission.id": "ride", "mission.progress": 5 }, { "mission.id": "ride", "mission.progress": 5 }] } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "mission"], "records": [null, { "mission.id": "ride", "mission.progress": 5 }] } }
+      ]
+    },
+    {
+      "name": "carryRecord: the carried page follows the data too",
+      "screens": { "list": "page", "mission": "page", "pay": "page" },
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "mission", "instances": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }], "expect": { "stack": ["list", "mission"], "records": [null, { "mission.id": "ride", "mission.progress": 3 }] } },
+        { "do": "navigate", "to": "pay", "carryRecord": true, "instances": [], "expect": { "stack": ["list", "mission", "pay"], "records": [null, { "mission.id": "ride", "mission.progress": 3 }, { "mission.id": "ride", "mission.progress": 3 }] } },
+        { "do": "data", "collections": { "missions": [{ "id": "ride", "progress": 4 }] }, "expect": { "stack": ["list", "mission", "pay"], "records": [null, { "mission.id": "ride", "mission.progress": 4 }, { "mission.id": "ride", "mission.progress": 4 }] } }
+      ]
+    },
+    {
+      "name": "a page opened without a record stays without one, and the frame below still follows the data",
+      "screens": { "list": "page", "mission": "page", "help": "page" },
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "mission", "instances": [{ "source": "missions", "item": "mission", "fields": { "id": "ride", "progress": 3 } }], "expect": { "stack": ["list", "mission"], "records": [null, { "mission.id": "ride", "mission.progress": 3 }] } },
+        { "do": "navigate", "to": "help", "instances": [], "expect": { "stack": ["list", "mission", "help"], "records": [null, { "mission.id": "ride", "mission.progress": 3 }, null] } },
+        { "do": "data", "collections": { "missions": [{ "id": "ride", "progress": 4 }] }, "expect": { "stack": ["list", "mission", "help"], "records": [null, { "mission.id": "ride", "mission.progress": 4 }, null] } },
+        { "do": "back", "instances": [], "expect": { "stack": ["list", "mission"], "records": [null, { "mission.id": "ride", "mission.progress": 4 }] } }
+      ]
+    },
+    {
+      "name": "a row on the opened page: the next page carries both instances live",
+      "screens": { "groups": "page", "group": "page", "task": "page" },
+      "lists": [{ "source": "taskGroups", "item": "taskGroup" }, { "source": "taskGroup.tasks", "item": "task" }],
+      "start": "groups",
+      "steps": [
+        { "do": "navigate", "to": "group", "instances": [{ "source": "taskGroups", "item": "taskGroup", "fields": { "id": "week", "done": 3 } }], "expect": { "stack": ["groups", "group"], "records": [null, { "taskGroup.id": "week", "taskGroup.done": 3 }] } },
+        { "do": "navigate", "to": "task", "instances": [{ "source": "taskGroup.tasks", "item": "task", "fields": { "id": "walk", "status": "inProgress" } }], "expect": { "stack": ["groups", "group", "task"], "records": [null, { "taskGroup.id": "week", "taskGroup.done": 3 }, { "taskGroup.id": "week", "taskGroup.done": 3, "task.id": "walk", "task.status": "inProgress" }] } },
+        { "do": "data", "collections": { "taskGroups": [{ "id": "week", "done": 4 }], "taskGroup.tasks": [{ "id": "walk", "status": "completed" }] }, "expect": { "stack": ["groups", "group", "task"], "records": [null, { "taskGroup.id": "week", "taskGroup.done": 4 }, { "taskGroup.id": "week", "taskGroup.done": 4, "task.id": "walk", "task.status": "completed" }] } }
+      ]
+    },
+    {
+      "name": "a record without an id stays as it was opened",
+      "screens": { "list": "page", "mission": "page" },
+      "lists": [{ "source": "missions", "item": "mission" }],
+      "start": "list",
+      "steps": [
+        { "do": "navigate", "to": "mission", "instances": [{ "source": "missions", "item": "mission", "fields": { "title": "Five rides", "progress": 3 } }], "expect": { "stack": ["list", "mission"], "records": [null, { "mission.title": "Five rides", "mission.progress": 3 }] } },
+        { "do": "data", "collections": { "missions": [{ "title": "Five rides", "progress": 4 }] }, "expect": { "stack": ["list", "mission"], "records": [null, { "mission.title": "Five rides", "mission.progress": 3 }] } }
       ]
     }
   ]

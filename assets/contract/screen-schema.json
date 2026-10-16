@@ -105,6 +105,11 @@
           "minimum": 1,
           "maximum": 40
         },
+        "dismissible": {
+          "description": "Only on a modal screen (9.26.0): «false» — the layer waits for an action inside it. No drag down, no tap on the scrim and no Esc close it; the system back stays with the host and «navigate.back» inside the layer works. No field — the layer is dismissed as «x-style.layout.modalLayer.dismiss» and «x-sheetDismiss» say.",
+          "type": "boolean",
+          "const": false
+        },
         "root": {
           "$ref": "#/$defs/ScreenNode"
         }
@@ -2071,6 +2076,12 @@
         },
         "label": {
           "$ref": "#/$defs/PressLabel"
+        },
+        "longPress": {
+          "$ref": "#/$defs/LongPressAction"
+        },
+        "longPressLabel": {
+          "$ref": "#/$defs/LongPressLabel"
         }
       },
       "required": [
@@ -2176,6 +2187,14 @@
     },
     "PressLabel": {
       "description": "Hidden accessible name of a pressable container (9.19.0): read first, before the text of its content. Required when nothing inside the container says anything without data.",
+      "$ref": "#/$defs/BindableString"
+    },
+    "LongPressAction": {
+      "description": "Long press of the node (9.26.0): the same action form and execution path as «action». It fires while the finger is still down, once it has stayed within the touch slop for the threshold of «x-longPress»; the press of «action» then does not happen. Only on a pressable container and on ListTile — never on a button. Requires «longPressLabel». No field — no long press.",
+      "$ref": "#/$defs/ButtonAction"
+    },
+    "LongPressLabel": {
+      "description": "Name of the long press action for assistive technologies (9.26.0): a named custom action of the node, the context menu key and Shift+F10. Required when «longPress» does something. Translatable.",
       "$ref": "#/$defs/BindableString"
     },
     "ColumnPropsOn": {
@@ -2328,6 +2347,12 @@
         },
         "label": {
           "$ref": "#/$defs/PressLabel"
+        },
+        "longPress": {
+          "$ref": "#/$defs/LongPressAction"
+        },
+        "longPressLabel": {
+          "$ref": "#/$defs/LongPressLabel"
         }
       },
       "required": [
@@ -2521,6 +2546,12 @@
         },
         "label": {
           "$ref": "#/$defs/PressLabel"
+        },
+        "longPress": {
+          "$ref": "#/$defs/LongPressAction"
+        },
+        "longPressLabel": {
+          "$ref": "#/$defs/LongPressLabel"
         }
       },
       "required": [
@@ -2789,6 +2820,12 @@
         },
         "label": {
           "$ref": "#/$defs/PressLabel"
+        },
+        "longPress": {
+          "$ref": "#/$defs/LongPressAction"
+        },
+        "longPressLabel": {
+          "$ref": "#/$defs/LongPressLabel"
         }
       },
       "required": [
@@ -3287,7 +3324,7 @@
           "$ref": "#/$defs/RepeaterPropsOn"
         },
         "children": {
-          "maxItems": 1,
+          "maxItems": 2,
           "type": "array",
           "items": {
             "$ref": "#/$defs/ChildNode"
@@ -3339,6 +3376,11 @@
         "where": {
           "description": "Draw only the records for which this condition holds (9.23.0), judged in the scope of THAT record over the outer scope. A record that does not pass does not exist for the layout: the grid packs, the carousel counts stops and dots of the cards drawn, numbers count the records drawn; «limit» takes the first records that passed. A comparison by «valuePath» with no value under it holds for every record («All»). No field — every record. Rules — «x-listFilter».",
           "$ref": "#/$defs/ListWhereCondition"
+        },
+        "groupBy": {
+          "description": "Group the drawn records (9.26.0): records that follow one another with the same value under this path of the RECORD (for example «activity.day») form one group, and the SECOND child of the Repeater — the group header — is drawn before each group in the scope of its FIRST record. The order is the order of the data; groups are formed after «where» and «limit». Only a list in a column: with «columns» or a row direction the field is not published. No field — no groups, and the Repeater has one child. Rules — «x-repeaterGroup».",
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [
@@ -4737,6 +4779,12 @@
         },
         "action": {
           "$ref": "#/$defs/ButtonAction"
+        },
+        "longPress": {
+          "$ref": "#/$defs/LongPressAction"
+        },
+        "longPressLabel": {
+          "$ref": "#/$defs/LongPressLabel"
         }
       },
       "required": [
@@ -6040,7 +6088,7 @@
   },
   "$id": "https://hotlayout.com/schema/ui-document.json",
   "title": "UiDocument",
-  "x-schemaVersion": "9.25.0",
+  "x-schemaVersion": "9.27.0",
   "x-compatibility": {
     "policy": {
       "majorMustMatch": true,
@@ -6366,7 +6414,11 @@
       "progressGlow": "9.25.0",
       "shadowColor": "9.25.0",
       "pressFeedback": "9.25.0",
-      "haptic": "9.25.0"
+      "haptic": "9.25.0",
+      "longPress": "9.26.0",
+      "repeaterGroup": "9.26.0",
+      "sheetDismiss": "9.26.0",
+      "liveRecord": "9.27.0"
     }
   },
   "x-budget": {
@@ -10938,6 +10990,176 @@
     "editorCanvas": "nothing; the preview writes the request into its run log",
     "olderReader": "skips the field — no request",
     "cases": "contract/fixtures/actions/action-cases.json"
+  },
+  "x-longPress": {
+    "props": {
+      "action": "longPress",
+      "label": "longPressLabel"
+    },
+    "on": [
+      "a pressable container: Column, Row, Container, Stack",
+      "ListTile"
+    ],
+    "notOn": "Button and IconButton: a button has one action, and the platform already uses a long press there",
+    "form": "the action of «x-actions»: catalog, track, haptic, carryRecord, paramBindings — one execution path with «action»",
+    "doesSomething": "a type that is not «none», or «none» with «track»; otherwise the field is no long press",
+    "thresholdMs": 450,
+    "touchSlop": 10,
+    "touchSlopUnit": "logical pixels from the point of touch down",
+    "fires": "at the threshold while the finger is still down — not at release",
+    "movedBeyondSlop": "before the threshold — neither the long press nor the press: the finger scrolls or drags",
+    "cancelled": "nothing",
+    "afterFire": "releasing the finger does nothing; «action» is not run",
+    "releasedEarlier": "the press of «action» as before 9.26.0",
+    "withoutLongPress": "a long hold released in place is a press, as before 9.26.0",
+    "order": [
+      "haptic",
+      "track",
+      "action"
+    ],
+    "haptic": "the «haptic» of the long press action, at the moment it fires; no field — no request",
+    "pressFeedback": "the pressed pose of «x-pressFeedback» stays while the finger is down, also after the long press fired",
+    "receiver": "the receiver of the press (x-style.layout.composition.pressable.press.receiver); a control inside without a long press keeps its press, the container gets no long press",
+    "pressable": "a container with a long press and no action is a control: it is focusable and named",
+    "record": "x-dataScope — the record of the instance, as for the press",
+    "accessibility": {
+      "name": "longPressLabel",
+      "required": "when the long press does something",
+      "flutter": "a custom semantics action named by «longPressLabel»",
+      "web": "the name in «aria-description»; «aria-keyshortcuts» lists the keys",
+      "keys": [
+        {
+          "key": "ContextMenu"
+        },
+        {
+          "key": "F10",
+          "shift": true
+        }
+      ],
+      "keysAct": "on the focused node, at once — no threshold",
+      "enterAndSpace": "the press of «action»"
+    },
+    "secondaryButton": "not a long press",
+    "writeActions": "not published: the role of a choice or a toggle comes from «action»",
+    "disabled": "a container has no disabled state",
+    "editorCanvas": "nothing — the node is selected there; the preview runs it, a held mouse button too",
+    "olderReader": "skips the fields: no long press, a container with only a long press is not pressable",
+    "cases": "contract/fixtures/long-press/long-press-cases.json"
+  },
+  "x-repeaterGroup": {
+    "widget": "Repeater",
+    "prop": "groupBy",
+    "path": "a path of the record of the collection (the «item» prefix); string, number, boolean or date",
+    "header": {
+      "child": 1,
+      "template": "children[0] — the record, as before 9.26.0",
+      "legal": "only with «groupBy»; «groupBy» only with the header",
+      "scope": "the record of the FIRST record of the group over the outer scope (x-dataScope.layers)",
+      "record": "a press inside the header carries the record of the first record of the group",
+      "hidden": "a header hidden by its condition takes no place; the group is drawn without it",
+      "numbering": "not a list item: numbered items count records only"
+    },
+    "group": "records that follow one another with the same value under the path",
+    "same": {
+      "missing": "absent, null and the empty string are one value",
+      "types": "the same JSON type and equal without conversion: 1 and \"1\" are two groups",
+      "objects": "an object or a list is a group of its own"
+    },
+    "order": "the order of the data — the backend sorts; the same value after another one starts a new group",
+    "after": [
+      "where",
+      "limit"
+    ],
+    "empty": "no records — no groups and no headers",
+    "gap": "the «gap» of the Repeater between every two drawn nodes, headers and records alike",
+    "layout": "a list in a column only: with «columns» (any width class) or «direction: row» the field is not published",
+    "olderReader": "skips the field and draws children[0] only: the records without headers",
+    "editorCanvas": "the header above the first record, editable, like the template",
+    "cases": "contract/fixtures/repeater-group/repeater-group-cases.json"
+  },
+  "x-sheetDismiss": {
+    "layer": "a modal screen shown as a sheet from the bottom (x-style.layout.modalLayer, x-style.layout.wideModal); a centred window has no drag",
+    "grab": "the handle drawn by the document or any point of the sheet",
+    "starts": "the finger moves down past the touch slop of «x-longPress» and more down than sideways",
+    "contentScrolled": "when the body of the sheet is scrolled away from its top, a drag outside the handle scrolls the body; the sheet moves only once the body is at its top",
+    "follows": "the sheet follows the finger down; it never goes above its place",
+    "release": {
+      "dismissShare": 0.3,
+      "of": "the height of the sheet",
+      "flingVelocity": 700,
+      "velocityUnit": "logical pixels per second, down positive",
+      "velocityWindowMs": 100,
+      "order": [
+        "a fling up returns",
+        "a fling down dismisses",
+        "otherwise the share of the height"
+      ]
+    },
+    "returns": {
+      "durationMs": 250,
+      "curve": [
+        0.2,
+        0,
+        0,
+        1
+      ]
+    },
+    "exits": {
+      "durationMs": 200,
+      "curve": [
+        0.4,
+        0,
+        1,
+        1
+      ]
+    },
+    "dismiss": "navigate.back — one step of the stack, the «screen shown» event with reason «back» after the sheet has left",
+    "scrim": "the scrim fades with the share of the sheet that is still visible",
+    "dismissible": {
+      "field": "dismissible",
+      "on": "the screen entry of a modal screen",
+      "value": "«false» — no drag, no tap on the scrim, no Esc",
+      "systemBack": "stays with the host",
+      "actionsInside": "«navigate.back» inside the layer still closes it",
+      "onPage": "not read; the validator rejects it",
+      "withoutField": "dismissed as x-style.layout.modalLayer.dismiss and this block say"
+    },
+    "reducedMotion": "the sheet still follows the finger; the return and the exit are instant",
+    "keyboard": "Esc as x-style.layout.modalLayer.dismiss",
+    "editorCanvas": "nothing; the preview drags with the mouse too",
+    "olderReader": "no drag; «dismissible: false» is not read — the scrim and Esc still dismiss",
+    "cases": "contract/fixtures/sheet-dismiss/sheet-dismiss-cases.json"
+  },
+  "x-liveRecord": {
+    "appliesTo": "every record a frame of the stack holds (x-dataScope): opened from a list row, inherited by a modal layer, carried by «carryRecord»",
+    "field": "none: no document field turns it on, and no document changes its meaning while the data stays the same",
+    "chain": "the record of a frame is the overlay of the records of the Repeater instances it came from, outer first; every instance remembers its collection («Repeater.source»), its entity («Repeater.item») and its fields",
+    "key": {
+      "path": "<item>.id",
+      "field": "id",
+      "types": "a non-empty string or a finite number; any other value or no field — the instance is not live and keeps the fields the screen was opened with",
+      "compare": "the same JSON type and equal without conversion: 7 and \"7\" are two records"
+    },
+    "when": "whenever the reader is given new collections; every frame of the stack, not only the top one",
+    "search": {
+      "order": [
+        "source",
+        "entity"
+      ],
+      "source": "the collection the list read, under «Repeater.source», as the host gives it now: not filtered by «where», not bounded by «limit»",
+      "entity": "then every other collection the document names for the same entity: the «source» of every Repeater with the same «item», screens in document order, depth first, each collection once",
+      "duplicates": "the first record with the key in the order of the collection",
+      "notAList": "a collection that is absent or not a list holds no records"
+    },
+    "found": "the instance takes the found record whole: a field the new record lacks is gone from that instance",
+    "notFound": "the instance keeps the last record it had: it neither empties nor goes back to the record of the navigation",
+    "notAShow": "the stack, the screen-shown event, analytics and the show cause do not change; the screen keeps its scroll, carousels and inputs",
+    "layers": "unchanged: record, session, host, data",
+    "valueTransition": "a bound value that changed animates as any changed value does («animateChanges»)",
+    "handed": "actions on the screen carry the refreshed record to the host",
+    "olderReader": "keeps the record the screen was opened with until the screen leaves the stack",
+    "editorPreview": "the preview refreshes the record when the data scenario or the data dictionary changes",
+    "cases": "contract/fixtures/scope/record-scope-cases.json (liveRecordCases, liveFlowCases)"
   },
   "x-generatedFrom": "src/entities/component-schema — generated, do not edit by hand"
 }

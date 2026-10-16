@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hotlayout.com/schema/data-contract.json",
   "title": "DataContract",
-  "x-dataContractVersion": "1.5.0",
+  "x-dataContractVersion": "1.7.0",
   "x-generatedFrom": "src/entities/component-schema/data-contract.ts — generated, do not edit by hand",
   "x-delivery": {
     "pathsShape": "flat-map",
@@ -472,6 +472,30 @@
         "type": "boolean",
         "label": "Survey: topic «books»",
         "sampleValue": false
+      },
+      {
+        "path": "activity.title",
+        "type": "string",
+        "label": "History: title",
+        "sampleValue": "Welcome bonus"
+      },
+      {
+        "path": "activity.points",
+        "type": "number",
+        "label": "History: points",
+        "sampleValue": 50
+      },
+      {
+        "path": "activity.day",
+        "type": "string",
+        "label": "History: day",
+        "sampleValue": "Mon, Oct 12"
+      },
+      {
+        "path": "task.id",
+        "type": "string",
+        "label": "Task id",
+        "sampleValue": "card-payments"
       }
     ],
     "collections": [
@@ -499,6 +523,16 @@
         "path": "offers",
         "label": "Offers",
         "item": "offer"
+      },
+      {
+        "path": "activities",
+        "label": "History",
+        "item": "activity"
+      },
+      {
+        "path": "doneTasks",
+        "label": "Completed tasks",
+        "item": "task"
       }
     ]
   }
