@@ -35,7 +35,7 @@ extension TransitionWidgets on NodeRenderer {
   }
 
   Widget _plain(ChildNode node, NodeRenderer renderer, NodeStyle? own, Slot slot) => switch (node) {
-    TextNode() => renderer.buildText(node),
+    TextNode() => renderer.buildText(node, own),
     ProgressBarNode() => renderer.buildProgressBar(node),
     CircularProgressNode() => renderer.buildCircularProgress(node, own, slot),
     _ => const SizedBox.shrink(),

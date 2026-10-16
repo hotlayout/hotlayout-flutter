@@ -10,15 +10,18 @@ import '../../model/layout_rules.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/style_values.dart';
+import '../../model/swipe_confirm.dart' show kSwipeThumbGlyph;
 import '../../model/tokens.dart';
 import '../../model/visibility.dart';
 import '../../theme/render_theme.dart';
+import '../dashed_border.dart';
 import '../icon_box.dart';
 import '../key_repeat_guard.dart';
 import '../layout/quiet_flex.dart';
 import '../node_renderer.dart';
 import '../render_scope.dart';
 import '../screen_form.dart';
+import '../swipe_confirm_button.dart';
 import '../tap_target.dart';
 import 'node_box.dart';
 import 'write_control.dart';
@@ -48,31 +51,33 @@ extension ButtonWidgets on NodeRenderer {
     final geometry = buttonGeometryOf(node.size);
     final typography = surface.typography ?? theme.text(geometry.typography);
     final disabled = _pressDisabled(node.requiresFilled, node.disabledIf);
-    final button = _roleButton(
-      surface,
-      onPressed: disabled ? null : () => emit(node.action, node.id),
-      padding:
-          surface.padding ??
-          EdgeInsetsDirectional.symmetric(
-            horizontal: theme.space(geometry.inline),
-            vertical: theme.space(geometry.block),
-          ),
-      typography: typography,
-      // The "icon + caption" pair is centered in the button TOGETHER, also in a full-width button:
-      // the row is shrunk to its content and the button itself centers it.
-      child: buildIconBesideText(
-        Text(
-          text(node.label),
-          strutStyle: lineStrut(typography),
-          // The caption is centered on a second line too (`buttonLabelAlign`).
-          textAlign: TextAlign.center,
-        ),
-        icon: resolveIconToken(node.icon, node.iconPath, data.lookup),
-        position: node.iconPosition,
-        style: typography,
-        color: surface.foreground,
-      ),
-    );
+    final Widget button = node.confirmBySwipe
+        ? _swipeTrack(node, own, surface, geometry, typography, disabled)
+        : _roleButton(
+            surface,
+            onPressed: disabled ? null : () => emit(node.action, node.id),
+            padding:
+                surface.padding ??
+                EdgeInsetsDirectional.symmetric(
+                  horizontal: theme.space(geometry.inline),
+                  vertical: theme.space(geometry.block),
+                ),
+            typography: typography,
+            // The "icon + caption" pair is centered in the button TOGETHER, also in a full-width button:
+            // the row is shrunk to its content and the button itself centers it.
+            child: buildIconBesideText(
+              Text(
+                text(node.label),
+                strutStyle: lineStrut(typography),
+                // The caption is centered on a second line too (`buttonLabelAlign`).
+                textAlign: TextAlign.center,
+              ),
+              icon: resolveIconToken(node.icon, node.iconPath, data.lookup),
+              position: node.iconPosition,
+              style: typography,
+              color: surface.foreground,
+            ),
+          );
 
     // Look and place come from the document; the touch target is no smaller than 48 x 48 dp and
     // does not take part in layout.
@@ -84,6 +89,49 @@ extension ButtonWidgets on NodeRenderer {
       child: TapTarget(child: button),
     );
     return node.fullWidth && !natural ? SizedBox(width: double.infinity, child: target) : target;
+  }
+
+  /// A button that is confirmed by a swipe (schema 9.22.0, `x-swipeConfirm`): a track in the box of the button
+  /// (the surface and the size as usual, the inline padding not read) with a circular thumb at the inline start. The
+  /// thumb is the background of the ROLE (the node's own `style.background` paints the track, not the thumb) and the
+  /// picture on it the foreground of the role; a role without a background gives `primary` / `onPrimary`. The picture is
+  /// the icon of the button, or `chevron-right`, in the font size of the label.
+  Widget _swipeTrack(
+    ButtonNode node,
+    NodeStyle? own,
+    RoleSurface surface,
+    ButtonSizeGeometry geometry,
+    TextStyle typography,
+    bool disabled,
+  ) {
+    final role = theme.buttonVariant(node.variant);
+    final roleFilled = role.background != null;
+    final icon = resolveIconToken(node.icon, node.iconPath, data.lookup);
+    return SwipeConfirmTrack(
+      decorate: (content) => nodeSurface(
+        color: surface.color,
+        gradient: surface.gradient,
+        image: surface.image,
+        radius: surface.radius ?? theme.borderRadius(RadiusToken.md),
+        shadow: surface.shadow,
+        border: surface.border,
+        blur: surface.blur,
+        child: content,
+      ),
+      radius: surface.radius ?? theme.borderRadius(RadiusToken.md),
+      label: text(node.label),
+      typography: typography,
+      labelColor: surface.foreground,
+      verticalPadding: surface.padding?.vertical ?? 2 * theme.space(geometry.block),
+      border: surface.border?.width ?? 0,
+      inset: theme.space(SpacingToken.xs),
+      thumbColor: roleFilled ? role.background! : theme.color(ColorToken.primary),
+      glyphColor: roleFilled ? role.foreground : theme.color(ColorToken.onPrimary),
+      glyph: icon == null || icon == IconToken.unknown ? IconToken.parse(kSwipeThumbGlyph) : icon,
+      disabled: disabled,
+      onActivate: () => emit(node.action, node.id),
+      focusColor: theme.color(ColorToken.primary),
+    );
   }
 
   /// THE ICON BUTTON (schema 9.5.0, `x-style.layout.iconButton`): a circle with a picture in the
@@ -305,7 +353,9 @@ extension ButtonWidgets on NodeRenderer {
     final inset = border == null ? padding : EdgeInsetsDirectional.all(border.width).add(padding);
 
     if (border != null) {
-      return OutlinedButton(
+      // A dashed border (9.22.0) is painted over the button, inside its box; the Material button draws no side.
+      final dashed = border is DashedBorderSide;
+      final outlined = OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: fill,
@@ -314,7 +364,7 @@ extension ButtonWidgets on NodeRenderer {
           disabledBackgroundColor: fill,
           disabledForegroundColor: surface.foreground,
           disabledMouseCursor: SystemMouseCursors.basic,
-          side: border,
+          side: dashed ? BorderSide.none : border,
           shape: shape,
           padding: inset,
           textStyle: typography,
@@ -325,6 +375,7 @@ extension ButtonWidgets on NodeRenderer {
         ),
         child: child,
       );
+      return dashed ? DashedBorder(side: border, radius: radius ?? fallbackRadius, child: outlined) : outlined;
     }
     if (surface.hasBackground) {
       return FilledButton(

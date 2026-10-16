@@ -25,7 +25,12 @@ final class ButtonNode extends ChildNode {
     this.requiresFilled = false,
     this.disabledIf,
     this.zone,
+    this.confirmBySwipe = false,
   });
+
+  /// "Swipe to confirm" (9.22.0, `confirm: 'swipe'`): the button is a track with a thumb; the action runs when the thumb
+  /// is dragged past the threshold. Only the word `swipe` is read.
+  final bool confirmBySwipe;
 
   /// App bar zone (9.16.0): `leading` means the node stands in the leading zone of the `AppBar`
   /// instead of the arrow. Read only on a direct child of the app bar.
@@ -87,6 +92,7 @@ ButtonNode _parseButton(_RawNode node, VisibilityCondition? visibleIf) {
     requiresFilled: isRequiredProp(props['requiresFilled']),
     disabledIf: VisibilityCondition.parse(props['disabledIf']),
     zone: node.zone,
+    confirmBySwipe: confirmsBySwipe(props['confirm']),
   );
 }
 

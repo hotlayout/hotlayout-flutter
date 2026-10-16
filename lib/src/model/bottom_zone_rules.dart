@@ -1,5 +1,8 @@
 import 'dart:math' as math;
 
+import 'visibility.dart';
+import 'wide_chrome_rules.dart' show NavBarPlace;
+
 // THE BOTTOM ZONE OF A SCREEN: the navigation bar and the block pinned to the
 // bottom (schema 9.12.0).
 //
@@ -190,3 +193,39 @@ const Map<String, String> kBottomZonePolicy = {
   'bottomSafeInset': 'reader-adds-under-the-bottom-zone',
   'bottomZoneKeyboard': 'pinned-above-nav-bar-covered',
 };
+
+// ───────────────────────────── the floating bar and the dot (9.22.0) ─────────────────────────────
+
+/// `NavBar.float` as the reader reads it (`x-style.layout.navFloat.value`): only the literal `true`. `false`, the
+/// string `"true"` and any other value are "no field".
+bool navFloatOf(Object? raw) => raw == true;
+
+/// Whether the bar FLOATS: only where it stands in the bottom zone (`navFloat.applies`); at the top, in an app bar
+/// or in a strip of its own, there is nothing to float over.
+bool navFloatsIn(NavBarPlace? place, bool float) => place == NavBarPlace.bottom && float;
+
+/// The dot on an item (`x-style.layout.navBadge`): the diameter, in logical pixels.
+const double kNavBadgeDiameter = 8;
+
+/// The condition of the dot: the form of `visibleIf`, the same judgement over missing data
+/// (`navBadge.condition`). A condition this reader cannot read -- no object, no operator, a newer operator --
+/// gives `null`, and `null` means NO dot (`navBadge.unknownCondition`): the opposite of `visibleIf`, where the node
+/// stays visible, because a dot nobody asked for is the worse mistake.
+VisibilityCondition? navBadgeConditionOf(Object? raw) {
+  if (raw is! Map) return null;
+  final condition = VisibilityCondition.parse(raw);
+  return condition is AlwaysVisibleCondition ? null : condition;
+}
+
+/// The box of the dot in the coordinates of the item, from its LEFT edge: its centre is on the top corner of the
+/// glyph on the side of the end of the line (the top right corner; right to left, the top left one). The glyph is a
+/// square in the size of the font, in the middle of the box of the row, so its top is below the top of the box.
+({double left, double top, double size}) navBadgeBoxOf({
+  required double glyphLeft,
+  required double glyphTop,
+  required double glyphSize,
+  required bool rtl,
+}) {
+  final cornerX = rtl ? glyphLeft : glyphLeft + glyphSize;
+  return (left: cornerX - kNavBadgeDiameter / 2, top: glyphTop - kNavBadgeDiameter / 2, size: kNavBadgeDiameter);
+}

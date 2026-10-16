@@ -91,7 +91,7 @@ const Map<String, ({String shown, String why})> _platformDiffers = {
 /// counts the difference in epoch milliseconds. The rows run like all others, in
 /// the machine zone; that the zone does not enter the answer is held by a separate
 /// test in `template_text_test.dart` (an instant with different offsets gives the same number).
-const Set<String> _ignoredFields = {'timeZone'};
+const Set<String> _ignoredFields = {'timeZone', 'direction'};
 
 /// The offsets of the zones the date rows name at the instant they use (October 2026).
 const Map<String, Duration> _zoneOffsets = {
@@ -148,6 +148,8 @@ void main() {
   final dateRows = (table['datePartsCases']! as List<Object?>).cast<Map<String, Object?>>();
   // 9.21.0: a part of the time left (`format: 'countdownPart'`, `unit`, `pad`).
   final countdownRows = (table['countdownCases']! as List<Object?>).cast<Map<String, Object?>>();
+  // 9.23.0: a compact number (`notation: 'compact'` beside `format: 'number'`).
+  final compactRows = (table['compactCases']! as List<Object?>).cast<Map<String, Object?>>();
   final shownTextRows = (table['shownTextCases']! as List<Object?>).cast<Map<String, Object?>>();
 
   test('the table is read in full, and every field of it is known to this test', () {
@@ -156,6 +158,7 @@ void main() {
     expect(rows, hasLength(179));
     expect(dateRows, hasLength(37));
     expect(countdownRows, hasLength(28));
+    expect(compactRows, hasLength(41));
     expect(countdownRows.where((row) => row['readerOnly'] != null), hasLength(3));
     const known = {
       'name',
@@ -170,7 +173,7 @@ void main() {
       'mayDiffer',
       'readerOnly',
     };
-    for (final row in [...rows, ...dateRows, ...countdownRows, ...shownRows]) {
+    for (final row in [...rows, ...dateRows, ...countdownRows, ...compactRows, ...shownRows]) {
       expect(
         row.keys.toSet().difference({...known, ..._ignoredFields, if (shownRows.contains(row)) 'shown'}),
         isEmpty,
@@ -184,6 +187,7 @@ void main() {
     );
     // A group has its own names: «no data: the fallback, never formatted» stands in `cases` and in `countdownCases`.
     expect(countdownRows.map((row) => row['name']).toSet(), hasLength(countdownRows.length));
+    expect(compactRows.map((row) => row['name']).toSet(), hasLength(compactRows.length));
   });
 
   test('table: exactly the groups this test knows', () {
@@ -195,11 +199,13 @@ void main() {
       'datePartsNote', 'datePartsCases',
       // 9.21.0: a countdown part.
       'countdownNote', 'countdownCases',
+      // 9.23.0: a compact number.
+      'compactNote', 'compactCases',
     });
   });
 
   test('an exception is named only for a row marked mayDiffer that EXISTS in the table', () {
-    final byName = {for (final row in [...rows, ...dateRows, ...countdownRows]) row['name']! as String: row};
+    final byName = {for (final row in [...rows, ...dateRows, ...countdownRows, ...compactRows]) row['name']! as String: row};
     expect(byName.keys, containsAll(_formattingOnlyThroughRenderScreen));
     for (final name in _platformDiffers.keys) {
       expect(byName, contains(name), reason: 'exception for a row that is not in the table');
@@ -239,7 +245,7 @@ void main() {
   group('rule: document string -> text', () {
     // `shownTemplateCases` are the same rows as `cases`, plus `shown`: `expected` stands BEFORE the whitespace
     // rule, so document string -> text is checked the same way, and `shown` - below.
-    for (final row in [...rows, ...dateRows, ...countdownRows, ...shownRows]) {
+    for (final row in [...rows, ...dateRows, ...countdownRows, ...compactRows, ...shownRows]) {
       test(row['name']! as String, () {
         final value = BindableString.parse(row['value'], key: _place);
         final translation = row['translationLocale'] as String?;
@@ -275,7 +281,7 @@ void main() {
   });
 
   group('screen: the same row as a Text node in a document', () {
-    for (final row in [...rows, ...dateRows, ...countdownRows, ...shownRows]) {
+    for (final row in [...rows, ...dateRows, ...countdownRows, ...compactRows, ...shownRows]) {
       testWidgets(row['name']! as String, (tester) async {
         final translation = row['translationLocale'] as String?;
         final source = row['sourceLocale'] as String?;

@@ -245,6 +245,10 @@
           "description": "Line under or through the text (9.17.0), in the colour of the text. Inherited down the tree; read by Text only. «none» cancels an inherited line.",
           "$ref": "#/$defs/TextDecoration"
         },
+        "textGradient": {
+          "description": "Gradient painted on the GLYPHS of the text (9.23.0): a gradient token of the theme or an own gradient of the same form as a gradient «background». It lies over the whole content box of the text, not line by line; a part of the text that names its own colour keeps it. «color» stays the fallback: an older reader and a gradient that does not resolve paint the text with it. Not inherited; read by Text only. Rules — «x-textGradient».",
+          "$ref": "#/$defs/GradientRef"
+        },
         "padding": {
           "$ref": "#/$defs/BoxSpacing"
         },
@@ -387,6 +391,67 @@
         "lineThrough"
       ]
     },
+    "GradientRef": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GradientToken"
+        },
+        {
+          "$ref": "#/$defs/CustomGradient"
+        }
+      ]
+    },
+    "GradientToken": {
+      "type": "string",
+      "pattern": "^[a-z][a-zA-Z0-9]{0,39}$",
+      "description": "Name of a «gradient» token of the project theme. The schema checks only the shape of the name; whether the theme declares it is a semantic rule checked against the active theme."
+    },
+    "CustomGradient": {
+      "type": "object",
+      "properties": {
+        "angle": {
+          "type": "number",
+          "enum": [
+            0,
+            90,
+            180,
+            270,
+            45,
+            135,
+            225,
+            315
+          ]
+        },
+        "stops": {
+          "minItems": 2,
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "color": {
+                "$ref": "#/$defs/ColorRef"
+              },
+              "position": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "color",
+              "position"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "angle",
+        "stops"
+      ],
+      "additionalProperties": false
+    },
     "BoxSpacing": {
       "anyOf": [
         {
@@ -472,6 +537,13 @@
         },
         "color": {
           "$ref": "#/$defs/ColorRef"
+        },
+        "style": {
+          "description": "Line of the border (9.22.0). «dashed» — dashes of 3 and gaps of 2 border widths along the centre line of the border, following the corner arcs; the count closes the loop evenly. Rules — «x-style.layout.borderDash». No field or an unknown word — solid, exactly as before 9.22.0.",
+          "type": "string",
+          "enum": [
+            "dashed"
+          ]
         }
       },
       "required": [
@@ -542,67 +614,6 @@
           "additionalProperties": false
         }
       ]
-    },
-    "GradientRef": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/GradientToken"
-        },
-        {
-          "$ref": "#/$defs/CustomGradient"
-        }
-      ]
-    },
-    "GradientToken": {
-      "type": "string",
-      "pattern": "^[a-z][a-zA-Z0-9]{0,39}$",
-      "description": "Name of a «gradient» token of the project theme. The schema checks only the shape of the name; whether the theme declares it is a semantic rule checked against the active theme."
-    },
-    "CustomGradient": {
-      "type": "object",
-      "properties": {
-        "angle": {
-          "type": "number",
-          "enum": [
-            0,
-            90,
-            180,
-            270,
-            45,
-            135,
-            225,
-            315
-          ]
-        },
-        "stops": {
-          "minItems": 2,
-          "maxItems": 8,
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "color": {
-                "$ref": "#/$defs/ColorRef"
-              },
-              "position": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              }
-            },
-            "required": [
-              "color",
-              "position"
-            ],
-            "additionalProperties": false
-          }
-        }
-      },
-      "required": [
-        "angle",
-        "stops"
-      ],
-      "additionalProperties": false
     },
     "ImageSource": {
       "oneOf": [
@@ -755,6 +766,12 @@
         },
         {
           "$ref": "#/$defs/OrderVisibilityCondition"
+        },
+        {
+          "$ref": "#/$defs/PathComparisonCondition"
+        },
+        {
+          "$ref": "#/$defs/FilteredEmptinessCondition"
         }
       ]
     },
@@ -844,6 +861,85 @@
       ],
       "additionalProperties": false
     },
+    "PathComparisonCondition": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "op": {
+          "type": "string",
+          "enum": [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte"
+          ]
+        },
+        "valuePath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The operand is the value under this OTHER data path (9.23.0), read in the same scope as «path»: «reward.category eq ui.rewardsCategory». No value under it (or the empty string) — see «x-listFilter.operandMissing»."
+        }
+      },
+      "required": [
+        "path",
+        "op",
+        "valuePath"
+      ],
+      "additionalProperties": false
+    },
+    "FilteredEmptinessCondition": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "op": {
+          "type": "string",
+          "enum": [
+            "isEmpty",
+            "isNotEmpty"
+          ]
+        },
+        "item": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Prefix of a record of the collection, as «Repeater.item» (9.23.0)."
+        },
+        "where": {
+          "description": "Count only the records for which this condition holds (9.23.0) — the same predicate as «Repeater.where». Rules — «x-listFilter.emptiness».",
+          "$ref": "#/$defs/ListWhereCondition"
+        }
+      },
+      "required": [
+        "path",
+        "op",
+        "item",
+        "where"
+      ],
+      "additionalProperties": false
+    },
+    "ListWhereCondition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/UnaryVisibilityCondition"
+        },
+        {
+          "$ref": "#/$defs/EqualityVisibilityCondition"
+        },
+        {
+          "$ref": "#/$defs/OrderVisibilityCondition"
+        },
+        {
+          "$ref": "#/$defs/PathComparisonCondition"
+        }
+      ]
+    },
     "ScreenStyleOn": {
       "minProperties": 1,
       "description": "The same as «StyleOn», for the screen root: no «margin» and no sizes.",
@@ -885,6 +981,7 @@
           "typography",
           "fontStyle",
           "textDecoration",
+          "textGradient",
           "padding",
           "radius",
           "border",
@@ -1220,6 +1317,9 @@
               "type": "number",
               "const": 2,
               "description": "At least this many digits, zeros in front («05»), beside «format: countdownPart» (9.21.0). No field — as many digits as the number has."
+            },
+            "notation": {
+              "$ref": "#/$defs/NumberNotation"
             }
           },
           "required": [
@@ -1318,6 +1418,13 @@
       ],
       "description": "Which part of the time left the «countdownPart» format shows (9.21.0): «days» — whole days; «hours» — 0–23; «minutes» — 0–59; «seconds» — 0–59. Required exactly when «format» is «countdownPart». Arithmetic, ticking and the clock — «x-countdown»."
     },
+    "NumberNotation": {
+      "type": "string",
+      "enum": [
+        "compact"
+      ],
+      "description": "Compact number (9.23.0): «compact» writes 48 200 as «48.2K» (en) or «48,2 тис.» (uk) — one fraction digit, half up, suffixes from a closed table by language. Only with «format: number». Rules — «x-compactNumber». No field — every digit."
+    },
     "TemplateValue": {
       "oneOf": [
         {
@@ -1359,6 +1466,9 @@
               "type": "number",
               "const": 2,
               "description": "At least this many digits, zeros in front («05»), beside «format: countdownPart» (9.21.0). No field — as many digits as the number has."
+            },
+            "notation": {
+              "$ref": "#/$defs/NumberNotation"
             }
           },
           "required": [
@@ -1458,6 +1568,10 @@
         "textDecoration": {
           "description": "Line under or through the text (9.17.0), in the colour of the text. Inherited down the tree; read by Text only. «none» cancels an inherited line.",
           "$ref": "#/$defs/TextDecoration"
+        },
+        "textGradient": {
+          "description": "Gradient painted on the GLYPHS of the text (9.23.0): a gradient token of the theme or an own gradient of the same form as a gradient «background». It lies over the whole content box of the text, not line by line; a part of the text that names its own colour keeps it. «color» stays the fallback: an older reader and a gradient that does not resolve paint the text with it. Not inherited; read by Text only. Rules — «x-textGradient».",
+          "$ref": "#/$defs/GradientRef"
         },
         "padding": {
           "$ref": "#/$defs/BoxSpacing"
@@ -1703,6 +1817,7 @@
           "typography",
           "fontStyle",
           "textDecoration",
+          "textGradient",
           "padding",
           "margin",
           "width",
@@ -3032,6 +3147,9 @@
               "type": "number",
               "const": 2,
               "description": "At least this many digits, zeros in front («05»), beside «format: countdownPart» (9.21.0). No field — as many digits as the number has."
+            },
+            "notation": {
+              "$ref": "#/$defs/NumberNotation"
             }
           },
           "required": [
@@ -3149,6 +3267,10 @@
         "carousel": {
           "description": "Turns the sideways scroll into a carousel: the scroll snaps to the cards and dots show the position. Rules — «x-style.layout.carousel». A reader older than 9.11.0 skips the field and shows the plain row.",
           "$ref": "#/$defs/Carousel"
+        },
+        "where": {
+          "description": "Draw only the records for which this condition holds (9.23.0), judged in the scope of THAT record over the outer scope. A record that does not pass does not exist for the layout: the grid packs, the carousel counts stops and dots of the cards drawn, numbers count the records drawn; «limit» takes the first records that passed. A comparison by «valuePath» with no value under it holds for every record («All»). No field — every record. Rules — «x-listFilter».",
+          "$ref": "#/$defs/ListWhereCondition"
         }
       },
       "required": [
@@ -4257,6 +4379,13 @@
         "disabledIf": {
           "description": "Disabled while the condition holds; with «requiresFilled» — when either holds («x-style.layout.form.button»). No field — not disabled.",
           "$ref": "#/$defs/VisibilityCondition"
+        },
+        "confirm": {
+          "description": "How the press is confirmed (9.22.0). «swipe» — the button is drawn as a track with a thumb at the inline start; the action and its «track» run only when the thumb is dragged to the inline end past the threshold and released; released earlier, it returns. From the keyboard and for assistive technology it is an ordinary button named by its label: Enter and Space act at once. A disabled button does not move. Rules — «x-swipeConfirm». No field or an unknown word — an ordinary press, exactly as before 9.22.0.",
+          "type": "string",
+          "enum": [
+            "swipe"
+          ]
         }
       },
       "required": [
@@ -5219,6 +5348,11 @@
             "top",
             "bottom"
           ]
+        },
+        "float": {
+          "description": "The bar floats over the body (9.22.0): the body area reaches the bottom of the screen and the content scrolls UNDER the bottom zone; the reader adds the height of the zone at the end of the body content, so the last row scrolls clear of it, and puts the bottom safe inset OUTSIDE the box of the bar. The look of the pill is the style of the node (margin, radius, «backdropBlur», shadow). Read only where the bar stands in the bottom zone; on «medium» and «expanded» with the bar at the top it changes nothing. Rules — «x-style.layout.navFloat». No field — the bar as before 9.22.0.",
+          "type": "boolean",
+          "const": true
         }
       },
       "additionalProperties": false
@@ -5300,6 +5434,10 @@
             "type": "none"
           },
           "$ref": "#/$defs/ButtonAction"
+        },
+        "badgeWhen": {
+          "description": "Show a dot on the icon of the item while the condition holds (9.22.0): the same form, check and missing-data rule as «visibleIf». Only a dot, no number; its colour is the core token «accent». The accessible name stays the label. Rules — «x-style.layout.navBadge». No field or a condition the reader does not understand — no dot.",
+          "$ref": "#/$defs/VisibilityCondition"
         }
       },
       "required": [
@@ -5757,7 +5895,7 @@
   },
   "$id": "https://hotlayout.com/schema/ui-document.json",
   "title": "UiDocument",
-  "x-schemaVersion": "9.21.0",
+  "x-schemaVersion": "9.23.0",
   "x-compatibility": {
     "policy": {
       "majorMustMatch": true,
@@ -6067,7 +6205,14 @@
       "valueTransition": "9.21.0",
       "countdownPart": "9.21.0",
       "progressCap": "9.21.0",
-      "appBarScrolled": "9.21.0"
+      "appBarScrolled": "9.21.0",
+      "navFloat": "9.22.0",
+      "navBadge": "9.22.0",
+      "swipeConfirm": "9.22.0",
+      "borderDash": "9.22.0",
+      "listFilter": "9.23.0",
+      "textGradient": "9.23.0",
+      "compactNumber": "9.23.0"
     }
   },
   "x-budget": {
@@ -8658,6 +8803,97 @@
         "olderReader": "skips both fields — the bar does not change on scroll and the title is always drawn",
         "cases": "contract/fixtures/media-chrome/media-chrome-cases.json#scrolledThresholdCases"
       },
+      "navFloat": {
+        "prop": "float",
+        "on": "NavBar",
+        "value": "literal-true-or-no-field",
+        "refines": [
+          "bottomZone.bodyArea",
+          "bottomZone.bodyClip",
+          "bottomZone.contentUnderBottomZone",
+          "bottomZone.safeArea.navBarBackground",
+          "screen.body.area"
+        ],
+        "applies": "where-the-bar-stands-in-the-bottom-zone",
+        "wideAtTop": "not-read",
+        "hiddenBar": "no-zone-nothing-floats",
+        "inModalLayer": "not-read-the-bar-is-not-drawn",
+        "zone": "the-whole-bottom-zone-floats-the-pinned-block-and-the-bar",
+        "order": "unchanged",
+        "bodyArea": "from-the-top-of-the-body-area-to-the-bottom-of-the-screen",
+        "bodyClip": "bottom-of-the-screen",
+        "contentUnderBottomZone": "scrolls-under-it",
+        "paint": "bottom-zone-over-the-body",
+        "bodyEnd": "body-tail-plus-the-height-of-the-bottom-zone",
+        "bodyTail": "unchanged-root-bottom-padding-or-the-screen-gap-under-a-pinned-block",
+        "barHeight": "margin-box-of-the-bar-node",
+        "safeArea": {
+          "inset": "under-the-margin-box-of-the-bar-outside-it",
+          "barBackground": "within-the-box-of-the-bar",
+          "pinnedOnly": "unchanged"
+        },
+        "press": "the-boxes-of-the-pinned-block-and-of-the-bar-the-rest-of-the-zone-passes-through-to-the-body",
+        "look": "style-of-the-node-no-built-in-pill",
+        "builtInSurface": "unchanged-named-style-background-and-border-replace-it",
+        "justify": "free-space-unchanged-the-added-tail-is-part-of-the-content",
+        "appBarScrolled": "unchanged",
+        "firstScreen": "content-under-the-bottom-zone-is-covered",
+        "withoutOwnHeight": {
+          "bottomZone": "sticks-over-the-content",
+          "stuckBackdrop": "none",
+          "focusMargin": "unchanged-scroll-margin-bottom-equals-the-bottom-zone-height"
+        },
+        "olderReader": "ordinary-bar-the-body-ends-above-it",
+        "cases": "contract/fixtures/bottom-zone/bottom-zone-cases.json"
+      },
+      "navBadge": {
+        "prop": "badgeWhen",
+        "on": "NavItem",
+        "refines": [
+          "navBar.badge"
+        ],
+        "condition": "same-form-check-and-missing-data-rule-as-visibleIf",
+        "shown": "condition-holds",
+        "unknownCondition": "no-dot",
+        "mark": "dot",
+        "count": "none-in-9.22",
+        "color": "accent",
+        "diameter": 8,
+        "place": "centre-on-the-top-inline-end-corner-of-the-glyph",
+        "rightToLeft": "top-left-corner-of-the-glyph",
+        "clip": "not-clipped-by-the-item",
+        "size": "does-not-change-the-item",
+        "activeItem": "drawn-as-well",
+        "hiddenItem": "no-dot",
+        "wide": "the-same-in-every-place-of-the-bar",
+        "accessibleName": "unchanged-the-dot-is-not-announced",
+        "press": "part-of-the-item",
+        "olderReader": "no-dot",
+        "cases": "contract/fixtures/bottom-zone/bottom-zone-cases.json"
+      },
+      "borderDash": {
+        "prop": "style.border.style",
+        "words": [
+          "dashed"
+        ],
+        "dash": 3,
+        "gap": 2,
+        "unit": "border-width",
+        "line": "centre-line-of-the-border-half-a-width-inside-the-outer-edge",
+        "radii": "outer-radii-scaled-down-as-css-does-when-they-do-not-fit-then-minus-half-a-width-not-below-zero",
+        "corners": "dashes-follow-the-arcs",
+        "start": "inline-start-end-of-the-top-straight-edge",
+        "direction": "toward-the-inline-end",
+        "rightToLeft": "mirrored",
+        "first": "dash",
+        "fit": "count-is-the-perimeter-over-dash-plus-gap-rounded-not-below-one-dash-and-gap-stretched-by-the-same-factor",
+        "room": "same-as-a-solid-border",
+        "color": "same-as-a-solid-border",
+        "everywhere": "every-place-that-reads-style-border",
+        "unknownWord": "solid",
+        "olderReader": "solid",
+        "cases": "contract/fixtures/border-dash/border-dash-cases.json"
+      },
       "partStyle": {
         "keys": [
           "color",
@@ -9943,6 +10179,229 @@
     "fallback": "never formatted",
     "olderReader": "unknownBindingFormat — the value as it is (the ISO string)",
     "cases": "contract/fixtures/template/template-cases.json"
+  },
+  "x-swipeConfirm": {
+    "prop": "confirm",
+    "on": [
+      "Button"
+    ],
+    "words": [
+      "swipe"
+    ],
+    "track": {
+      "box": "the-box-of-the-button-surface-and-size-as-usual",
+      "paddingInline": "not-read"
+    },
+    "thumb": {
+      "shape": "circle",
+      "inset": "xs",
+      "diameter": "height-minus-twice-the-border-minus-twice-the-inset",
+      "fill": "background-of-the-role",
+      "fillWithoutRoleBackground": "primary",
+      "ownBackground": "paints-the-track-not-the-thumb",
+      "glyph": "icon-of-the-button-or-chevron-right",
+      "glyphSize": "font-size-of-the-label-style",
+      "glyphColor": "foreground-of-the-role",
+      "glyphColorWithoutRoleBackground": "onPrimary",
+      "mirrored": "by-the-icon-rule",
+      "rest": "at-the-inline-start"
+    },
+    "label": {
+      "area": "between-the-two-places-of-the-thumb",
+      "align": "center",
+      "iconPosition": "not-read-the-icon-is-on-the-thumb"
+    },
+    "naturalWidth": "label-plus-twice-the-thumb-room",
+    "thumbRoom": "border-plus-inset-plus-diameter",
+    "travel": "width-minus-twice-the-border-minus-twice-the-inset-minus-the-diameter",
+    "direction": "from-the-inline-start-to-the-inline-end",
+    "progress": "drag-along-the-inline-axis-divided-by-the-travel-clamped-to-0-1",
+    "threshold": 0.9,
+    "release": {
+      "atOrPastThreshold": "act",
+      "belowThreshold": "return-no-action-no-event"
+    },
+    "afterAction": "thumb-returns-to-the-start",
+    "noTravel": "the-gesture-never-acts-keyboard-still-does",
+    "capture": "once-it-moves-more-along-the-inline-axis-than-across",
+    "cancel": "return-no-action",
+    "pressWithoutDrag": "nothing",
+    "keyboard": "enter-and-space-act-at-once",
+    "assistive": "activate-acts-at-once",
+    "semantics": "button-named-by-the-label",
+    "autoRepeat": "not-a-press",
+    "disabled": "thumb-does-not-move-look-of-a-disabled-button",
+    "trackEvent": "once-before-the-action",
+    "motion": "return-is-at-the-readers-discretion-reduced-motion-jumps",
+    "canvas": "thumb-at-the-start",
+    "olderReader": "ordinary-button-a-tap-acts",
+    "cases": "contract/fixtures/swipe-confirm/swipe-confirm-cases.json"
+  },
+  "x-listFilter": {
+    "valuePath": {
+      "field": "valuePath",
+      "instead": "value",
+      "ops": [
+        "eq",
+        "neq",
+        "gt",
+        "gte",
+        "lt",
+        "lte"
+      ],
+      "readIn": "the-same-scope-as-path",
+      "types": "the-value-types-of-the-two-paths-match-x-conditions.opPathTypes-string-and-date-compare-as-text",
+      "everywhere": [
+        "visibleIf",
+        "styleWhen",
+        "disabledIf",
+        "where",
+        "badgeWhen",
+        "part-styles"
+      ],
+      "collection": "never-a-collection",
+      "operandMissing": {
+        "is": [
+          "absent",
+          "null",
+          "the-empty-string"
+        ],
+        "inWhere": "the-condition-holds-for-every-record",
+        "elsewhere": "the-condition-does-not-hold-eq-and-neq-alike"
+      },
+      "pathMissing": "x-compatibility.policy.missingConditionValue"
+    },
+    "where": {
+      "widget": "Repeater",
+      "prop": "where",
+      "form": "ListWhereCondition — a condition without where",
+      "scope": "the-record-of-the-instance-over-the-outer-scope-x-dataScope.layers",
+      "notPassed": "the-record-does-not-exist-for-the-layout",
+      "order": "the-order-of-the-collection",
+      "limit": "the-first-limit-records-that-passed",
+      "grid": "cells-of-passed-records-only-no-holes",
+      "carousel": "cards-stops-and-dots-of-passed-records",
+      "numbering": "instances-of-passed-records",
+      "carryRecord": "unchanged-the-record-of-the-tapped-instance",
+      "withoutField": "every-record"
+    },
+    "emptiness": {
+      "ops": [
+        "isEmpty",
+        "isNotEmpty"
+      ],
+      "props": {
+        "item": "item",
+        "where": "where"
+      },
+      "pathIs": "a-collection",
+      "counts": "records-that-pass-the-same-predicate-as-Repeater.where",
+      "notAList": "no-records",
+      "limit": "not-applied"
+    },
+    "olderReader": {
+      "where": "the-field-is-skipped-every-record-is-drawn",
+      "filteredEmptiness": "the-whole-collection-is-counted",
+      "valuePath": "a-comparison-without-a-value-publish-when-readers-of-9.23-are-out"
+    },
+    "cases": "contract/fixtures/repeater-filter/repeater-filter-cases.json"
+  },
+  "x-textGradient": {
+    "prop": "style.textGradient",
+    "value": "a-gradient-token-or-an-own-gradient-as-the-gradient-of-background",
+    "readers": [
+      "Text"
+    ],
+    "inherited": false,
+    "paints": "the-glyphs-of-the-text",
+    "box": "the-content-box-of-the-text-inside-padding-one-gradient-for-all-lines",
+    "angle": "as-the-gradient-of-background-x-gradientGeometry",
+    "partWithOwnColor": "keeps-its-colour",
+    "partWithoutColor": "painted-by-the-gradient",
+    "fallback": {
+      "color": "style.color-or-the-inherited-colour",
+      "when": [
+        "older-reader",
+        "unknown-token",
+        "stops-out-of-order"
+      ]
+    },
+    "decoration": "the-fallback-colour",
+    "listMarker": "the-fallback-colour",
+    "states": "styleWhen-and-styleOn-may-name-it-merged-as-every-style-field",
+    "otherWidgets": "not-published-text_gradient_not_read",
+    "cases": "contract/fixtures/rich-text/rich-text-cases.json#textGradientCases"
+  },
+  "x-compactNumber": {
+    "prop": "notation",
+    "words": [
+      "compact"
+    ],
+    "formats": [
+      "number"
+    ],
+    "below": {
+      "magnitude": 1000,
+      "written": "as-format-number-every-digit"
+    },
+    "steps": [
+      {
+        "name": "thousand",
+        "from": 1000
+      },
+      {
+        "name": "million",
+        "from": 1000000
+      },
+      {
+        "name": "billion",
+        "from": 1000000000
+      }
+    ],
+    "beyondTheLastStep": "billions-with-groups",
+    "mantissa": {
+      "is": "magnitude / step",
+      "fractionDigits": {
+        "min": 0,
+        "max": 1
+      },
+      "rounding": "half-up-of-the-magnitude-after-rounding-the-quotient-to-6-digits",
+      "trailingZero": "dropped",
+      "reachesNextStep": "written-with-the-next-step"
+    },
+    "suffixes": {
+      "en": {
+        "gap": "",
+        "thousand": "K",
+        "million": "M",
+        "billion": "B"
+      },
+      "uk": {
+        "gap": " ",
+        "thousand": "тис.",
+        "million": "млн",
+        "billion": "млрд"
+      }
+    },
+    "suffixLanguage": "the-first-subtag-of-the-formatting-locale-other-languages-en",
+    "gapCodePoint": {
+      "uk": "U+00A0",
+      "en": "none"
+    },
+    "decimalSeparatorAndDigits": "of-the-formatting-locale-as-format-number",
+    "grouping": "always-as-format-number",
+    "sign": {
+      "withoutField": "negative-as-format-number",
+      "always": "composed-x-money.signs-the-suffix-follows-the-number"
+    },
+    "plural": "agrees-with-the-full-value-not-the-mantissa",
+    "parts": {
+      "fraction": "the-decimal-separator-and-the-fraction-digit",
+      "suffix": "in-the-style-of-the-place"
+    },
+    "localeWithoutData": "the-format-does-not-apply-the-value-as-it-is",
+    "olderReader": "the-field-is-skipped-every-digit",
+    "cases": "contract/fixtures/template/template-cases.json#compactCases"
   },
   "x-generatedFrom": "src/entities/component-schema — generated, do not edit by hand"
 }

@@ -54,8 +54,13 @@ class ScreenZones extends MultiChildRenderObjectWidget {
     this.hasBar = false,
     this.hasPinned = false,
     this.hasLow = false,
+    this.tail,
     required super.children,
   });
+
+  /// The floating bottom zone (schema 9.22.0): when set, the zone lies OVER the body, the body area reaches the
+  /// bottom of the screen, and the holder is told the height of the zone for the end of the body's content.
+  final ZoneTail? tail;
 
   final bool shrink;
   final double overlap;
@@ -82,6 +87,7 @@ class ScreenZones extends MultiChildRenderObjectWidget {
     hasBar: hasBar,
     hasPinned: hasPinned,
     hasLow: hasLow,
+    tail: tail,
   );
 
   @override
@@ -94,7 +100,8 @@ class ScreenZones extends MultiChildRenderObjectWidget {
       ..topInset = topInset
       ..hasBar = hasBar
       ..hasPinned = hasPinned
-      ..hasLow = hasLow;
+      ..hasLow = hasLow
+      ..tail = tail;
   }
 }
 
@@ -113,7 +120,9 @@ class RenderScreenZones extends RenderBox
     required bool hasBar,
     required bool hasPinned,
     required bool hasLow,
+    ZoneTail? tail,
   }) : _shrink = shrink,
+       _tail = tail,
        _overlap = overlap,
        _keyboard = keyboard,
        _bodyAtScreenTop = bodyAtScreenTop,
@@ -121,6 +130,13 @@ class RenderScreenZones extends RenderBox
        _hasBar = hasBar,
        _hasPinned = hasPinned,
        _hasLow = hasLow;
+
+  ZoneTail? _tail;
+  set tail(ZoneTail? value) {
+    if (_tail == value) return;
+    _tail = value;
+    markNeedsLayout();
+  }
 
   bool _bodyAtScreenTop;
   set bodyAtScreenTop(bool value) {
@@ -188,7 +204,12 @@ class RenderScreenZones extends RenderBox
   RenderBox? get _pinned => _hasPinned ? childAfter(_body!) : null;
   RenderBox? get _low => _hasLow ? lastChild : null;
 
-  Size _arrange(BoxConstraints constraints, Size Function(RenderBox child, BoxConstraints c) measure, void Function(RenderBox, Offset)? place) {
+  Size _arrange(
+    BoxConstraints constraints,
+    Size Function(RenderBox child, BoxConstraints c) measure,
+    void Function(RenderBox, Offset)? place, {
+    void Function(double zoneHeight)? onZoneHeight,
+  }) {
     final width = constraints.maxWidth;
     final bar = _bar;
     final body = _body;
@@ -210,6 +231,10 @@ class RenderScreenZones extends RenderBox
     final pinnedHeight = pinned == null ? 0.0 : measure(pinned, tight).height;
     final lowHeight = low == null ? 0.0 : measure(low, tight).height;
     final bottomHeight = pinnedHeight + lowHeight;
+    // A FLOATING ZONE (schema 9.22.0): lies over the body, and the body's content gets its height at the end. Only with
+    // a finite height and not in a layer sized to its content: there is no bottom of the screen to float over.
+    final floats = _tail != null && bounded && !_shrink && low != null;
+    if (floats) onZoneHeight?.call(bottomHeight);
     // The keyboard raises the zone only by the part by which it is taller than the low part: the
     // low part stays under it, the pinned block goes above it. Only for a page (not a layer) and
     // only with a finite height: the layer lifts itself.
@@ -219,7 +244,7 @@ class RenderScreenZones extends RenderBox
     final top = _bodyAtScreenTop ? 0.0 : (bar == null ? _topInset : barHeight - _overlap);
     var bodyBottom = top;
     if (body != null) {
-      final room = bounded ? math.max(0.0, maxHeight - bottomHeight - lift - top) : double.infinity;
+      final room = bounded ? math.max(0.0, maxHeight - (floats ? 0.0 : bottomHeight) - lift - top) : double.infinity;
       final fill = bounded && !_shrink;
       // A layer as tall as its content is not lower than the app bar that lies over it: the body area
       // reaches the bar's bottom edge (`bodyTop` with a bar in a layer).
@@ -237,7 +262,8 @@ class RenderScreenZones extends RenderBox
       bodyBottom = top + size.height;
     }
     // Top of the bottom zone = bottom of the body area, but not above the app bar's bottom edge.
-    final zoneTop = math.max(bodyBottom, barHeight);
+    // A floating zone stands at the bottom of the screen whatever the body is: it is over it, not below it.
+    final zoneTop = math.max(floats ? maxHeight - lift - bottomHeight : bodyBottom, barHeight);
     if (pinned != null) place?.call(pinned, Offset(0, zoneTop));
     if (low != null) place?.call(low, Offset(0, zoneTop + pinnedHeight));
     var height = zoneTop + bottomHeight;
@@ -255,6 +281,9 @@ class RenderScreenZones extends RenderBox
         return child.size;
       },
       (child, offset) => (child.parentData! as ContainerBoxParentData<RenderBox>).offset = offset,
+      // The end of the body's content is a child of ours, and its size changes with the zone: the update is made
+      // in a layout callback, before the body is measured, as a `LayoutBuilder` does.
+      onZoneHeight: (height) => invokeLayoutCallback<BoxConstraints>((_) => _tail!.height = height),
     );
   }
 
@@ -353,4 +382,105 @@ class RenderScreenZones extends RenderBox
 double topInsetOf(BuildContext context) {
   final height = MediaQuery.sizeOf(context).height;
   return safeTopOf(MediaQuery.viewPaddingOf(context).top, height > 0 ? height : double.infinity);
+}
+
+/// The height of the floating bottom zone, handed from [RenderScreenZones] to the end of the body's content
+/// ([ZoneTailPadding]) while the zone is being laid out.
+class ZoneTail {
+  double _height = 0;
+  final Set<RenderZoneTailPadding> _pads = {};
+
+  double get height => _height;
+
+  set height(double value) {
+    if (_height == value) return;
+    _height = value;
+    for (final pad in _pads) {
+      pad.markNeedsLayout();
+    }
+  }
+}
+
+/// Space at the end of the body's content as tall as the floating zone: the last row scrolls clear of it. The
+/// space is a part of the content, so the free space `Screen.justify` distributes is counted without it.
+class ZoneTailPadding extends SingleChildRenderObjectWidget {
+  const ZoneTailPadding({super.key, required this.tail, required super.child});
+
+  final ZoneTail tail;
+
+  @override
+  RenderZoneTailPadding createRenderObject(BuildContext context) => RenderZoneTailPadding(tail);
+
+  @override
+  void updateRenderObject(BuildContext context, covariant RenderZoneTailPadding renderObject) {
+    renderObject.tail = tail;
+  }
+}
+
+class RenderZoneTailPadding extends RenderShiftedBox {
+  RenderZoneTailPadding(this._tail) : super(null);
+
+  ZoneTail _tail;
+  set tail(ZoneTail value) {
+    if (_tail == value) return;
+    _tail._pads.remove(this);
+    _tail = value;
+    if (attached) _tail._pads.add(this);
+    markNeedsLayout();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _tail._pads.add(this);
+  }
+
+  @override
+  void detach() {
+    _tail._pads.remove(this);
+    super.detach();
+  }
+
+  BoxConstraints _inner(BoxConstraints constraints) => constraints.deflate(EdgeInsets.only(bottom: _tail.height));
+
+  @override
+  double computeMinIntrinsicHeight(double width) => (child?.getMinIntrinsicHeight(width) ?? 0) + _tail.height;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => (child?.getMaxIntrinsicHeight(width) ?? 0) + _tail.height;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final inner = child?.getDryLayout(_inner(constraints)) ?? Size.zero;
+    return constraints.constrain(Size(inner.width, inner.height + _tail.height));
+  }
+
+  @override
+  void performLayout() {
+    final box = child;
+    if (box == null) {
+      size = constraints.constrain(Size(0, _tail.height));
+      return;
+    }
+    box.layout(_inner(constraints), parentUsesSize: true);
+    (box.parentData! as BoxParentData).offset = Offset.zero;
+    size = constraints.constrain(Size(box.size.width, box.size.height + _tail.height));
+  }
+}
+
+/// Owns the [ZoneTail] of a screen with a floating bar for as long as the screen is drawn, and builds the zones with it.
+class ZoneTailHost extends StatefulWidget {
+  const ZoneTailHost({super.key, required this.builder});
+
+  final Widget Function(ZoneTail tail) builder;
+
+  @override
+  State<ZoneTailHost> createState() => _ZoneTailHostState();
+}
+
+class _ZoneTailHostState extends State<ZoneTailHost> {
+  final ZoneTail _tail = ZoneTail();
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_tail);
 }

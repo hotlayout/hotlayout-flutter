@@ -27,7 +27,16 @@ extension RepeaterWidgets on NodeRenderer {
   /// THE COUNT LIMIT COMES FROM THE CONTRACT, not from the reader. If each platform chose its
   /// own, the same document would show a different number of rows.
   Widget buildRepeater(RepeaterNode node, NodeStyle? own) {
-    final records = data.listOf(node.source);
+    // The filter first, then the limit (schema 9.23.0): the records that did not pass do not exist for the layout, so
+    // the grid has no holes, the carousel counts its stops by the drawn cards and the numbers follow the drawn rows.
+    final where = node.where;
+    final all = data.listOf(node.source);
+    final records = where == null
+        ? all
+        : [
+            for (final record in all)
+              if (where.passes(data.withItem(node.item, record))) record,
+          ];
     final requested = node.limit ?? records.length;
     final count = requested.clamp(0, math.min(records.length, kMaxRepeaterItems));
     if (count == 0 || node.children.isEmpty) return const SizedBox.shrink();

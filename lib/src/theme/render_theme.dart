@@ -527,6 +527,8 @@ class RenderTheme {
       opacity: style.opacity,
       // A number needs no token: the theme has nothing to say about it.
       backdropBlur: style.backdropBlur,
+      // A gradient that does not resolve (an unknown token, stops going backwards) is not applied: the colour stays.
+      textGradient: style.textGradient != null && resolveGradient(style.textGradient!) != null ? style.textGradient : null,
     );
     return applicable.isEmpty ? null : applicable;
   }

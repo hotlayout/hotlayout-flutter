@@ -450,7 +450,8 @@ List<AmountPiece>? formatBoundPieces(
         return [(text: text, part: null)];
       case BindingFormat.number:
         final number = numericBoundValue(value, format, now: now);
-        return number == null ? null : _amountPieces(number, locale, look: look, rtl: rtl);
+        if (number == null) return null;
+        return look.compact ? _compactPieces(number, locale, look: look, rtl: rtl) : _amountPieces(number, locale, look: look, rtl: rtl);
       case BindingFormat.daysUntil:
         final days = numericBoundValue(value, format, now: now);
         if (days == null) return null;

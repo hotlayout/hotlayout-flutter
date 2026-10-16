@@ -85,6 +85,16 @@ extension NavBarWidgets on NodeRenderer {
     );
   }
 
+  /// The glyph of an item, with the dot on it when the item's `badgeWhen` holds (schema 9.22.0). The same in
+  /// the bar at the bottom and in the one at the top; the item's size does not change and the item does not clip it.
+  Widget _itemGlyph(NavItemNode node, Color color) {
+    final box = theme.iconBox(IconSizeToken.md);
+    final glyph = IconBox(box: box, icon: node.icon, color: color);
+    final condition = node.badgeWhen;
+    if (condition == null || !condition.evaluate(data)) return glyph;
+    return NavBadgeMark(box: box, color: theme.color(ColorToken.accent), child: glyph);
+  }
+
   /// The navigation item overlay: hover and press are transparent, keyboard focus is visible.
   WidgetStateProperty<Color?> _navOverlay() => WidgetStateProperty.resolveWith(
     (states) => states.contains(WidgetState.focused)
@@ -127,7 +137,7 @@ extension NavBarWidgets on NodeRenderer {
               ),
               child: Row(
                 children: [
-                  IconBox(box: theme.iconBox(IconSizeToken.md), icon: node.icon, color: color),
+                  _itemGlyph(node, color),
                   // The gap lives INSIDE the flexible part: in the "pictures only" mode it has no
                   // room left, and the gap disappears together with the label (the item's width is
                   // padding, picture, padding).
@@ -246,7 +256,7 @@ extension NavBarWidgets on NodeRenderer {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconBox(box: theme.iconBox(IconSizeToken.md), icon: node.icon, color: color),
+                _itemGlyph(node, color),
                 SizedBox(height: theme.space(SpacingToken.xs)),
                 SizedBox(
                   width: double.infinity,
@@ -264,6 +274,44 @@ extension NavBarWidgets on NodeRenderer {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A dot on the top corner of an item's glyph on the side of the end of the line (schema 9.22.0, `navBadge`): the
+/// centre on the corner of the glyph, the right one in left-to-right writing and the left one in right-to-left. The
+/// glyph is a square the size of the font in the middle of the box of the row, so its top lies `(row - font) / 2`
+/// below the top of the box. The dot is a picture: it is not announced, and it takes no room.
+class NavBadgeMark extends StatelessWidget {
+  const NavBadgeMark({super.key, required this.box, required this.color, required this.child});
+
+  /// The box of the glyph before the system font scale.
+  final Size box;
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final scale = box.width == 0 ? 1.0 : scaler.scale(box.width) / box.width;
+    final width = box.width * scale;
+    final height = box.height * scale;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final dot = navBadgeBoxOf(glyphLeft: 0, glyphTop: (height - width) / 2, glyphSize: width, rtl: rtl);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          left: dot.left,
+          top: dot.top,
+          width: dot.size,
+          height: dot.size,
+          child: ExcludeSemantics(
+            child: DecoratedBox(decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -344,7 +344,11 @@ final class ScreenZoneBoxes {
     required this.maxScroll,
     required this.scrollTop,
     this.bottom,
+    this.float = false,
   });
+
+  /// The bottom zone lies OVER the body (schema 9.22.0, `NavBar.float`).
+  final bool float;
 
   /// Screen height (for a modal layer, the layer height).
   final double height;
@@ -398,6 +402,7 @@ ScreenZoneBoxes screenZoneBoxes({
   double? pinnedHeight,
   double? navBarHeight,
   double safeBottom = 0,
+  bool navFloat = false,
 }) {
   final hasBar = appBarHeight != null;
   final hasBody = bodyContentHeight != null;
@@ -425,6 +430,37 @@ ScreenZoneBoxes screenZoneBoxes({
   final maxScroll = math.max(0.0, contentHeight - bodyHeight);
   final scrolled = math.min(math.max(0.0, scrollTop), maxScroll);
   final zoneTop = areaTop + bodyHeight;
+  // A FLOATING BAR (schema 9.22.0, `floatScreenZonesOf`): the whole bottom zone lies over the body, which reaches
+  // the bottom of the screen; the content gets the height of the zone at its end, so the scroll limit stays the
+  // one it was; the safe inset is under the box of the bar, not in it. Not read without a bar in the zone and in a layer.
+  if (navFloat && hasNav && !shrink) {
+    final floatBody = math.max(0.0, height - areaTop);
+    final floatContent = contentHeight + zoneHeight;
+    final floatMax = math.max(0.0, floatContent - floatBody);
+    final floatScrolled = math.min(math.max(0.0, scrollTop), floatMax);
+    return ScreenZoneBoxes(
+      height: height,
+      appBarTop: hasBar ? paddingTop : null,
+      appBarHeight: appBarHeight,
+      bodyTop: areaTop,
+      bodyHeight: floatBody,
+      contentTop: areaTop + padTop - pull - floatScrolled,
+      contentHeight: floatContent,
+      maxScroll: floatMax,
+      scrollTop: floatScrolled,
+      float: true,
+      bottom: BottomZoneBoxes(
+        top: zoneTop,
+        height: zoneHeight,
+        pinnedTop: hasPinned ? zoneTop : null,
+        pinnedHeight: hasPinned ? math.max(0.0, pinnedHeight) : null,
+        navTop: zoneTop + pinnedBand,
+        navHeight: navContent,
+        navContentHeight: navContent,
+        safeBottom: safe,
+      ),
+    );
+  }
   return ScreenZoneBoxes(
     height: shrink ? zoneTop + zoneHeight : height,
     appBarTop: hasBar ? paddingTop : null,

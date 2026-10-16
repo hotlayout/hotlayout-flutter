@@ -107,8 +107,13 @@ final class NavBarNode extends ChildNode {
     super.pull,
     super.pin,
     this.widePlacement = NavWidePlacement.top,
+    this.float = false,
     this.children = const [],
   });
+
+  /// The bar floats over the body (9.22.0, `NavBar.float`). Only the literal `true` is read: `false`, the string
+  /// `"true"` and anything else is "no field". Read only where the bar stands in the bottom zone.
+  final bool float;
 
   /// Where the bar goes in a wide place (9.18.0, `NavBar.widePlacement`): `top` is at the top, `bottom`
   /// at the bottom as on a phone. Without the field, and with an unknown word, `top`.
@@ -139,6 +144,7 @@ NavBarNode _parseNavBar(_RawNode node, VisibilityCondition? visibleIf) {
     pull: node.pull,
     pin: node.pin,
     widePlacement: navWidePlacementOf(props['widePlacement']),
+    float: navFloatOf(props['float']),
     children: node.childNodes(),
   );
 }
@@ -162,7 +168,14 @@ final class NavItemNode extends ChildNode {
     required this.iconName,
     required this.label,
     required this.action,
+    this.badgeWhen,
   });
+
+  /// When a dot stands on the item's glyph (9.22.0, `NavItem.badgeWhen`): a condition of the form of `visibleIf`,
+  /// judged by the same rule over missing data. `null` is no field, and also a condition this reader cannot read:
+  /// there is NO dot then (unlike `visibleIf`, where an unreadable condition shows the node, a dot nobody asked
+  /// for is the worse mistake).
+  final VisibilityCondition? badgeWhen;
 
   /// The glyph; [IconToken.unknown] is an empty box of the same size.
   final IconToken icon;
@@ -199,5 +212,6 @@ NavItemNode _parseNavItem(_RawNode node, VisibilityCondition? visibleIf) {
     iconName: props.containsKey('icon') ? (props['icon'] is String ? props['icon']! as String : null) : 'house',
     label: BindableString.parse(props['label'], key: node.key('label')),
     action: ButtonAction.parse(props['action']),
+    badgeWhen: navBadgeConditionOf(props['badgeWhen']),
   );
 }

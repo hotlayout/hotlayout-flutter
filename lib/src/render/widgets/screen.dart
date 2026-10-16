@@ -207,22 +207,29 @@ extension ScreenWidgets on NodeRenderer {
         pullParent: root,
       ),
     );
-    Widget scrollBody(ScrollController controller) => distributes
-        ? LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              controller: controller,
-              padding: bodyPadding,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.hasBoundedHeight
-                      ? math.max(0.0, constraints.maxHeight - (bodyPadding?.vertical ?? 0))
-                      : 0,
+    // A FLOATING BAR (schema 9.22.0): the zone lies over the body, and the end of the body's content is as tall as the
+    // zone. The space belongs to the content, inside the part `Screen.justify` distributes: that free space is
+    // counted without it.
+    final floats = !shrink && navFloatsIn(navPlace, navBottom?.float ?? false);
+    Widget scrollBody(ScrollController controller, ZoneTail? tail) {
+      final content = tail == null ? bodyColumn : ZoneTailPadding(tail: tail, child: bodyColumn);
+      return distributes
+          ? LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                controller: controller,
+                padding: bodyPadding,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.hasBoundedHeight
+                        ? math.max(0.0, constraints.maxHeight - (bodyPadding?.vertical ?? 0))
+                        : 0,
+                  ),
+                  child: content,
                 ),
-                child: bodyColumn,
               ),
-            ),
-          )
-        : SingleChildScrollView(controller: controller, padding: bodyPadding, child: bodyColumn);
+            )
+          : SingleChildScrollView(controller: controller, padding: bodyPadding, child: content);
+    }
 
     /*
      * The bottom zone consists of TWO layout children: the pinned block and the "low part" (the
@@ -288,7 +295,7 @@ extension ScreenWidgets on NodeRenderer {
           final sheetWindow = SheetWindowScope.of(context);
           final windowRadius = sheetWindow ? sheetWindowRadius(own?.radius) : own?.radius;
           final boxStyle = identical(windowRadius, own?.radius) ? own : own!.withRadius(windowRadius);
-          return nodeBox(
+          Widget zonesWith(ZoneTail? tail) => nodeBox(
             boxStyle,
             slot: Slot.fill,
             paddingInside: true,
@@ -296,6 +303,7 @@ extension ScreenWidgets on NodeRenderer {
             // arrives must not drag a rebuild of the body with it; the key keeps field state, focus
             // and scroll position.
             ScreenZones(
+              tail: tail,
               shrink: shrink,
               overlap: overlap,
               keyboard: keyboard,
@@ -309,7 +317,7 @@ extension ScreenWidgets on NodeRenderer {
               children: [
                 if (barZone != null)
                   KeyedSubtree(key: const ValueKey('hl-zone-bar'), child: KeyedSubtree(key: scroll.barKey, child: barZone)),
-                KeyedSubtree(key: const ValueKey('hl-zone-body'), child: scrollBody(scroll.controller)),
+                KeyedSubtree(key: const ValueKey('hl-zone-body'), child: scrollBody(scroll.controller, tail)),
                 if (pinned != null)
                   KeyedSubtree(
                     key: const ValueKey('hl-zone-pinned'),
@@ -329,12 +337,13 @@ extension ScreenWidgets on NodeRenderer {
                       // A window in the middle has no safe area inset (`safeArea.modalWindow`).
                       safeInset: !window && !sheetWindow,
                       contentMax: contentMax,
+                      floating: floats,
                     ),
                   ),
               ],
             ),
           );
-
+          return floats ? ZoneTailHost(builder: zonesWith) : zonesWith(null);
         },
       ),
     );
@@ -352,10 +361,26 @@ extension ScreenWidgets on NodeRenderer {
   /// zero, so nothing is doubled. While the on-screen keyboard is shown the inset is NOT added
   /// (`bottomZone.keyboard.safeInset`): the bottom is under the keyboard and has no inset above
   /// it.
-  Widget buildLowZone({required NavBarNode? nav, required bool safeInset, int? contentMax}) => Builder(
+  ///
+  /// A FLOATING bar (schema 9.22.0, `navFloat.safeArea`) takes the inset OUTSIDE its box: under the margin box of the
+  /// bar, as transparent room, so the bar hangs above the home indicator and its background does not stretch to the
+  /// physical bottom.
+  Widget buildLowZone({required NavBarNode? nav, required bool safeInset, int? contentMax, bool floating = false}) => Builder(
     builder: (context) {
       final keyboardShown = MediaQuery.viewInsetsOf(context).bottom > 0;
       final inset = safeInset && !keyboardShown ? MediaQuery.viewPaddingOf(context).bottom : 0.0;
+      if (nav != null && floating) {
+        final bar = styledNode(
+          nav,
+          Slot.free,
+          (renderer, own) => renderer.buildNavBar(nav, own, safeBottom: 0, zone: true, contentMax: contentMax),
+        );
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [bar, if (inset > 0) SizedBox(height: inset)],
+        );
+      }
       if (nav != null) {
         return styledNode(nav, Slot.free, (renderer, own) => renderer.buildNavBar(nav, own, safeBottom: inset, zone: true, contentMax: contentMax));
       }

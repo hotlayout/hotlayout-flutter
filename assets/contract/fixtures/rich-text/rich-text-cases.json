@@ -126,5 +126,32 @@
     {"name": "a part that names no font has the metric of its place: the place stays the strut", "base": {"fontSize": 14, "lineHeight": 1.5}, "spans": {"amount": {"fontSize": 20, "lineHeight": 1.2}, "amount.fraction": {"fontSize": 20, "lineHeight": 1.2}}, "expected": {"span": "amount", "lineBlock": 24}},
     {"name": "equal lines, equal sizes: keys ascend by code units — «a.fraction» comes before «a1»", "base": {"fontSize": 12, "lineHeight": 1.5}, "spans": {"a1": {"fontSize": 20, "lineHeight": 1.2}, "a.fraction": {"fontSize": 20, "lineHeight": 1.2}, "a": {"fontSize": 12, "lineHeight": 1.5}}, "expected": {"span": "a.fraction", "lineBlock": 24}},
     {"name": "a declared part counts whether the amount shows it or not (a whole amount has no fraction)", "base": {"fontSize": 14, "lineHeight": 1.5}, "spans": {"limit": {"fontSize": 14, "lineHeight": 1.5}, "limit.fraction": {"fontSize": 32, "lineHeight": 1.25}}, "expected": {"span": "limit.fraction", "lineBlock": 40}}
+  ],
+  "textGradientNote": "Schema 9.23.0 — a gradient on the glyphs of a text: «style.textGradient» (rules: x-textGradient). A gradient token of the theme or an own gradient of the same form as a gradient «background». It lies over the whole content box of the text, one transition for every line; «color» stays the fallback. `textGradientCases`: «type» is the widget, «style» its base style, «styleWhen» its states, «met» which state conditions hold, «parent» the style of the parent (the field is NOT inherited); «gradient» is what paints the letters (null — the colour). `textGradientPartCases`: «spans» the styles of the places of a composed text; «parts» says, place by place, whether its pieces take the gradient (a place that names its own colour keeps it). `textGradientDocumentCases`: «codes» of the validator (empty: publishable).",
+  "textGradientCases": [
+    {"name": "a token on a text: the letters take it", "type": "Text", "style": {"textGradient": "brandBackdrop"}, "gradient": "brandBackdrop"},
+    {"name": "an own gradient on a text", "type": "Text", "style": {"textGradient": {"angle": 90, "stops": [{"color": "primary", "position": 0}, {"color": "accent", "position": 1}]}, "color": "onSurface"}, "gradient": {"angle": 90, "stops": [{"color": "primary", "position": 0}, {"color": "accent", "position": 1}]}},
+    {"name": "no field: the colour", "type": "Text", "style": {"color": "accent"}, "gradient": null},
+    {"name": "a state names the gradient: on while it holds", "type": "Text", "style": {"color": "onSurface"}, "styleWhen": [{"when": {"path": "user.isPremium", "op": "isTrue"}, "style": {"textGradient": "brandBackdrop"}}], "met": [true], "gradient": "brandBackdrop"},
+    {"name": "the same state that does not hold: the colour", "type": "Text", "style": {"color": "onSurface"}, "styleWhen": [{"when": {"path": "user.isPremium", "op": "isTrue"}, "style": {"textGradient": "brandBackdrop"}}], "met": [false], "gradient": null},
+    {"name": "a state replaces the base gradient", "type": "Text", "style": {"textGradient": "brandBackdrop"}, "styleWhen": [{"when": {"path": "user.isPremium", "op": "isTrue"}, "style": {"textGradient": {"angle": 90, "stops": [{"color": "primary", "position": 0}, {"color": "accent", "position": 1}]}}}], "met": [true], "gradient": {"angle": 90, "stops": [{"color": "primary", "position": 0}, {"color": "accent", "position": 1}]}},
+    {"name": "not inherited: a text in a card with a gradient keeps its colour", "type": "Text", "parent": {"textGradient": "brandBackdrop"}, "style": {"color": "accent"}, "gradient": null},
+    {"name": "a button does not read it", "type": "Button", "style": {"textGradient": "brandBackdrop"}, "gradient": null},
+    {"name": "a badge does not read it", "type": "Badge", "style": {"textGradient": "brandBackdrop"}, "gradient": null}
+  ],
+  "textGradientPartCases": [
+    {"name": "a part without a colour takes the gradient", "gradient": "brandBackdrop", "spans": {"count": {"typography": "titleM"}}, "parts": {"count": true, "": true}},
+    {"name": "a part with its own colour keeps it", "gradient": "brandBackdrop", "spans": {"star": {"color": "accent"}}, "parts": {"star": false, "": true}},
+    {"name": "no gradient: every part its colour", "gradient": null, "spans": {"star": {"color": "accent"}, "count": {"typography": "titleM"}}, "parts": {"star": false, "count": false, "": false}}
+  ],
+  "textGradientDocumentCases": [
+    {"name": "a gradient on a text: publishable", "type": "Text", "style": {"textGradient": "brandBackdrop"}, "codes": []},
+    {"name": "a gradient on a text in a state: publishable", "type": "Text", "styleWhen": [{"when": {"path": "user.isPremium", "op": "isTrue"}, "style": {"textGradient": "brandBackdrop"}}], "codes": []},
+    {"name": "a gradient on a button: not read", "type": "Button", "style": {"textGradient": "brandBackdrop"}, "codes": ["text_gradient_not_read"]},
+    {"name": "a gradient on a container: not read, not inherited", "type": "Container", "style": {"textGradient": "brandBackdrop"}, "codes": ["text_gradient_not_read"]},
+    {"name": "a gradient on a badge in a state: not read", "type": "Badge", "styleWhen": [{"when": {"path": "user.isPremium", "op": "isTrue"}, "style": {"textGradient": "brandBackdrop"}}], "codes": ["text_gradient_not_read"]},
+    {"name": "stops out of order", "type": "Text", "style": {"textGradient": {"angle": 90, "stops": [{"color": "primary", "position": 0.8}, {"color": "accent", "position": 0.2}]}}, "codes": ["gradient_stops_unordered"]},
+    {"name": "a token the theme does not have", "type": "Text", "style": {"textGradient": "noSuchGradient"}, "codes": ["unknown_token"]},
+    {"name": "not a gradient: the shape is broken", "type": "Text", "style": {"textGradient": {"kind": "gradient", "gradient": "brandBackdrop"}}, "codes": ["invalid_style"]}
   ]
 }

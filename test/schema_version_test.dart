@@ -239,6 +239,8 @@ void main() {
         'opacity': 0.5,
         // 9.20.0: glass.
         'backdropBlur': 12,
+        // 9.23.0: a gradient on the glyphs of a text.
+        'textGradient': 'brandBackdrop',
       };
       expect(propertiesOf('NodeStyle').keys.toSet(), sample.keys.toSet());
 

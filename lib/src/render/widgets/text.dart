@@ -7,6 +7,7 @@ import '../../model/bindable.dart';
 import '../../model/binding_format.dart' show AmountPart;
 import '../../model/list_marker.dart';
 import '../../model/node.dart';
+import '../../model/node_style.dart';
 import '../../model/shown_text.dart';
 import '../../model/text_emphasis.dart';
 import '../../model/text_spans.dart';
@@ -34,7 +35,7 @@ extension TextWidgets on NodeRenderer {
   /// COLOR AND FONT ARE INHERITED (schema 9.0.0). Text has no fields of its own for them: it is
   /// drawn with what the nearest ancestor named (or what it names itself in its `style`), and at
   /// the root with `onSurface` and `bodyM`.
-  Widget buildText(TextNode node) {
+  Widget buildText(TextNode node, NodeStyle? own) {
     final foreground = currentForeground;
     // `textAlign` works within the widget's width. In a column text is always stretched (it is
     // not in `naturalWidth`), so there is no stretching of its own here: the parent gives the
@@ -46,19 +47,19 @@ extension TextWidgets on NodeRenderer {
     // no effective styles this is the same `Text` as before 9.6.0.
     final content = node.content;
     final active = activeTextSpans(content, node.spans);
-    final Widget body;
-    if (active.isEmpty || content is! TemplateString) {
-      // Text without parts is one run with the node's emphasis (schema 9.17.0). The line sits on
-      // the run itself: here the paragraph is the run.
-      body = Text(
-        text(content),
-        textAlign: textAlignOf(node.align),
-        maxLines: node.maxLines,
-        overflow: overflow,
-        style: _withEmphasis(base, foreground.emphasis),
-      );
-    } else {
-      body = _richText(
+    Widget draw(_Ink ink) {
+      if (active.isEmpty || content is! TemplateString) {
+        // Text without parts is one run with the node's emphasis (schema 9.17.0). The line sits on
+        // the run itself: here the paragraph is the run.
+        return Text(
+          text(content),
+          textAlign: textAlignOf(node.align),
+          maxLines: node.maxLines,
+          overflow: overflow,
+          style: _withEmphasis(_inked(base, ink, own: false, fallback: base.color), foreground.emphasis, ink, base.color),
+        );
+      }
+      return _richText(
         content,
         active,
         base: base,
@@ -66,22 +67,77 @@ extension TextWidgets on NodeRenderer {
         textAlign: textAlignOf(node.align),
         maxLines: node.maxLines,
         overflow: overflow,
+        ink: ink,
+      );
+    }
+
+    // A GRADIENT ON THE GLYPHS (schema 9.23.0, `style.textGradient`): not inherited, read by `Text` only. It lies
+    // over the whole content box of the text, one transition for every line. A gradient that did not resolve (an
+    // unknown token, stops going backwards) is no gradient: the text keeps its colour.
+    final textGradient = own?.textGradient;
+    final gradient = textGradient == null ? null : theme.resolveGradient(textGradient);
+    final Widget body;
+    if (gradient == null) {
+      body = draw(_Ink.plain);
+    } else {
+      body = _gradientBody(
+        draw,
+        gradient,
+        overlay: _needsOverlay(active, foreground.emphasis),
       );
     }
     final marker = drawnMarkerOf(node.marker);
     return marker == null ? body : _listItem(node, marker, body, base);
   }
 
+  /// A text with a gradient on its glyphs: the glyphs are drawn white and replaced by the gradient (the mask layer);
+  /// what must keep its own look -- a part with a colour of its own, the line of an underline or strike-through,
+  /// which take the colour of the text, not the gradient -- is drawn over it by [_Ink.overlay]. Both layers are the
+  /// same paragraph, so they lie exactly one over the other.
+  Widget _gradientBody(Widget Function(_Ink ink) draw, LinearGradient gradient, {required bool overlay}) {
+    final masked = ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (bounds) => gradient.createShader(bounds),
+      child: draw(_Ink.mask),
+    );
+    if (!overlay) return masked;
+    return Stack(children: [masked, ExcludeSemantics(child: draw(_Ink.overlay))]);
+  }
+
+  /// Whether anything of the text must be drawn over the gradient: a part with its own colour, a line.
+  bool _needsOverlay(Map<String, TextSpanStyle> active, TextEmphasis emphasis) {
+    if (emphasis.textDecoration != EmphasisDecoration.none) return true;
+    return spanStylesWithParts(active).values.any(
+      (style) =>
+          (style.color != null && theme.resolveColor(style.color!) != null) ||
+          (style.textDecoration != null && style.textDecoration != EmphasisDecoration.none),
+    );
+  }
+
+  /// The glyph colour of a layer: the plain text keeps its colour; the mask is white where the gradient shows and
+  /// transparent where a part keeps its own colour; the overlay is the reverse.
+  TextStyle _inked(TextStyle style, _Ink ink, {required bool own, required Color? fallback}) => switch (ink) {
+    _Ink.plain => style,
+    _Ink.mask => style.copyWith(color: own ? Colors.transparent : Colors.white),
+    _Ink.overlay => own ? style : style.copyWith(color: Colors.transparent),
+  };
+
   /// The style of a run with emphasis (schema 9.17.0). Slant is `FontStyle`, the line is
   /// `decoration` on the run itself, in the TEXT color of that run (`decorationColor` is not set:
   /// by default it is the text color). `normal` and `none` add nothing: there is no slant or line
   /// above the run (the paragraph does not carry them).
-  TextStyle _withEmphasis(TextStyle style, TextEmphasis emphasis) => emphasis.isRoot
-      ? style
-      : style.copyWith(
-          fontStyle: emphasis.fontStyle == EmphasisFontStyle.italic ? FontStyle.italic : null,
-          decoration: _decorationOf(emphasis.textDecoration),
-        );
+  ///
+  /// Under a gradient (schema 9.23.0) the mask layer draws no line, and the overlay draws it in [lineColor], the
+  /// colour of the text, not the gradient.
+  TextStyle _withEmphasis(TextStyle style, TextEmphasis emphasis, [_Ink ink = _Ink.plain, Color? lineColor]) {
+    if (emphasis.isRoot) return style;
+    final decoration = ink == _Ink.mask ? null : _decorationOf(emphasis.textDecoration);
+    return style.copyWith(
+      fontStyle: emphasis.fontStyle == EmphasisFontStyle.italic ? FontStyle.italic : null,
+      decoration: decoration,
+      decorationColor: ink == _Ink.overlay && decoration != null ? lineColor : null,
+    );
+  }
 
   static TextDecoration? _decorationOf(EmphasisDecoration decoration) => switch (decoration) {
     EmphasisDecoration.none => null,
@@ -168,6 +224,7 @@ extension TextWidgets on NodeRenderer {
     required TextAlign textAlign,
     required int? maxLines,
     required TextOverflow overflow,
+    _Ink ink = _Ink.plain,
   }) {
     // The style of each effective part: layered over the text's style by the inheritance rule. A
     // color the theme does not know and a font it does not know leave the base unchanged
@@ -175,8 +232,11 @@ extension TextWidgets on NodeRenderer {
     // The places AND their declared parts (9.19.0): `place` and `place.part`, each part laid over its place.
     final all = spanStylesWithParts(active);
     final styles = <String, TextStyle>{};
+    // The places whose colour the part names itself: under a gradient they keep it.
+    final ownColour = <String>{};
     for (final entry in all.entries) {
       final color = entry.value.color == null ? null : theme.resolveColor(entry.value.color!);
+      if (color != null) ownColour.add(entry.key);
       final font = entry.value.typography == null ? null : theme.resolveTypography(entry.value.typography!);
       // A part's font style replaces the base WHOLE: a field the token lacks (tracking) is not
       // inherited from the text but reset.
@@ -205,9 +265,23 @@ extension TextWidgets on NodeRenderer {
       var style = name == null ? null : styles[name];
       final weight = run.weight;
       if (weight != null) style = (style ?? const TextStyle()).copyWith(fontWeight: _weightOf(weight));
-      final folded = TextEmphasis(fontStyle: run.fontStyle, textDecoration: run.textDecoration);
+      final folded = TextEmphasis(
+        fontStyle: run.fontStyle,
+        textDecoration: ink == _Ink.mask ? EmphasisDecoration.none : run.textDecoration,
+      );
       if (folded.isRoot) return style;
-      return _withEmphasis(style ?? const TextStyle(), folded);
+      // The line of a part with its own colour is that colour; any other line is the colour of the text.
+      final keeps = name != null && ownColour.contains(name);
+      return _withEmphasis(style ?? const TextStyle(), folded, ink, keeps ? styles[name]?.color : base.color);
+    }
+
+    // The layer of a gradient (9.23.0): the style of each run is recoloured, the paragraph's too.
+    TextStyle? layerStyle(String? place, AmountPart? amountPart) {
+      final style = runStyle(place, amountPart);
+      if (ink == _Ink.plain) return style;
+      final name = place == null ? null : (amountPart == null ? place : '$place.${amountPart.wire}');
+      final keeps = name != null && ownColour.contains(name);
+      return _inked(style ?? const TextStyle(), ink, own: keeps, fallback: base.color);
     }
 
     final runs = collapseShownRuns<TextPartRun>(
@@ -218,13 +292,13 @@ extension TextWidgets on NodeRenderer {
     return Text.rich(
       TextSpan(
         children: [
-          for (final run in runs) TextSpan(text: run.text, style: runStyle(run.span, run.part)),
+          for (final run in runs) TextSpan(text: run.text, style: layerStyle(run.span, run.part)),
         ],
       ),
       textAlign: textAlign,
       maxLines: maxLines,
       overflow: overflow,
-      style: base,
+      style: _inked(base, ink, own: false, fallback: base.color),
       strutStyle: StrutStyle(
         fontFamily: strutStyle.fontFamily,
         fontFamilyFallback: strutStyle.fontFamilyFallback,
@@ -236,3 +310,8 @@ extension TextWidgets on NodeRenderer {
     );
   }
 }
+
+/// Which layer of a text is being drawn. A text without a gradient has one layer, [plain]; a text with a gradient
+/// on its glyphs has the [mask] (white glyphs, replaced by the gradient) and, where something keeps its own look,
+/// the [overlay] over it.
+enum _Ink { plain, mask, overlay }

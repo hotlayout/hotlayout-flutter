@@ -74,7 +74,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.22.0
+  hotlayout_flutter: ^0.23.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -226,6 +226,7 @@ A text of the document can be a sentence with named places — `{done} / {total}
 | `format: 'currency'`, `currency: 'JOD'` | `120 JOD` · `1 850,50 USD` | the amount, a no-break space, the ISO 4217 code — the same order in every language; a whole amount has no fraction, any other has the digits of the currency (USD 2, JOD 3, JPY 0) |
 | `format: 'daysUntil'` | `4` | whole days until the moment, rounded **up** (three hours left is 1), never below 0; no time zone is involved |
 | `format: 'countdownPart'`, `unit: 'hours'` | `14` · `05` (with `pad: 2`) | one part of the time left: `days`, `hours` (0–23), `minutes` (0–59) or `seconds` (0–59), rounded **down**, never below 0; written like `number`. See [Changing values and a countdown](#changing-values-and-a-countdown) |
+| `format: 'number'`, `notation: 'compact'` | `48.2K` · `48,2 тис.` · `1M` | the contract's own arithmetic, not `NumberFormat.compact`: below 1 000 every digit; otherwise the magnitude over the largest step (thousand, million, billion), one fraction digit, half up, a trailing zero dropped, a mantissa that reaches 1 000 written with the next step (`999 950` is `1M`). Suffixes from a closed table by the first subtag of the language shown: `K` `M` `B` (every language but Ukrainian) and `тис.` `млн` `млрд` after a no-break space (`uk`). A plural word agrees with the FULL value (`48,2 тис. балів`). With `sign: 'always'` the composed form of the money fields; the suffix stays inside |
 | a plural word | `1 day` · `4 days` · `5 днів` · `22 дні` | the form for the CLDR plural category of the number in the language of the **shown** words; a missing form is `other` |
 
 A currency sign instead of the code, the place of the currency and an explicit plus are in [Money](#money-sign-symbol-and-parts-of-an-amount).
@@ -766,8 +767,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.22.0` | — |
-| Document contract (schema) | `9.21.0` | `kSupportedSchemaVersion` |
+| Package | `0.23.0` | — |
+| Document contract (schema) | `9.23.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -789,7 +790,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.21.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.23.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -845,6 +846,8 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.19.0 | pressable cards, write actions, parts of a list row and of a field, money, the top of the screen, `alt`, `iconPath`, `dateParts`, `unset` | [Pressable cards](#pressable-cards) and the sections after it |
 | 9.20.0 | endless motion of a node, blur under a modal layer, glass | [Motion, blur and glass](#motion-blur-and-glass) |
 | 9.21.0 | numbers that lead to their new values, a countdown that ticks, round ends of a scale, an app bar that changes on scroll | [Changing values](#changing-values-and-a-countdown), [Progress bar and ring](#progress-bar-and-ring), [The app bar](#the-app-bar) |
+| 9.22.0 | a floating navigation bar, a dot on a navigation item, "swipe to confirm", a dashed border | [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block), [Swipe to confirm](#swipe-to-confirm), [Dashed border](#dashed-border) |
+| 9.23.0 | a filtered list, a comparison with another path, a gradient on the letters of a text, a compact number | [Filtered list](#filtered-list), [Gradient on text](#gradient-on-text), [Sentences, numbers, money and days](#sentences-numbers-money-and-days) |
 
 ### Behaviour that changed between package versions
 
@@ -861,6 +864,7 @@ If you update from an older version of the package, these are the places where t
 | 0.20.0 | A document that names `motion` runs a ticker for as long as the node is on screen, so `pumpAndSettle` in a widget test never settles on such a screen (use `pump` with a duration). |
 | 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
+| 0.23.0 | A button with `confirm: 'swipe'` no longer runs its action on a tap or a click: the thumb has to be dragged, or Enter / Space / the screen reader's "activate" used. A `NavBar` with `float: true` lies over the body (the body area reaches the bottom of the screen and the last row scrolls clear of the bar). A `Repeater` with `where` draws only the records that pass, and `limit` counts those. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
 
 ## Platform notes
@@ -1014,6 +1018,14 @@ The state is computed from the data on every build. The place in the group ("2 o
 | a string of spaces | no (it is not trimmed) |
 
 
+### Swipe to confirm
+
+`Button.confirm: 'swipe'` draws the button as a track with a round thumb at the start of the line. The action (and its `track` event) runs once, when the thumb is dragged to the end of the line past 90 % of the way and released; released earlier it returns and nothing happens. A tap or a click does **nothing**.
+
+- **The track** is the box of the button as usual (the role, the node's own `style`, the size); the inline padding of the size is not read. The thumb is a circle `height − 2 × border − 2 × xs` across, `xs` inside the border, and its fill is the background of the *role* (the node's own `style.background` paints the track, not the thumb); a role without a background gives `primary` and `onPrimary`. The picture on it is the button's icon, or `chevron-right`, mirrored in right-to-left writing. The label is centred between the two places of the thumb; the natural width is the label plus the room of the thumb on both sides.
+- **Without a gesture** it is an ordinary button named by its label: Enter and Space act at once (a held key once), and so does the "activate" action of a screen reader. A disabled button (`disabledIf`, `requiresFilled`) does not move and does nothing.
+- **A vertical drag scrolls the body.** The thumb returns after a release (instantly with `MediaQuery.disableAnimations`).
+
 ### Changing values and a countdown
 
 **`animateChanges: true`** (on `Text`, `ProgressBar` and `CircularProgress`) leads a number to its new value when your `data` change under a screen that is already shown. A balance counts, a ring grows. Without the field a value changes at once, as before.
@@ -1029,6 +1041,21 @@ The state is computed from the data on every build. The place in the group ("2 o
 - **Parts round down** and add up to the same duration; a past moment is zeros. Without a readable `unit`, or on a value that is not a date, the value is shown as it is.
 - **The screen ticks by itself**: every second when one of its countdown parts is `seconds`, every minute otherwise, only while the screen is shown (a screen under another route, with `TickerMode` off, stops and reads the clock again when it is shown). The number is never more than one tick behind the clock.
 - **The clock is the device's.** Pass `now` to `renderDocument` to pin the moment (nothing then ticks, and you drive the time by passing a new `now`).
+
+### Dashed border
+
+`style.border.style: 'dashed'` draws the border as dashes of three border widths with gaps of two along the CENTRE line of the border (half a width inside the outer edge), following the corner arcs. The number of dashes is the perimeter over the step, rounded, and the dash and gap are stretched by one factor so the pattern closes without a seam; it starts with a dash at the start of the top edge and goes toward the end of the line (mirrored in right-to-left writing). The border takes the same room as a solid one. It works wherever `style.border` is read: a node, a state, a width layer and the surface of a button or a badge. An absent field or any other word is solid.
+
+### Filtered list
+
+`Repeater.where` is a condition of the form of `visibleIf`, judged on each record in that record's scope (the record over the screen's session and data). A record that does not pass does not exist for the layout: a grid has no hole, a carousel counts its stops and dots by the drawn cards, numbered rows count the drawn rows, and `limit` counts the records that passed. Without the field every record is drawn.
+
+- **A comparison with another path**: a condition may carry `valuePath` instead of `value` (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`), read in the same scope as `path`. Nothing under it, `null` or an empty string is no operand: in `where` the condition then holds for every record (a chip "All" writes `""`); everywhere else (`visibleIf`, `styleWhen`, `disabledIf`, `badgeWhen`) it does not hold, for `eq` and `neq` alike. Types are not coerced: equal kinds compare as they are, different kinds as text, an order only between numbers.
+- **The empty state of a filtered list**: `{ path: "rewards", op: "isEmpty", item: "reward", where: … }` counts the records that pass the same filter (`limit` is not applied); no list under the path means no records.
+
+### Gradient on text
+
+`style.textGradient` (a theme gradient token or an own gradient, the same forms as a gradient background) paints the letters of a `Text` with one transition over the whole content box of the text, all lines together. It is not inherited and read by `Text` only. A part of a composed text with a colour of its own keeps it; the line of an underline or strike-through and the marker of a list item take the colour of the text, not the gradient. A gradient that does not resolve (an unknown token, stops going backwards) leaves the colour.
 
 ### Rich text
 
@@ -1285,6 +1312,10 @@ No new parameter in your app.
 - **The bottom safe inset** is added by the renderer itself (`MediaQuery.viewPaddingOf(context).bottom`) UNDER the bar, and the background of the bar reaches the physical bottom. A host that wraps the renderer in `SafeArea` already gives zero, so nothing is doubled.
 - **A modal layer** has no bar, but a pinned block stands at the bottom of the layer.
 
+**A floating bar** (`NavBar.float: true`, read where the bar stands at the bottom). The whole bottom zone — the pinned block and the bar — lies OVER the body: the body area reaches the bottom of the screen, its content scrolls under the bar (a bar with `style.backdropBlur` shows it through the glass), and the content ends with the height of the zone, so the last row can be scrolled clear of it. The look of the pill is the node's `style` (`margin`, `radius`, `backdropBlur`, `shadow`); the renderer draws no pill of its own. The bottom safe inset lies UNDER the box of the bar as transparent room, so the bar hangs above the home indicator instead of stretching to the physical bottom. A touch between the pill and the screen edge reaches the body. At the top of a wide screen the field is not read.
+
+**A dot on an item** (`NavItem.badgeWhen`, a condition of the form of `visibleIf`): a circle 8 dp across in the `accent` colour on the top corner of the icon on the side of the end of the line (the left one in right-to-left writing). It does not change the size of the item, is not clipped by it and is not announced. A condition the renderer cannot read gives no dot (unlike `visibleIf`, which then shows the node).
+
 ### Windows and modal sheets
 
 A screen with `presentation: 'modal'` is a layer over the previous screen. Without `modalPlacement` (or with a word this version does not know) it is a sheet from the bottom on a phone; `modalPlacement: 'center'` makes it a window in the middle. On a wide screen a sheet becomes a window too — see [Adaptive layout](#navigation-and-modal-screens-on-a-wide-screen).
@@ -1501,7 +1532,7 @@ Things to try:
 
 - **Sentences with places** (`kind: 'template'`) live in texts for people: `Text`, `Button` and `Badge` labels, titles and subtitles of `AppBar`, `ListTile`, `Tab`, `Accordion`, and the trailing text of a row.
 - **Exact characters of a formatted number** come from the `intl` package's CLDR data, which may be of another release than a browser's: the rule is the same on every platform, single characters (digits of plain `ar`, a group separator) may differ.
-- **Formats the contract does not have**: percentages, compact numbers ("1.2K"), "hours left". A currency sign exists for twelve codes only (see [Money](#money-sign-symbol-and-parts-of-an-amount)).
+- **Formats the contract does not have**: percentages, "hours left". A currency sign exists for twelve codes only (see [Money](#money-sign-symbol-and-parts-of-an-amount)).
 - **Delivery.** A document arrives whole, as one public file: no partial delivery and no authentication built in (use your own `DocumentTransport` for the latter).
 - **Navigation is inside one document.** Links to another document and deep links are yours to route — use `entry:`.
 - **Named image assets** `logo`, `banner` and `placeholder` are drawn as generated gradients; real images come by URL (PNG, JPEG, WebP, SVG).

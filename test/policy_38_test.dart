@@ -158,6 +158,10 @@ void main() {
         // `progress_cap.dart` and `scrolled_bar.dart`; values are checked by `progress_cases_test.dart`
         // (`capCases`) and `media_chrome_cases_test.dart` (`scrolled…`).
         'progressCap', 'appBarScrolled',
+        // 9.22.0: the floating bar, the dot on an item, the dashed border. Mirrors are the bottom zone rules
+        // (`bottom_zone_rules.dart`) and `border_dash.dart`; values are checked by `bottom_zone_cases_test.dart`
+        // and `border_dash_cases_test.dart`.
+        'navFloat', 'navBadge', 'borderDash',
       });
     });
 

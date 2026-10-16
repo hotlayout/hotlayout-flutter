@@ -1107,5 +1107,30 @@
     { "name": "isTrue on a number path stays a mismatch", "condition": { "path": "survey.score", "op": "isTrue" }, "codes": ["visibility_type_mismatch"] },
     { "name": "gt on a flag path stays a mismatch", "condition": { "path": "survey.agreed", "op": "gt", "value": 0 }, "codes": ["visibility_type_mismatch"] },
     { "name": "isEmpty on a path the data contract does not know", "condition": { "path": "survey.nope", "op": "isEmpty" }, "codes": ["unknown_binding_path"] }
+  ],
+  "valuePathNote": "Schema 9.23.0: a comparison may take its operand from ANOTHER data path — «valuePath» instead of «value», with the same comparison operators (rules: x-listFilter.valuePath). `valuePathCases`: `condition` stands as `visibleIf` (or `styleWhen`, `disabledIf` — one form), `data` is the flat scope both paths are read in, `holds` is the answer. No value under «valuePath» (absent, null, the empty string) — the condition does NOT hold, `eq` and `neq` alike; inside «Repeater.where» the same comparison holds for every record (repeater-filter-cases.json).",
+  "valuePathCases": [
+    {"name": "eq: the two values are the same", "condition": {"path": "ui.category", "op": "eq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun", "ui.lastCategory": "fun"}, "holds": true},
+    {"name": "eq: the two values differ", "condition": {"path": "ui.category", "op": "eq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun", "ui.lastCategory": "food"}, "holds": false},
+    {"name": "neq: the two values differ", "condition": {"path": "ui.category", "op": "neq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun", "ui.lastCategory": "food"}, "holds": true},
+    {"name": "neq: the two values are the same", "condition": {"path": "ui.category", "op": "neq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun", "ui.lastCategory": "fun"}, "holds": false},
+    {"name": "the operand path has nothing: eq does not hold", "condition": {"path": "ui.category", "op": "eq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun"}, "holds": false},
+    {"name": "the operand path has nothing: neq does not hold either", "condition": {"path": "ui.category", "op": "neq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun"}, "holds": false},
+    {"name": "the empty string under the operand path: no operand", "condition": {"path": "ui.category", "op": "neq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun", "ui.lastCategory": ""}, "holds": false},
+    {"name": "null under the operand path: no operand", "condition": {"path": "ui.category", "op": "eq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun", "ui.lastCategory": null}, "holds": false},
+    {"name": "nothing under the path itself: no answer", "condition": {"path": "ui.category", "op": "neq", "valuePath": "ui.lastCategory"}, "data": {"ui.lastCategory": "fun"}, "holds": false},
+    {"name": "the path and the operand both empty strings: no operand", "condition": {"path": "ui.category", "op": "eq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "", "ui.lastCategory": ""}, "holds": false},
+    {"name": "the text is compared as it is: case counts", "condition": {"path": "ui.category", "op": "eq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "Fun", "ui.lastCategory": "fun"}, "holds": false},
+    {"name": "the text is not trimmed", "condition": {"path": "ui.category", "op": "eq", "valuePath": "ui.lastCategory"}, "data": {"ui.category": "fun ", "ui.lastCategory": "fun"}, "holds": false},
+    {"name": "numbers: gt", "condition": {"path": "ui.budget", "op": "gt", "valuePath": "ui.spent"}, "data": {"ui.budget": 2000, "ui.spent": 1800}, "holds": true},
+    {"name": "numbers: gte at equality", "condition": {"path": "ui.budget", "op": "gte", "valuePath": "ui.spent"}, "data": {"ui.budget": 1800, "ui.spent": 1800}, "holds": true},
+    {"name": "numbers: lt", "condition": {"path": "ui.budget", "op": "lt", "valuePath": "ui.spent"}, "data": {"ui.budget": 2000, "ui.spent": 1800}, "holds": false},
+    {"name": "numbers: lte below", "condition": {"path": "ui.budget", "op": "lte", "valuePath": "ui.spent"}, "data": {"ui.budget": 100, "ui.spent": 1800}, "holds": true},
+    {"name": "numbers: eq of 0 and 0", "condition": {"path": "ui.budget", "op": "eq", "valuePath": "ui.spent"}, "data": {"ui.budget": 0, "ui.spent": 0}, "holds": true},
+    {"name": "a cleared number field under the operand path: no operand", "condition": {"path": "ui.budget", "op": "gt", "valuePath": "ui.spent"}, "data": {"ui.budget": 2000, "ui.spent": ""}, "holds": false},
+    {"name": "flags: eq of two flags", "condition": {"path": "ui.a", "op": "eq", "valuePath": "ui.b"}, "data": {"ui.a": false, "ui.b": false}, "holds": true},
+    {"name": "flags: neq of true and false", "condition": {"path": "ui.a", "op": "neq", "valuePath": "ui.b"}, "data": {"ui.a": true, "ui.b": false}, "holds": true},
+    {"name": "dates are compared as text", "condition": {"path": "ui.from", "op": "eq", "valuePath": "ui.to"}, "data": {"ui.from": "2026-10-17T18:00:00.000Z", "ui.to": "2026-10-17T18:00:00.000Z"}, "holds": true},
+    {"name": "the operand path may be the path itself", "condition": {"path": "ui.category", "op": "eq", "valuePath": "ui.category"}, "data": {"ui.category": "fun"}, "holds": true}
   ]
 }

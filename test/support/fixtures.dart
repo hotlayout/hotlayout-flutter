@@ -101,6 +101,10 @@ const List<String> fixtureIds = [
   // 9.21.0: a balance that counts, a ring and bars that grow, a countdown that ticks, an app bar that turns
   // solid on scroll; en and uk.
   'value-countdown-screens',
+  // 9.22.0: a floating bar with a dot, "swipe to confirm", a dashed border; en and uk.
+  'float-nav-swipe-screens',
+  // 9.23.0: a filtered list, a gradient on the letters, a compact number; en and uk.
+  'filter-gradient-compact-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

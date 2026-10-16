@@ -79,7 +79,7 @@ typedef AmountPiece = ({String text, AmountPart? part});
 /// know, or a value that is not a string, is no field (`unknownWord`).
 @immutable
 final class MoneyLook {
-  const MoneyLook({this.symbol = false, this.before = false, this.signAlways = false});
+  const MoneyLook({this.symbol = false, this.before = false, this.signAlways = false, this.compact = false});
 
   /// A binding with none of the three fields.
   static const MoneyLook none = MoneyLook();
@@ -92,6 +92,8 @@ final class MoneyLook {
       symbol: isCurrency && raw['currencyDisplay'] == 'symbol',
       before: isCurrency && raw['currencyPosition'] == 'before',
       signAlways: raw['sign'] == 'always',
+      // 9.23.0: the compact notation belongs to `number` only; on another format the field is ignored.
+      compact: format == BindingFormat.number && raw['notation'] == 'compact',
     );
   }
 
@@ -104,15 +106,23 @@ final class MoneyLook {
   /// The plus sign for a positive number.
   final bool signAlways;
 
-  /// Whether the composed form applies: at least one readable field.
+  /// `notation: 'compact'` (schema 9.23.0): 48 200 as «48.2K». It is not a money field and does not make the
+  /// composed form: only `sign` does.
+  final bool compact;
+
+  /// Whether the composed form applies: at least one readable money field.
   bool get composed => symbol || before || signAlways;
 
   @override
   bool operator ==(Object other) =>
-      other is MoneyLook && other.symbol == symbol && other.before == before && other.signAlways == signAlways;
+      other is MoneyLook &&
+      other.symbol == symbol &&
+      other.before == before &&
+      other.signAlways == signAlways &&
+      other.compact == compact;
 
   @override
-  int get hashCode => Object.hash(symbol, before, signAlways);
+  int get hashCode => Object.hash(symbol, before, signAlways, compact);
 }
 
 /// The pieces of a number or an amount: [number] under [fractionDigits] (`null`: from zero to three),
@@ -127,6 +137,7 @@ List<AmountPiece>? _amountPieces(
   String? currency,
   MoneyLook look = MoneyLook.none,
   bool rtl = false,
+  String suffix = '',
 }) {
   final composed = look.composed;
   final digits = fractionDigits ?? kNumberFormatMaxFractionDigits;
@@ -154,6 +165,7 @@ List<AmountPiece>? _amountPieces(
     pieces
       ..add((text: integerText, part: null))
       ..add((text: fractionText, part: AmountPart.fraction));
+    if (suffix.isNotEmpty) pieces.add((text: suffix, part: null));
     if (currency != null) pieces.add((text: '$kMoneyGap$currency', part: AmountPart.currency));
     return _joined(pieces);
   }
@@ -167,6 +179,8 @@ List<AmountPiece>? _amountPieces(
   pieces
     ..add((text: integerText, part: null))
     ..add((text: fractionText, part: AmountPart.fraction));
+  // The suffix of a compact number follows the number, before any currency placed after it.
+  if (suffix.isNotEmpty) pieces.add((text: suffix, part: null));
   if (!look.before && currency != null) pieces.add((text: '$kMoneyGap$mark', part: AmountPart.currency));
 
   final result = _joined(pieces);
@@ -191,4 +205,60 @@ List<AmountPiece> _joined(List<AmountPiece> pieces) {
     }
   }
   return result;
+}
+
+// COMPACT NUMBER (schema 9.23.0, `x-compactNumber`): 48 200 as «48.2K» / «48,2 тис.». The rule is the contract's
+// own arithmetic and table, never `Intl` compact or `NumberFormat.compact`: they disagree between platforms and
+// between versions of their data.
+
+/// The steps, ascending: from which magnitude each one applies (`x-compactNumber.steps`).
+const List<({String name, num from})> kCompactSteps = [
+  (name: 'thousand', from: 1000),
+  (name: 'million', from: 1000000),
+  (name: 'billion', from: 1000000000),
+];
+
+/// The suffixes by the language of the format locale (`x-compactNumber.suffixes`): the gap before the suffix
+/// (U+00A0 in Ukrainian) and the suffix of each step. Any other language writes the `en` suffixes.
+const Map<String, ({String gap, Map<String, String> steps})> kCompactSuffixes = {
+  'en': (gap: '', steps: {'thousand': 'K', 'million': 'M', 'billion': 'B'}),
+  'uk': (gap: '\u00A0', steps: {'thousand': 'тис.', 'million': 'млн', 'billion': 'млрд'}),
+};
+
+/// The precision of the quotient before it is rounded to tenths: six digits.
+const double kCompactPrecision = 1e6;
+
+/// The step and the mantissa of a magnitude, or `null` below the first step (the number is written whole).
+({double mantissa, String step})? compactPartsOf(num value) {
+  final magnitude = value.abs().toDouble();
+  if (!magnitude.isFinite || magnitude < kCompactSteps.first.from) return null;
+  var index = kCompactSteps.length - 1;
+  while (index > 0 && magnitude < kCompactSteps[index].from) {
+    index -= 1;
+  }
+  int tenthsOf(int at) =>
+      (((magnitude * 10) / kCompactSteps[at].from * kCompactPrecision).round() / kCompactPrecision + 0.5).floor();
+  var tenths = tenthsOf(index);
+  // A mantissa that reaches 1 000 is written with the next step; beyond billions it stays «1,000B».
+  if (tenths >= 10000 && index < kCompactSteps.length - 1) {
+    index += 1;
+    tenths = tenthsOf(index);
+  }
+  return (mantissa: tenths / 10, step: kCompactSteps[index].name);
+}
+
+/// The suffix with its gap for the step in the language of [locale] (the first subtag; unknown means `en`).
+String compactSuffixOf(String step, String? locale) {
+  final language = (locale ?? 'en').split(RegExp('[-_]')).first.toLowerCase();
+  final table = kCompactSuffixes[language == 'uk' ? 'uk' : 'en']!;
+  return '${table.gap}${table.steps[step]}';
+}
+
+/// The pieces of a compact number, or `null` when the language has no number data. Below the first step the
+/// number is written exactly as `number` writes it.
+List<AmountPiece>? _compactPieces(num number, String? locale, {required MoneyLook look, required bool rtl}) {
+  final parts = compactPartsOf(number);
+  if (parts == null) return _amountPieces(number, locale, look: look, rtl: rtl);
+  final signed = number.isNegative ? -parts.mantissa : parts.mantissa;
+  return _amountPieces(signed, locale, look: look, rtl: rtl, suffix: compactSuffixOf(parts.step, locale));
 }

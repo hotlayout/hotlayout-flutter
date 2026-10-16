@@ -24,6 +24,7 @@ import 'carousel_rules.dart';
 import 'progress_rules.dart';
 import 'screen_top_rules.dart';
 import 'style_values.dart';
+import 'swipe_confirm.dart';
 import 'text_spans.dart';
 import 'tokens.dart';
 import 'visibility.dart';

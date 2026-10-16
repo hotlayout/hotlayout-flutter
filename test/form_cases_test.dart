@@ -201,7 +201,9 @@ void main() {
     const groupsOfOtherFiles = [
       'choiceNote', 'choicePlaceCases', 'choiceControlCases', 'writeFormCases', 'inputPartsNote',
       'fieldBoxCases', 'affixRowCases', 'counterCases', 'noteRowCases', 'partsDocumentCases',
-      'emptinessNote', 'emptinessCases', 'emptinessDocumentCases', //
+      'emptinessNote', 'emptinessCases', 'emptinessDocumentCases',
+      // 9.23.0: a comparison with the value of another path (`value_path_cases_test.dart`).
+      'valuePathNote', 'valuePathCases', //
     ];
     expect(after, [..._groups, ...groupsOfOtherFiles]);
     after.removeWhere(groupsOfOtherFiles.contains);

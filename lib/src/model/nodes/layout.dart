@@ -362,10 +362,15 @@ final class RepeaterNode extends ChildNode {
     this.columns,
     this.limit,
     this.carousel,
+    this.where,
   });
 
   @override
   final List<ChildNode> children;
+
+  /// The filter of the list (schema 9.23.0, `x-listFilter.where`), judged on each record in ITS scope; `null` means
+  /// every record. A record that does not pass does not exist for the layout.
+  final VisibilityCondition? where;
 
   /// Carousel (9.11.0): `null` means there is no field, it is out of place or not an object. A list
   /// with the field scrolls by itself.
@@ -420,10 +425,18 @@ RepeaterNode _parseRepeater(_RawNode node, VisibilityCondition? visibleIf) {
     // DESCRIBES a grid, and drawing it with the maximum is closer to the intent than drawing a column.
     columns: props['columns'] == null ? null : _gridColumns(props['columns'], overridden: node.columnsFromOverride),
     limit: _intIn(props, 'limit', 1, kMaxRepeaterItems),
+    where: props['where'] is Map ? _listWhere(props['where']) : null,
     // 9.11.0. The host is a list into a row WITHOUT `columns`: a grid does not read the direction at all,
     // and it is never a carousel.
     carousel: props['columns'] == null && ContainerDirectionToken.parse(props['direction']) == ContainerDirectionToken.row
         ? readCarousel(props['carousel'])
         : null,
   );
+}
+
+/// `Repeater.where`: any form of a condition except the emptiness of a filtered list ("a filter does not carry a
+/// filter"). One that cannot be read lets every record through, as a condition nobody could understand does anywhere.
+VisibilityCondition? _listWhere(Object? raw) {
+  final condition = VisibilityCondition.parse(raw);
+  return condition is FilteredEmptinessCondition ? const AlwaysVisibleCondition() : condition;
 }

@@ -12,6 +12,7 @@ import '../../model/node_style.dart';
 import '../../model/scrolled_bar.dart';
 import '../../model/style_values.dart';
 import '../../model/tokens.dart';
+import '../dashed_border.dart';
 import '../layout/styled_size.dart';
 import '../node_motion.dart';
 import '../node_renderer.dart';
@@ -199,7 +200,9 @@ extension NodeBoxWidgets on NodeRenderer {
   BorderSide? borderSide(NodeBorder? border) {
     if (border == null) return null;
     final color = theme.resolveColor(border.color);
-    return color == null ? null : BorderSide(color: color, width: border.width);
+    if (color == null) return null;
+    // A dashed border takes the room of a solid one (it is the same side to the layout) and is drawn by [DashedBorder].
+    return border.dashed ? DashedBorderSide(color: color, width: border.width) : BorderSide(color: color, width: border.width);
   }
 
   /// A surface: background (color, gradient or image), border, radius and shadow.
@@ -226,7 +229,8 @@ extension NodeBoxWidgets on NodeRenderer {
   }) {
     final hasRadius = radius != null && radius != BorderRadiusDirectional.zero && radius != BorderRadius.zero;
     final hasShadow = shadow != null && shadow.isNotEmpty;
-    final frame = border == null ? null : Border.fromBorderSide(border);
+    final dashed = border is DashedBorderSide;
+    final frame = border == null || dashed ? null : Border.fromBorderSide(border);
 
     Widget content = child;
     if (image != null) {
@@ -259,6 +263,8 @@ extension NodeBoxWidgets on NodeRenderer {
         child: content,
       );
     }
+    // A dashed border is painted over the content, inside the box (the line lies half a width inside the edge).
+    if (dashed) content = DashedBorder(side: border, radius: hasRadius ? radius : null, child: content);
 
     final glass = blur != null;
     // With glass the shadow is drawn outside the blur clip (below), not by the background box.

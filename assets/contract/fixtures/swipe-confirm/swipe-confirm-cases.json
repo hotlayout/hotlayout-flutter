@@ -1,0 +1,70 @@
+{
+  "description": "Swipe to confirm (9.22.0, «Button.confirm: 'swipe'», «x-swipeConfirm»). Written by hand; one table for every reader. Numbers are logical points from the inline START of the button (the right edge in right-to-left scripts). «dx» is the pointer movement on the screen, positive to the right. «keyboardCases» and «pressCases» say what each way of pressing does; the readers check them on their real button.",
+  "geometryCases": [
+    { "name": "lg button 48 high, 345 wide, a 1 border, inset xs = 4: the thumb is 38, the label strip is between its two places", "track": { "height": 48, "width": 345, "border": 1, "inset": 4 }, "expect": { "diameter": 38, "thumbRoom": 43, "travel": 297, "label": { "start": 43, "width": 259 } } },
+    { "name": "md button 40 high, 200 wide, no border", "track": { "height": 40, "width": 200, "border": 0, "inset": 4 }, "expect": { "diameter": 32, "thumbRoom": 36, "travel": 160, "label": { "start": 36, "width": 128 } } },
+    { "name": "a track of 56 with a 1 border (own padding): the thumb follows the height", "track": { "height": 56, "width": 343, "border": 1, "inset": 4 }, "expect": { "diameter": 46, "thumbRoom": 51, "travel": 287, "label": { "start": 51, "width": 241 } } },
+    { "name": "a track narrower than the thumb and its inset: no travel, the gesture never acts", "track": { "height": 28, "width": 20, "border": 0, "inset": 4 }, "expect": { "diameter": 20, "thumbRoom": 24, "travel": 0, "label": { "start": 24, "width": 0 } } }
+  ],
+  "naturalWidthCases": [
+    { "name": "a label of 120 in an lg track with a 1 border: label plus the thumb room on both sides; the inline padding of the size is not read", "label": 120, "track": { "height": 48, "border": 1, "inset": 4 }, "expect": 206 },
+    { "name": "an empty label: two thumb rooms", "label": 0, "track": { "height": 48, "border": 1, "inset": 4 }, "expect": 86 }
+  ],
+  "progressCases": [
+    { "name": "half the travel to the right, left to right", "dx": 100, "travel": 200, "rtl": false, "expect": 0.5 },
+    { "name": "exactly the threshold", "dx": 180, "travel": 200, "rtl": false, "expect": 0.9 },
+    { "name": "past the end — clamped to 1", "dx": 250, "travel": 200, "rtl": false, "expect": 1 },
+    { "name": "backwards — clamped to 0", "dx": -40, "travel": 200, "rtl": false, "expect": 0 },
+    { "name": "right to left: the end of the line is on the left, so moving left is progress", "dx": -100, "travel": 200, "rtl": true, "expect": 0.5 },
+    { "name": "right to left: moving right is backwards", "dx": 100, "travel": 200, "rtl": true, "expect": 0 },
+    { "name": "no travel — no progress", "dx": 50, "travel": 0, "rtl": false, "expect": 0 }
+  ],
+  "releaseCases": [
+    { "name": "released at the threshold — the action", "progress": 0.9, "disabled": false, "expect": "act" },
+    { "name": "released a hair before the threshold — the thumb returns, nothing happens", "progress": 0.8999, "disabled": false, "expect": "return" },
+    { "name": "released at the end — the action", "progress": 1, "disabled": false, "expect": "act" },
+    { "name": "released without moving — the thumb stays, nothing happens", "progress": 0, "disabled": false, "expect": "return" },
+    { "name": "a disabled button never acts, wherever it is released", "progress": 1, "disabled": true, "expect": "return" }
+  ],
+  "thumbCases": [
+    { "name": "at rest: the border and the inset from the start", "track": { "height": 48, "width": 345, "border": 1, "inset": 4 }, "progress": 0, "expect": 5 },
+    { "name": "half way", "track": { "height": 48, "width": 345, "border": 1, "inset": 4 }, "progress": 0.5, "expect": 153.5 },
+    { "name": "at the end: the inset from the end border", "track": { "height": 48, "width": 345, "border": 1, "inset": 4 }, "progress": 1, "expect": 302 },
+    { "name": "progress above 1 is the end", "track": { "height": 48, "width": 345, "border": 1, "inset": 4 }, "progress": 1.5, "expect": 302 },
+    { "name": "progress below 0 is the start", "track": { "height": 48, "width": 345, "border": 1, "inset": 4 }, "progress": -1, "expect": 5 }
+  ],
+  "captureCases": [
+    { "name": "mostly along the line — the drag is captured", "dx": 10, "dy": 3, "expect": true },
+    { "name": "mostly across — the body scrolls, the thumb does not move", "dx": 3, "dy": 10, "expect": false },
+    { "name": "diagonal — not captured yet", "dx": 5, "dy": 5, "expect": false },
+    { "name": "backwards along the line is still along it", "dx": -12, "dy": 4, "expect": true }
+  ],
+  "pressCases": [
+    { "name": "a pointer press without moving does nothing", "way": "pointerTap", "disabled": false, "expect": "nothing" },
+    { "name": "a drag released past the threshold acts once, the track event first", "way": "dragPastThreshold", "disabled": false, "expect": "act" },
+    { "name": "a drag released before the threshold does nothing", "way": "dragShort", "disabled": false, "expect": "nothing" },
+    { "name": "Enter acts at once", "way": "enter", "disabled": false, "expect": "act" },
+    { "name": "Space acts at once", "way": "space", "disabled": false, "expect": "act" },
+    { "name": "a held Enter repeating is not a press", "way": "enterRepeat", "disabled": false, "expect": "nothing" },
+    { "name": "Enter on a disabled button does nothing", "way": "enter", "disabled": true, "expect": "nothing" },
+    { "name": "a drag on a disabled button does not move the thumb and does nothing", "way": "dragPastThreshold", "disabled": true, "expect": "nothing" }
+  ],
+  "schemaCases": [
+    { "name": "«swipe» on a button", "widget": "Button", "props": { "confirm": "swipe" }, "valid": true },
+    { "name": "no field — an ordinary press", "widget": "Button", "props": {}, "valid": true },
+    { "name": "a word the contract does not have", "widget": "Button", "props": { "confirm": "hold" }, "valid": false },
+    { "name": "the field is not part of the icon button", "widget": "IconButton", "props": { "confirm": "swipe" }, "valid": false }
+  ],
+  "ruleCases": [
+    { "name": "the threshold is nine tenths of the travel", "rule": "threshold", "expect": 0.9 },
+    { "name": "the thumb stands the xs step inside the border", "rule": "thumb.inset", "expect": "xs" },
+    { "name": "the thumb is the background of the role", "rule": "thumb.fill", "expect": "background-of-the-role" },
+    { "name": "the drag goes from the inline start to the inline end", "rule": "direction", "expect": "from-the-inline-start-to-the-inline-end" },
+    { "name": "from the keyboard it is an ordinary button", "rule": "keyboard", "expect": "enter-and-space-act-at-once" },
+    { "name": "assistive technology activates it at once", "rule": "assistive", "expect": "activate-acts-at-once" },
+    { "name": "a pointer press without the drag does nothing", "rule": "pressWithoutDrag", "expect": "nothing" },
+    { "name": "the name is the label", "rule": "semantics", "expect": "button-named-by-the-label" },
+    { "name": "a disabled button does not move", "rule": "disabled", "expect": "thumb-does-not-move-look-of-a-disabled-button" },
+    { "name": "after the action the thumb returns", "rule": "afterAction", "expect": "thumb-returns-to-the-start" }
+  ]
+}

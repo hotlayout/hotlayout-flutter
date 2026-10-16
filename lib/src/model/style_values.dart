@@ -3,6 +3,7 @@ import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
 
 import 'bindable.dart';
+import 'border_dash.dart';
 import 'tokens.dart';
 
 /// "Token or own value": the forms of style values in contract 9.0.0.
@@ -427,24 +428,28 @@ BindableNumber? parseDimension(Map raw, String key) {
 /// A border: width and color, THE SAME on all sides.
 @immutable
 final class NodeBorder {
-  const NodeBorder({required this.width, required this.color});
+  const NodeBorder({required this.width, required this.color, this.dashed = false});
 
   final double width;
   final ColorRef color;
+
+  /// A dashed line (schema 9.22.0, `style: 'dashed'`). No field or any other word is solid.
+  final bool dashed;
 
   static NodeBorder? tryParse(Object? raw) {
     if (raw is! Map) return null;
     final width = _boundedAt(raw, 'width', kMinBorderWidthPx, kMaxBorderWidthPx);
     final color = ColorRef.tryParse(raw['color']);
     if (width == null || color == null) return null;
-    return NodeBorder(width: width, color: color);
+    return NodeBorder(width: width, color: color, dashed: isDashedBorderWord(raw['style']));
   }
 
   @override
-  bool operator ==(Object other) => other is NodeBorder && other.width == width && other.color == color;
+  bool operator ==(Object other) =>
+      other is NodeBorder && other.width == width && other.color == color && other.dashed == dashed;
 
   @override
-  int get hashCode => Object.hash(width, color);
+  int get hashCode => Object.hash(width, color, dashed);
 }
 
 /// One stop of an own gradient.
