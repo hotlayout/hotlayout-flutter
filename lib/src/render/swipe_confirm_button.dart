@@ -5,7 +5,17 @@
 /// it returns and nothing happens. A press without a drag does nothing. For the keyboard and assistive technology it is
 /// an ordinary button named by its label: Enter and Space (not their auto-repeat) and the "activate" semantics action
 /// run it at once. A disabled button does not move. The numbers are `model/swipe_confirm.dart`.
+///
+/// AFTER THE ACTION (schema 9.24.0, `x-swipeConfirmBusy`) the action has run at once and the thumb glides to the end
+/// (200 ms) and STAYS there, busy: a ring of three quarters instead of the glyph, turning once in 800 ms; presses,
+/// gestures and keys do nothing and the name is still the label. An action of the reader or of the host keeps it busy;
+/// `none` and an invalid action send the thumb back at once. The host's answer ends it: a `Future` that completes (or
+/// fails) returns the thumb over 250 ms; with no `Future` the thumb returns after eight seconds, unless the screen
+/// changed first and the button went with it. "Reduce motion": the thumb jumps, the ring stands still.
 library;
+
+import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -14,8 +24,11 @@ import 'package:flutter/services.dart';
 import '../model/swipe_confirm.dart';
 import '../model/tokens.dart';
 import 'icon_glyph.dart';
-import 'motion.dart';
+import '../model/value_transition.dart' show valueTransitionEase;
 import 'screen_form.dart';
+
+/// What running the action of the button told: who ran it, and the host's promise when it returned one.
+typedef SwipeActivation = ({SwipeRunner runner, Future<void>? promise});
 
 class SwipeConfirmTrack extends StatefulWidget {
   const SwipeConfirmTrack({
@@ -56,7 +69,7 @@ class SwipeConfirmTrack extends StatefulWidget {
   final Color glyphColor;
   final IconToken glyph;
   final bool disabled;
-  final VoidCallback onActivate;
+  final SwipeActivation Function() onActivate;
   final Color focusColor;
   final BorderRadiusGeometry? radius;
 
@@ -64,13 +77,40 @@ class SwipeConfirmTrack extends StatefulWidget {
   State<SwipeConfirmTrack> createState() => _SwipeConfirmTrackState();
 }
 
-class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
+enum _Phase { idle, gliding, busy, returning }
+
+class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> with TickerProviderStateMixin {
   double _dx = 0;
   double _progress = 0;
   bool _dragging = false;
   bool _focused = false;
+  _Phase _phase = _Phase.idle;
+  bool _hasPromise = false;
+  bool _endAfterGlide = false;
+  Timer? _limit;
+  double _from = 0;
+  double _to = 0;
+  late final AnimationController _move;
+  late final AnimationController _spin;
+
+  @override
+  void initState() {
+    super.initState();
+    // Made here, not on first use: a ticker cannot be made while the element is being unmounted.
+    _move = AnimationController(vsync: this)..addListener(_onMove);
+    _spin = AnimationController(vsync: this, duration: const Duration(milliseconds: kSwipeSpinnerTurnMs));
+  }
 
   bool get _rtl => Directionality.of(context) == TextDirection.rtl;
+  bool get _busy => _phase == _Phase.busy || _phase == _Phase.gliding;
+
+  @override
+  void dispose() {
+    _limit?.cancel();
+    _move.dispose();
+    _spin.dispose();
+    super.dispose();
+  }
 
   SwipeTrack _track(double width, double height) =>
       (height: height, width: width, border: widget.border, inset: widget.inset);
@@ -81,16 +121,89 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
     return widget.verticalPadding + 2 * widget.border + line;
   }
 
-  void _activate() {
-    if (widget.disabled) return;
-    widget.onActivate();
+  void _onMove() {
+    final eased = valueTransitionEase(_move.value);
+    setState(() => _progress = _from + (_to - _from) * eased);
+    if (_move.isCompleted) _arrived();
+  }
+
+  /// Moves the thumb to [target] over [ms]; "reduce motion" jumps.
+  void _glide(double target, int ms) {
+    _from = _progress;
+    _to = target;
+    if (MediaQuery.disableAnimationsOf(context) || _from == _to) {
+      _move.stop();
+      setState(() => _progress = target);
+      _arrived();
+      return;
+    }
+    _move.duration = Duration(milliseconds: ms);
+    _move.forward(from: 0);
+  }
+
+  void _arrived() {
+    if (_phase == _Phase.gliding) {
+      setState(() => _phase = _Phase.busy);
+      if (!MediaQuery.disableAnimationsOf(context)) _spin.repeat();
+      if (_endAfterGlide) {
+        _endAfterGlide = false;
+        _giveBack();
+      }
+    } else if (_phase == _Phase.returning) {
+      setState(() => _phase = _Phase.idle);
+    }
+  }
+
+  /// "Busy" is over: the thumb returns to the start and the button acts again.
+  void _giveBack() {
+    _limit?.cancel();
+    _spin
+      ..stop()
+      ..value = 0;
+    setState(() => _phase = _Phase.returning);
+    _glide(0, kSwipeReturnMs);
+  }
+
+  void _endBusy() {
+    if (!mounted || _phase == _Phase.idle || _phase == _Phase.returning) return;
+    if (_phase == _Phase.gliding) {
+      _endAfterGlide = true;
+    } else {
+      _giveBack();
+    }
+  }
+
+  /// Runs the action; the thumb then goes to the end and waits, or returns, by who ran it.
+  void _run() {
+    if (widget.disabled || (_phase != _Phase.idle && _phase != _Phase.returning)) return;
+    final activation = widget.onActivate();
+    if (!mounted) return;
+    if (swipeAfterReleaseOf(activation.runner) == SwipeAfterRelease.back) {
+      setState(() => _phase = _Phase.returning);
+      _glide(0, kSwipeReturnMs);
+      return;
+    }
+    final promise = activation.promise;
+    _hasPromise = promise != null;
+    _limit?.cancel();
+    setState(() => _phase = _Phase.gliding);
+    _glide(1, kSwipeCompleteMs);
+    if (promise != null) {
+      promise.then<void>((_) => _endBusy(), onError: (Object _) => _endBusy());
+    } else {
+      _limit = Timer(const Duration(milliseconds: kSwipeBusyMaxMs), () {
+        if (swipeBusyOutcomeOf(SwipeBusyEvent.timeout, promise: _hasPromise) == SwipeBusyOutcome.back) _endBusy();
+      });
+    }
   }
 
   void _start(DragStartDetails details) {
-    if (widget.disabled) return;
+    if (widget.disabled || _busy) return;
+    _move.stop();
     setState(() {
       _dx = 0;
       _dragging = true;
+      _phase = _Phase.idle;
     });
   }
 
@@ -102,19 +215,22 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
     setState(() => _progress = swipeProgressOf(_dx, travel, rtl: _rtl));
   }
 
-  void _end(DragEndDetails details) {
+  void _endDrag(DragEndDetails details) {
+    if (!_dragging) return;
     final release = swipeReleaseOf(_progress, disabled: widget.disabled);
-    setState(() {
-      _dragging = false;
-      _progress = 0;
-    });
-    if (release == SwipeRelease.act) widget.onActivate();
+    setState(() => _dragging = false);
+    if (release == SwipeRelease.act) {
+      _run();
+    } else {
+      _glide(0, kSwipeReturnMs);
+    }
   }
 
-  void _cancel() => setState(() {
-    _dragging = false;
-    _progress = 0;
-  });
+  void _cancel() {
+    if (!_dragging) return;
+    setState(() => _dragging = false);
+    _glide(0, kSwipeReturnMs);
+  }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     final key = event.logicalKey;
@@ -127,7 +243,7 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
     // A held key is not a series of presses.
     if (event is KeyRepeatEvent) return KeyEventResult.handled;
     if (event is KeyDownEvent) {
-      _activate();
+      _run();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -160,7 +276,6 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
       ),
     );
 
-    final duration = _dragging ? Duration.zero : motionOf(context, Motion.quick);
     final thumb = Positioned.fill(
       child: LayoutBuilder(
         builder: (context, box) {
@@ -168,9 +283,7 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
           final geometry = swipeGeometryOf(track);
           return Stack(
             children: [
-              AnimatedPositionedDirectional(
-                duration: duration,
-                curve: Motion.enter,
+              PositionedDirectional(
                 start: swipeThumbStartOf(track, _progress),
                 top: widget.border + widget.inset,
                 width: geometry.diameter,
@@ -178,7 +291,11 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
                 child: ExcludeSemantics(
                   child: DecoratedBox(
                     decoration: BoxDecoration(color: widget.thumbColor, shape: BoxShape.circle),
-                    child: Center(child: IconGlyph(widget.glyph, size: fontSize, color: widget.glyphColor)),
+                    child: Center(
+                      child: _busy
+                          ? _Spinner(turns: _spin, size: fontSize, color: widget.glyphColor)
+                          : IconGlyph(widget.glyph, size: fontSize, color: widget.glyphColor),
+                    ),
                   ),
                 ),
               ),
@@ -202,6 +319,8 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
 
     final gesture = widget.disabled
         ? DisabledPress(child: track)
+        : _busy
+        ? AbsorbPointer(child: track)
         : GestureDetector(
             // The drag counts from the moment the finger came down, not from where the recognizer won.
             dragStartBehavior: DragStartBehavior.down,
@@ -209,7 +328,7 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
             excludeFromSemantics: true,
             onHorizontalDragStart: _start,
             onHorizontalDragUpdate: _update,
-            onHorizontalDragEnd: _end,
+            onHorizontalDragEnd: _endDrag,
             onHorizontalDragCancel: _cancel,
             child: track,
           );
@@ -217,9 +336,9 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
     return Semantics(
       container: true,
       button: true,
-      enabled: !widget.disabled,
+      enabled: !widget.disabled && !_busy,
       label: widget.label.isEmpty ? null : widget.label,
-      onTap: widget.disabled ? null : _activate,
+      onTap: widget.disabled || _busy ? null : _run,
       excludeSemantics: true,
       child: Focus(
         onKeyEvent: _onKey,
@@ -228,4 +347,44 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> {
       ),
     );
   }
+}
+
+/// The indicator of the busy state (`busy.indicator`): a ring of three quarters, the size of the glyph, in its colour,
+/// with a stroke of an eighth of the size, turning once in 800 ms.
+class _Spinner extends StatelessWidget {
+  const _Spinner({required this.turns, required this.size, required this.color});
+
+  final Animation<double> turns;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => RotationTransition(
+    turns: turns,
+    child: CustomPaint(size: Size.square(size), painter: _RingPainter(color, size / 8)),
+  );
+}
+
+class _RingPainter extends CustomPainter {
+  const _RingPainter(this.color, this.stroke);
+
+  final Color color;
+  final double stroke;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawArc(
+      (Offset.zero & size).deflate(stroke / 2),
+      0,
+      math.pi * 1.5,
+      false,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) => old.color != color || old.stroke != stroke;
 }

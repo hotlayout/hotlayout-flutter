@@ -91,8 +91,13 @@ extension NavBarWidgets on NodeRenderer {
     final box = theme.iconBox(IconSizeToken.md);
     final glyph = IconBox(box: box, icon: node.icon, color: color);
     final condition = node.badgeWhen;
-    if (condition == null || !condition.evaluate(data)) return glyph;
-    return NavBadgeMark(box: box, color: theme.color(ColorToken.accent), child: glyph);
+    if (condition == null) return glyph;
+    return NavBadgeMotion(
+      shown: condition.evaluate(data),
+      builder: (context, scale, opacity) =>
+          NavBadgeMark(box: box, color: theme.color(ColorToken.accent), scale: scale, opacity: opacity, child: glyph),
+      plain: glyph,
+    );
   }
 
   /// The navigation item overlay: hover and press are transparent, keyboard focus is visible.
@@ -283,7 +288,18 @@ extension NavBarWidgets on NodeRenderer {
 /// glyph is a square the size of the font in the middle of the box of the row, so its top lies `(row - font) / 2`
 /// below the top of the box. The dot is a picture: it is not announced, and it takes no room.
 class NavBadgeMark extends StatelessWidget {
-  const NavBadgeMark({super.key, required this.box, required this.color, required this.child});
+  const NavBadgeMark({
+    super.key,
+    required this.box,
+    required this.color,
+    required this.child,
+    this.scale = 1,
+    this.opacity = 1,
+  });
+
+  /// The scale and the opacity of the dot at this moment of its appearance or fading (9.24.0).
+  final double scale;
+  final double opacity;
 
   /// The box of the glyph before the system font scale.
   final Size box;
@@ -293,9 +309,9 @@ class NavBadgeMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scaler = MediaQuery.textScalerOf(context);
-    final scale = box.width == 0 ? 1.0 : scaler.scale(box.width) / box.width;
-    final width = box.width * scale;
-    final height = box.height * scale;
+    final textScale = box.width == 0 ? 1.0 : scaler.scale(box.width) / box.width;
+    final width = box.width * textScale;
+    final height = box.height * textScale;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final dot = navBadgeBoxOf(glyphLeft: 0, glyphTop: (height - width) / 2, glyphSize: width, rtl: rtl);
     return Stack(
@@ -308,10 +324,86 @@ class NavBadgeMark extends StatelessWidget {
           width: dot.size,
           height: dot.size,
           child: ExcludeSemantics(
-            child: DecoratedBox(decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            child: Opacity(
+              opacity: opacity,
+              // A matrix, not `Transform.scale`: at the start of the flash the scale is exactly 0.
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.diagonal3Values(scale, scale, 1),
+                child: DecoratedBox(decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              ),
+            ),
           ),
         ),
       ],
     );
+  }
+}
+
+/// The motion of the dot (schema 9.24.0, `navBadgeMotion`): when the condition of an item changes its answer WHILE
+/// the screen is shown, the dot appears with a flash (0 to 1.25 to 1 over 320 ms) or fades (200 ms, kept in place
+/// until the end). The first show of the item, a screen shown again (a new state) and "reduce motion" show or hide
+/// the dot at once. A new change starts its own motion from its start. The item does not change size or name.
+class NavBadgeMotion extends StatefulWidget {
+  const NavBadgeMotion({super.key, required this.shown, required this.builder, required this.plain});
+
+  /// Whether the condition holds now.
+  final bool shown;
+
+  /// Draws the item with the dot at the given scale and opacity.
+  final Widget Function(BuildContext context, double scale, double opacity) builder;
+
+  /// The item without the dot.
+  final Widget plain;
+
+  @override
+  State<NavBadgeMotion> createState() => _NavBadgeMotionState();
+}
+
+class _NavBadgeMotionState extends State<NavBadgeMotion> with SingleTickerProviderStateMixin {
+  late final AnimationController _clock;
+  NavBadgeChange _moving = NavBadgeChange.none;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = AnimationController(vsync: this)..addListener(() => setState(() {}));
+  }
+
+  @override
+  void didUpdateWidget(NavBadgeMotion old) {
+    super.didUpdateWidget(old);
+    final change = navBadgeChangeOf(
+      shownBefore: true,
+      before: old.shown,
+      after: widget.shown,
+      reducedMotion: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
+    );
+    _moving = change;
+    if (change == NavBadgeChange.none) {
+      _clock.stop();
+      return;
+    }
+    final ms = change == NavBadgeChange.appear ? kNavBadgeAppearMs : kNavBadgeDisappearMs;
+    _clock.duration = Duration(milliseconds: ms);
+    _clock.forward(from: 0).whenCompleteOrCancel(() {
+      if (mounted && _clock.isCompleted) setState(() => _moving = NavBadgeChange.none);
+    });
+  }
+
+  @override
+  void dispose() {
+    _clock.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = _clock.value * (_moving == NavBadgeChange.appear ? kNavBadgeAppearMs : kNavBadgeDisappearMs);
+    return switch (_moving) {
+      NavBadgeChange.appear => widget.builder(context, navBadgeAppearScaleAt(t), 1),
+      NavBadgeChange.disappear => widget.builder(context, 1, navBadgeDisappearOpacityAt(t)),
+      NavBadgeChange.none => widget.shown ? widget.builder(context, 1, 1) : widget.plain,
+    };
   }
 }

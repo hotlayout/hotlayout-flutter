@@ -14,6 +14,7 @@ final class ProgressBarNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.value,
     required this.max,
     required this.color,
@@ -25,6 +26,7 @@ final class ProgressBarNode extends ChildNode {
     this.currentColor,
     this.cap,
     this.animateChanges = false,
+    this.animateIn = false,
   });
 
   /// Round ends (9.21.0); `null` is the ends as before: the theme's `pill` radius.
@@ -32,6 +34,38 @@ final class ProgressBarNode extends ChildNode {
 
   /// The value leads to a new value from data instead of jumping (9.21.0); only the literal `true` is read.
   final bool animateChanges;
+
+  /// The value grows from zero each time the node is shown (9.24.0); only the literal `true` is read.
+  final bool animateIn;
+
+
+  /// The same bar with another `value` (the literal value of a scale that appears is read through a data path).
+  ProgressBarNode withValue(BindableNumber other) => ProgressBarNode(
+        id: id,
+        visibleIf: visibleIf,
+        hiddenByClass: hiddenByClass,
+        style: style,
+        styleWhen: styleWhen,
+        fill: fill,
+        weight: weight,
+        layer: layer,
+        motion: motion,
+        pull: pull,
+        pin: pin,
+        pinTop: pinTop,
+        value: other,
+        max: max,
+        color: color,
+        labelFormat: labelFormat,
+        thickness: thickness,
+        trackColor: trackColor,
+        gradient: gradient,
+        segments: segments,
+        currentColor: currentColor,
+        cap: cap,
+        animateChanges: animateChanges,
+        animateIn: animateIn,
+      );
 
   final BindableNumber value;
   final BindableNumber max;
@@ -68,6 +102,7 @@ ProgressBarNode _parseProgressBar(_RawNode node, VisibilityCondition? visibleIf)
     motion: node.motion,
     pull: node.pull,
     pin: node.pin,
+    pinTop: node.pinTop,
     value: BindableNumber.parse(props['value']),
     max: BindableNumber.parse(props['max'], fallback: 100),
     color: FieldColor.parse(props['color'], fieldDefault: ColorToken.primary),
@@ -79,6 +114,7 @@ ProgressBarNode _parseProgressBar(_RawNode node, VisibilityCondition? visibleIf)
     currentColor: ColorRef.tryParse(props['currentColor']),
     cap: ProgressCap.parse(props['cap']),
     animateChanges: props['animateChanges'] == true,
+    animateIn: props['animateIn'] == true,
   );
 }
 
@@ -105,6 +141,7 @@ final class CircularProgressNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.value,
     required this.max,
     required this.color,
@@ -117,6 +154,7 @@ final class CircularProgressNode extends ChildNode {
     this.labelColor,
     this.cap,
     this.animateChanges = false,
+    this.animateIn = false,
   });
 
   /// Round ends of the arc (9.21.0); `null` is square ends, as before.
@@ -124,6 +162,38 @@ final class CircularProgressNode extends ChildNode {
 
   /// The value leads to a new value from data instead of jumping (9.21.0); only the literal `true` is read.
   final bool animateChanges;
+
+  /// The value grows from zero each time the node is shown (9.24.0); only the literal `true` is read.
+  final bool animateIn;
+
+  /// The same ring with another `value` (see [ProgressBarNode.withValue]).
+  CircularProgressNode withValue(BindableNumber other) => CircularProgressNode(
+        id: id,
+        visibleIf: visibleIf,
+        hiddenByClass: hiddenByClass,
+        style: style,
+        styleWhen: styleWhen,
+        fill: fill,
+        weight: weight,
+        layer: layer,
+        motion: motion,
+        pull: pull,
+        pin: pin,
+        pinTop: pinTop,
+        value: other,
+        max: max,
+        color: color,
+        size: size,
+        labelFormat: labelFormat,
+        thickness: thickness,
+        trackColor: trackColor,
+        gradient: gradient,
+        labelTypography: labelTypography,
+        labelColor: labelColor,
+        cap: cap,
+        animateChanges: animateChanges,
+        animateIn: animateIn,
+      );
 
   /// Own style of the label in the center (9.17.0): `null` means there is no field or it has the wrong
   /// shape, and `caption` / `onSurface` applies. A token the theme does not know gives the fallback style
@@ -170,6 +240,7 @@ CircularProgressNode _parseCircularProgress(_RawNode node, VisibilityCondition? 
     motion: node.motion,
     pull: node.pull,
     pin: node.pin,
+    pinTop: node.pinTop,
     value: BindableNumber.parse(props['value']),
     max: BindableNumber.parse(props['max'], fallback: 100),
     color: FieldColor.parse(props['color'], fieldDefault: ColorToken.primary),
@@ -189,5 +260,6 @@ CircularProgressNode _parseCircularProgress(_RawNode node, VisibilityCondition? 
     labelColor: ColorRef.tryParse(props['labelColor']),
     cap: ProgressCap.parse(props['cap']),
     animateChanges: props['animateChanges'] == true,
+    animateIn: props['animateIn'] == true,
   );
 }

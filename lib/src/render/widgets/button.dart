@@ -10,7 +10,7 @@ import '../../model/layout_rules.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/style_values.dart';
-import '../../model/swipe_confirm.dart' show kSwipeThumbGlyph;
+import '../../model/swipe_confirm.dart' show kSwipeThumbGlyph, swipeRunnerOf;
 import '../../model/tokens.dart';
 import '../../model/visibility.dart';
 import '../../theme/render_theme.dart';
@@ -129,7 +129,7 @@ extension ButtonWidgets on NodeRenderer {
       glyphColor: roleFilled ? role.foreground : theme.color(ColorToken.onPrimary),
       glyph: icon == null || icon == IconToken.unknown ? IconToken.parse(kSwipeThumbGlyph) : icon,
       disabled: disabled,
-      onActivate: () => emit(node.action, node.id),
+      onActivate: () => (runner: swipeRunnerOf(node.action.handOver(data.lookup)), promise: emit(node.action, node.id)),
       focusColor: theme.color(ColorToken.primary),
     );
   }

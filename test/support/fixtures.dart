@@ -105,6 +105,8 @@ const List<String> fixtureIds = [
   'float-nav-swipe-screens',
   // 9.23.0: a filtered list, a gradient on the letters, a compact number; en and uk.
   'filter-gradient-compact-screens',
+  // 9.24.0: a value that grows when shown, a swipe that stays busy, a dot that flashes, nodes pinned to the top; en and uk.
+  'appear-swipe-dot-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

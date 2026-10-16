@@ -98,5 +98,60 @@
       "props": { "value": { "kind": "binding", "path": "task.progress", "fallback": 0 }, "max": { "kind": "binding", "path": "task.target", "fallback": 5 }, "animateChanges": true },
       "expected": [{ "path": "task.progress", "scale": true }, { "path": "task.target", "scale": true }]
     }
+  ],
+  "appearNote": "Schema 9.24.0, field «animateIn», rules: x-valueAppear. When the node is shown, its value grows from 0 with the curve and the step of x-valueTransition. «appearStepCases» — the value shown at t milliseconds after the show (from 0); «digits» absent means a scale. «appearDecisionCases» — whether the show gives an appearance, and if not, why (the first reason in the order of x-valueAppear.whenNoAppear.order). «appearTargetCases» — which numbers of a node appear: the numbers of a text that transition, and the VALUE of a scale (the max stands at once); a literal value of a scale appears too and is named «#value». «appearFlowCases» — what a reader shows on the given moment of a flow.",
+  "appearStepCases": [
+    { "name": "a whole balance: the first frame is zero", "to": 12480, "t": 0, "digits": 0, "expected": 0 },
+    { "name": "a whole balance at a quarter of the time", "to": 12480, "t": 175, "digits": 0, "expected": 7215 },
+    { "name": "a whole balance at half of the time", "to": 12480, "t": 350, "digits": 0, "expected": 10920 },
+    { "name": "a whole balance at the end is exactly the value", "to": 12480, "t": 700, "digits": 0, "expected": 12480 },
+    { "name": "a negative value falls from zero, cut towards zero", "to": -50, "t": 350, "digits": 0, "expected": -43 },
+    { "name": "money with cents: the digits of the currency", "to": 87.5, "t": 350, "digits": 2, "expected": 76.56 },
+    { "name": "a scale grows from empty, no step", "to": 87, "t": 175, "expected": 50.296875 },
+    { "name": "a scale at half of the time", "to": 87, "t": 350, "expected": 76.125 },
+    { "name": "a scale at the end", "to": 87, "t": 700, "expected": 87 }
+  ],
+  "appearDecisionCases": [
+    { "name": "a node without the field: the value at once", "input": { "animates": false, "to": 87 }, "expected": "noField" },
+    { "name": "reduce motion: the value at once", "input": { "animates": true, "to": 87, "reducedMotion": true }, "expected": "reducedMotion" },
+    { "name": "reduce motion wins over a value that is not a number", "input": { "animates": true, "to": null, "reducedMotion": true }, "expected": "reducedMotion" },
+    { "name": "no data: the fallback at once", "input": { "animates": true, "to": null }, "expected": "notANumber" },
+    { "name": "a string is not a number", "input": { "animates": true, "to": "87" }, "expected": "notANumber" },
+    { "name": "zero has nothing to grow", "input": { "animates": true, "to": 0 }, "expected": "zero" },
+    { "name": "a value grows", "input": { "animates": true, "to": 87 }, "expected": true },
+    { "name": "a negative value falls from zero", "input": { "animates": true, "to": -50 }, "expected": true }
+  ],
+  "appearTargetCases": [
+    {
+      "name": "a text bound to a number",
+      "props": { "content": { "kind": "binding", "path": "user.balance", "fallback": "0", "format": "number" }, "animateIn": true },
+      "expected": [{ "path": "user.balance", "scale": false, "format": "number" }]
+    },
+    {
+      "name": "a literal text has no number to grow",
+      "props": { "content": { "kind": "literal", "value": "12,480" }, "animateIn": true },
+      "expected": []
+    },
+    {
+      "name": "a scale from data: the value grows, the max from data stands at once",
+      "props": { "value": { "kind": "binding", "path": "task.progress", "fallback": 0 }, "max": { "kind": "binding", "path": "task.target", "fallback": 5 }, "animateIn": true },
+      "expected": [{ "path": "task.progress", "scale": true }]
+    },
+    {
+      "name": "a scale with a literal value grows too",
+      "props": { "value": { "kind": "literal", "value": 87 }, "max": { "kind": "literal", "value": 100 }, "animateIn": true },
+      "expected": [{ "path": "#value", "scale": true }]
+    }
+  ],
+  "appearFlowCases": [
+    { "name": "the first screen of the flow: every node with the field grows", "moment": "firstShow", "expected": "appear" },
+    { "name": "a screen pushed on top grows", "moment": "forward", "expected": "appear" },
+    { "name": "a screen shown again by back grows again", "moment": "back", "expected": "appear" },
+    { "name": "a section switch shows the section again", "moment": "switch", "expected": "appear" },
+    { "name": "a screen under a modal layer stays shown: closing the layer is not a show", "moment": "modalClosed", "expected": "none" },
+    { "name": "a node that appears by its condition grows", "moment": "conditionMet", "expected": "appear" },
+    { "name": "a change of data on a shown node is not a show", "moment": "dataChanged", "expected": "none" },
+    { "name": "with animateChanges, a change of data during the appearance leads from the shown value", "moment": "dataChangedDuringAppearWithAnimateChanges", "expected": "transition" },
+    { "name": "without animateChanges, a change of data during the appearance shows the new value at once", "moment": "dataChangedDuringAppear", "expected": "atOnce" }
   ]
 }

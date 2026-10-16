@@ -4,9 +4,16 @@ import 'package:flutter/widgets.dart';
 import '../data/screen_data.dart';
 import '../model/value_transition.dart';
 
-/// Leads the numbers of ONE node from their old values to the new ones when the DATA change them (schema
-/// 9.21.0, `animateChanges`). The formula, the steps and the decision are the model's
+/// Leads the numbers of ONE node: from zero to their values when the node is SHOWN (schema 9.24.0, `animateIn`),
+/// and from their old values to the new ones when the DATA change them (schema 9.21.0, `animateChanges`). The formula, the steps and the decision are the model's
 /// (`model/value_transition.dart`); this widget holds what the model cannot: which value is shown now.
+///
+/// The widget is made when the node is drawn, so its first frame is the show: a first screen, a page pushed or
+/// revealed by "back", a section, a node that appears by a condition or as a new record are all new states. A
+/// screen under a modal layer is not rebuilt, so closing the layer is not a show. An appearance runs from 0 over the
+/// same curve and duration; with `animateChanges` a change of data during it leads from the shown value, without it
+/// the new value stands at once and ends it. "Reduce motion", a value that is not a number and a value of 0 give the
+/// value at once.
 ///
 /// A number leads only when the data under an already shown node change (`dataOnly`). The first frame of the
 /// node, a node that appears, a new record of a list, a screen shown again, a changed language, a document
@@ -23,6 +30,9 @@ class ValueTransition extends StatefulWidget {
   const ValueTransition({
     super.key,
     required this.targets,
+    this.appears = const {},
+    this.literals = const {},
+    this.animatesChanges = true,
     required this.data,
     required this.identity,
     required this.localeKey,
@@ -30,6 +40,15 @@ class ValueTransition extends StatefulWidget {
   });
 
   final List<TransitionTarget> targets;
+
+  /// The paths of [targets] that grow from 0 when the node is shown.
+  final Set<String> appears;
+
+  /// The values of targets that have no data path (the literal value of a scale: [kScaleLiteralKey]).
+  final Map<String, num> literals;
+
+  /// The node asks to lead changes of data (`animateChanges`); without it only the appearance moves.
+  final bool animatesChanges;
 
   /// The data the node reads, WITHOUT the shown numbers.
   final ScreenData data;
@@ -78,8 +97,32 @@ class _ValueTransitionState extends State<ValueTransition> with SingleTickerProv
     // Made here, not on first use: a ticker cannot be made while the element is being unmounted.
     _ticker = createTicker((_) => _onTick());
     for (final target in widget.targets) {
-      _runs[target.path] = _Run(widget.data.lookup(target.path));
+      _runs[target.path] = _Run(_valueOf(target.path));
     }
+  }
+
+  Object? _valueOf(String path) => widget.literals[path] ?? widget.data.lookup(path);
+
+  bool _appearanceStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_appearanceStarted) return;
+    _appearanceStarted = true;
+    // The show: every number of the node that asks starts from 0 at this moment.
+    final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    for (final target in widget.targets) {
+      if (!widget.appears.contains(target.path)) continue;
+      final to = _valueOf(target.path);
+      if (noAppearBecause(animates: true, to: to, reducedMotion: reduced) != null) continue;
+      final run = _runs[target.path]!;
+      run.from = kValueAppearFrom;
+      run.to = to! as num;
+      run.startedAt = _now;
+      run.digits = target.scale ? null : appearDigitsOf(run.to!, target.format, target.currency);
+    }
+    _syncTicker();
   }
 
   @override
@@ -95,11 +138,11 @@ class _ValueTransitionState extends State<ValueTransition> with SingleTickerProv
     }
     final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     for (final target in widget.targets) {
-      final run = _runs[target.path] ??= _Run(widget.data.lookup(target.path));
-      final next = widget.data.lookup(target.path);
+      final run = _runs[target.path] ??= _Run(_valueOf(target.path));
+      final next = _valueOf(target.path);
       if (identical(next, run.settled) || next == run.settled) continue;
       final reason = noTransitionBecause(
-        TransitionChange(animates: true, shownBefore: true, from: run.settled, to: next, reducedMotion: reduced),
+        TransitionChange(animates: widget.animatesChanges, shownBefore: true, from: run.settled, to: next, reducedMotion: reduced),
       );
       if (reason != null) {
         run.settled = next;
@@ -119,7 +162,7 @@ class _ValueTransitionState extends State<ValueTransition> with SingleTickerProv
 
   void _settleAll() {
     for (final target in widget.targets) {
-      _runs[target.path] = _Run(widget.data.lookup(target.path));
+      _runs[target.path] = _Run(_valueOf(target.path));
     }
     _runs.removeWhere((path, _) => !widget.targets.any((target) => target.path == path));
     _ticker.stop();

@@ -62,7 +62,11 @@ _Json _scale(String type, {String id = 'scale', String labelFormat = 'none', boo
 
 void main() {
   test('the table is read in full, and every field of it is known to this test', () {
-    expect(_table.keys.toSet(), {'description', 'durationMs', 'curveCases', 'stepCases', 'digitsCases', 'decisionCases', 'targetCases'});
+    expect(_table.keys.toSet(), {
+      'description', 'durationMs', 'curveCases', 'stepCases', 'digitsCases', 'decisionCases', 'targetCases',
+      // 9.24.0: the appearance, run by `value_appear_cases_test.dart`.
+      'appearNote', 'appearStepCases', 'appearDecisionCases', 'appearTargetCases', 'appearFlowCases',
+    });
     expect(_table['durationMs'], kValueTransitionMs);
     expect(_rows('curveCases'), hasLength(7));
     expect(_rows('stepCases'), hasLength(16));

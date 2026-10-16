@@ -108,7 +108,7 @@ class NodeRenderer {
   final bool insideListItem;
 
   /// Hand the action upward together with this node's record scope.
-  void emit(ButtonAction action, String nodeId) => onAction?.call(action, nodeId, (
+  Future<void>? emit(ButtonAction action, String nodeId) => onAction?.call(action, nodeId, (
     record: data.record,
     insideListItem: insideListItem,
     read: data.lookup,

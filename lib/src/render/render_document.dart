@@ -181,7 +181,7 @@ Widget renderScreen(
     // The analytics event goes first, for any action; without a screen flow there is no
     // navigation here, so the rest is handing over to the host.
     sendTrack(action, nodeId, origin, onTrack);
-    handToHost(action, nodeId, origin, onAction: onAction, onRecordAction: onRecordAction);
+    return handToHost(action, nodeId, origin, onAction: onAction, onRecordAction: onRecordAction);
   },
   onWrite: onWrite,
   autofill: autofill,

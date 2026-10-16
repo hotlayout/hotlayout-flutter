@@ -168,3 +168,79 @@ const Map<String, Object> kValueTransitionRules = {
 
 /// The order of `x-valueTransition.whenNoTransition.order`.
 const List<String> kNoTransitionOrder = ['noField', 'firstShow', 'reducedMotion', 'localeChanged', 'notANumber', 'sameValue'];
+
+// ───────────────────────────── the appearance (schema 9.24.0, `animateIn`) ─────────────────────────────
+
+/// The value an appearance starts from.
+const num kValueAppearFrom = 0;
+
+/// The key of a literal `value` of a scale among the targets (`appearTargetCases`): it has no data path.
+const String kScaleLiteralKey = '#value';
+
+/// Why a node does NOT appear; the first reason in the order of `x-valueAppear.whenNoAppear.order`.
+enum NoAppear { noField, reducedMotion, notANumber, zero }
+
+/// Whether the node grows when shown: `null` when it does, otherwise the reason the value is there at once.
+NoAppear? noAppearBecause({required bool animates, required Object? to, bool reducedMotion = false}) {
+  if (!animates) return NoAppear.noField;
+  if (reducedMotion) return NoAppear.reducedMotion;
+  if (to is! num || !to.isFinite) return NoAppear.notANumber;
+  if (to == 0) return NoAppear.zero;
+  return null;
+}
+
+/// The value shown [t] ms after the show: the transition from 0 with the same curve and step.
+double appearValueAt({required num to, required num t, int? digits}) =>
+    transitionValueAt(from: kValueAppearFrom, to: to, t: t, digits: digits);
+
+/// The step of a number in a text that appears: from 0.
+int appearDigitsOf(num to, BindingFormat? format, String? currency) =>
+    transitionDigitsOf(kValueAppearFrom, to, format, currency);
+
+/// The numbers of a node that appear: those of `animateChanges`, but of a scale only the VALUE (the max stands at
+/// once); a literal value of a scale appears too, under [kScaleLiteralKey].
+List<TransitionTarget> appearTargetsOf(UiNode node) {
+  switch (node) {
+    case ProgressBarNode(:final value):
+      return _appearScale(value, transitionTargetsOf(node));
+    case CircularProgressNode(:final value):
+      return _appearScale(value, transitionTargetsOf(node));
+    default:
+      return transitionTargetsOf(node);
+  }
+}
+
+List<TransitionTarget> _appearScale(BindableNumber value, List<TransitionTarget> all) => [
+  if (value is! BoundNumber) const TransitionTarget(kScaleLiteralKey, scale: true),
+  for (final target in all)
+    if (value is BoundNumber && target.path == value.path) target,
+];
+
+/// What a moment of a flow does to a node that asks to appear (`appearFlowCases`).
+enum AppearMoment {
+  firstShow,
+  forward,
+  back,
+  switchSection,
+  modalClosed,
+  conditionMet,
+  dataChanged,
+  dataChangedDuringAppearWithAnimateChanges,
+  dataChangedDuringAppear,
+}
+
+enum AppearResult { appear, none, transition, atOnce }
+
+AppearResult appearOnMoment(AppearMoment moment) => switch (moment) {
+  AppearMoment.firstShow ||
+  AppearMoment.forward ||
+  AppearMoment.back ||
+  AppearMoment.switchSection ||
+  AppearMoment.conditionMet => AppearResult.appear,
+  AppearMoment.modalClosed || AppearMoment.dataChanged => AppearResult.none,
+  AppearMoment.dataChangedDuringAppearWithAnimateChanges => AppearResult.transition,
+  AppearMoment.dataChangedDuringAppear => AppearResult.atOnce,
+};
+
+/// The order of `x-valueAppear.whenNoAppear.order`.
+const List<String> kNoAppearOrder = ['noField', 'reducedMotion', 'notANumber', 'zero'];

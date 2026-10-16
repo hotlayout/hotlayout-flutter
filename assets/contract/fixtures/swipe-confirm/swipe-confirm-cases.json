@@ -65,6 +65,34 @@
     { "name": "a pointer press without the drag does nothing", "rule": "pressWithoutDrag", "expect": "nothing" },
     { "name": "the name is the label", "rule": "semantics", "expect": "button-named-by-the-label" },
     { "name": "a disabled button does not move", "rule": "disabled", "expect": "thumb-does-not-move-look-of-a-disabled-button" },
-    { "name": "after the action the thumb returns", "rule": "afterAction", "expect": "thumb-returns-to-the-start" }
+    { "name": "after the action the thumb returns", "rule": "afterAction", "expect": "thumb-returns-to-the-start", "refinedIn": "9.24.0", "refinedNote": "The key stays in x-swipeConfirm for the readers of 9.22 and 9.23. From 9.24.0 the thumb stays at the end, busy, until the answer: see x-swipeConfirmBusy and the groups busyReleaseCases, busyEndCases and busyRuleCases." }
+  ],
+  "busyNote": "Schema 9.24.0, rules: x-swipeConfirmBusy. Released past the threshold (or pressed from the keyboard), the action runs at once and the thumb glides to the end and stays there BUSY: an indicator instead of the glyph, presses and gestures do nothing, the name is the label and the state is busy. «busyReleaseCases» — what the thumb does after the action by who runs it (x-actions: the reader, the host, «none», an invalid standard action). «busyEndCases» — how the busy state ends: «answer» is what the host returned for the action («promise» — a Promise or a Future; «none» — nothing, or an action of the reader).",
+  "busyReleaseCases": [
+    { "name": "an action of the reader (navigate): busy, the shown screen changes at once", "runner": "reader", "expect": "busy" },
+    { "name": "an action of the host: busy until its answer", "runner": "host", "expect": "busy" },
+    { "name": "the action «none»: nothing to wait for, the thumb returns", "runner": "none", "expect": "return" },
+    { "name": "an invalid standard action: the thumb returns", "runner": "invalid", "expect": "return" }
+  ],
+  "busyEndCases": [
+    { "name": "the promise of the host is fulfilled: the thumb returns, the button acts again", "event": "fulfilled", "answer": "promise", "expect": "return" },
+    { "name": "the promise of the host is rejected: the thumb returns", "event": "rejected", "answer": "promise", "expect": "return" },
+    { "name": "the shown screen changed: the button is gone with its screen", "event": "screenChanged", "answer": "promise", "expect": "gone" },
+    { "name": "the shown screen changed without a promise: gone", "event": "screenChanged", "answer": "none", "expect": "gone" },
+    { "name": "no promise and the time limit passed: the thumb returns", "event": "timeout", "answer": "none", "expect": "return" },
+    { "name": "a promise is held past the time limit", "event": "timeout", "answer": "promise", "expect": "stay" },
+    { "name": "no promise: fulfilled has no meaning, the thumb stays", "event": "fulfilled", "answer": "none", "expect": "stay" }
+  ],
+  "busyRuleCases": [
+    { "name": "the time limit without a promise is eight seconds", "rule": "ends.noPromiseTimeoutMs", "expect": 8000 },
+    { "name": "the thumb glides to the end in 200 ms", "rule": "completeMs", "expect": 200 },
+    { "name": "the thumb returns in 250 ms", "rule": "returnMs", "expect": 250 },
+    { "name": "the indicator turns once in 800 ms", "rule": "busy.turnMs", "expect": 800 },
+    { "name": "a press during busy does nothing", "rule": "busy.press", "expect": "nothing" },
+    { "name": "a gesture during busy does nothing", "rule": "busy.gesture", "expect": "nothing" },
+    { "name": "the keyboard during busy does nothing", "rule": "busy.keyboard", "expect": "nothing" },
+    { "name": "the name is the label, the state is busy", "rule": "busy.semantics", "expect": "button-named-by-the-label-busy" },
+    { "name": "reduce motion: the thumb jumps, the indicator stands still", "rule": "reducedMotion", "expect": "the-thumb-jumps-the-indicator-stands-still" },
+    { "name": "a screen shown again has the thumb at the start", "rule": "shownAgain", "expect": "a-screen-shown-again-has-the-thumb-at-the-start" }
   ]
 }

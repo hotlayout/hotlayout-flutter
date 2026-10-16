@@ -17,6 +17,7 @@ final class _RawNode {
     this.layer,
     this.pull,
     this.pin,
+    this.pinTop,
     this.zone,
     this.motion,
     this.styleScrolled,
@@ -29,7 +30,7 @@ final class _RawNode {
 
   static _RawNode of(Object? raw, LocalizationKeys keys, WidthClass widthClass, [int depth = 0]) {
     if (raw is! Map) {
-      return _RawNode('<malformed>', '<malformed>', const {}, null, null, null, const [], false, null, null, null, false, null, null, null, keys, widthClass, false, false, depth);
+      return _RawNode('<malformed>', '<malformed>', const {}, null, null, null, const [], false, null, null, null, false, false, null, null, null, keys, widthClass, false, false, depth);
     }
     final json = Map<String, Object?>.from(raw);
     final type = json['type'] is String ? json['type'] as String : '<no-type>';
@@ -53,6 +54,8 @@ final class _RawNode {
       readSpacingRef(json['pull']),
       // 9.12.0: only the word `bottom` (`unreadablePin`); anything else means no field.
       json['pin'] == 'bottom',
+      // 9.24.0: the word `top` of the same field (`topZone.word`); any other word is no field.
+      json['pin'] == 'top',
       // 9.16.0: only the word `leading` (`appBarLeading.unknown: 'no-field'`).
       barZoneOf(json['zone']),
       // 9.20.0: a form this reader cannot draw is no motion (the node stands).
@@ -117,6 +120,9 @@ final class _RawNode {
 
   /// Pinned to the bottom (9.12.0): the word `bottom`, otherwise `false`.
   final bool pin;
+
+  /// Pinned to the top (9.24.0): the word `top`, otherwise `false`.
+  final bool pinTop;
 
   /// The app bar zone the child stands in (9.16.0); `null` means there is no field or it is a word from a
   /// newer minor.

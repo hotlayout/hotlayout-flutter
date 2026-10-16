@@ -168,6 +168,7 @@ sealed class UiNode {
           motion: node.motion,
           pull: node.pull,
           pin: node.pin,
+          pinTop: node.pinTop,
         );
       }(),
       // A type this version of the app does not know. For server-driven UI this is a normal situation: the
@@ -191,6 +192,7 @@ sealed class UiNode {
           motion: node.motion,
           pull: node.pull,
           pin: node.pin,
+          pinTop: node.pinTop,
         );
       }(),
     };
@@ -273,6 +275,7 @@ sealed class ChildNode extends UiNode {
     this.motion,
     this.pull,
     this.pin = false,
+    this.pinTop = false,
   });
 
   /// The display condition from the document (5.0.0). `null` means the node is always shown.
@@ -324,6 +327,10 @@ sealed class ChildNode extends UiNode {
   /// bottom zone is decided by `screenChildrenByZone` from its place in the root (`pinElsewhere`).
   final bool pin;
 
+  /// PINNED TO THE TOP (9.24.0, `pin: 'top'`): only the word `top`. Whether the node stands in the top zone is
+  /// decided by `screenChildrenByZone` from its place in the root (the run at the start).
+  final bool pinTop;
+
   /// The node is HIDDEN BY THE WIDTH CLASS (9.18.0, `showOn`): the tree is resolved for one class, and that
   /// class is not in the node's list. `false` means there is no field.
   ///
@@ -359,6 +366,7 @@ final class UnknownNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.type,
     required this.children,
   });

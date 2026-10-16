@@ -603,20 +603,20 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
   /// Each action arrives together with its ORIGIN ([ActionOrigin]): the record scope of its node
   /// and the mark "the node is in a list instance". They decide which record the screen opens
   /// with ([recordForOpenedScreen]), and the host gets the record with every action it receives.
-  void _handleAction(ButtonAction action, String nodeId, ActionOrigin origin) {
+  Future<void>? _handleAction(ButtonAction action, String nodeId, ActionOrigin origin) {
     // The analytics event goes FIRST and exactly once, whatever happens next: a reader action
     // handed to the host, `none`, a transition to a screen that does not exist.
     sendTrack(action, nodeId, origin, widget.onTrack);
 
     // `none` is a reader action that does nothing and does not reach the host.
-    if (action.type == ButtonAction.noneType) return;
+    if (action.type == ButtonAction.noneType) return null;
 
     // THE WRITE ACTIONS (`x-actions.write`): the reader performs them itself, after the event, through the same
     // write as a field's. Not handed to the host as actions, valid or not.
     final writeStep = writeStepOf(action, origin.read);
     if (writeStep != null) {
       runWriteStep(writeStep, write: _write);
-      return;
+      return null;
     }
 
     if (action.type == ButtonAction.navigate) {
@@ -639,7 +639,7 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
           _moveOnStep(before, ScreenShownCause.forward);
         });
         _stackChanged(ScreenShownCause.forward);
-        return;
+        return null;
       }
       if (kDebugMode) {
         debugPrint(
@@ -649,8 +649,7 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
       }
       // The host may know more than the document (for example, how to open this screen with another
       // document), so the action goes on instead of disappearing.
-      _toHost(action, nodeId, origin);
-      return;
+      return _toHost(action, nodeId, origin);
     }
 
     // SECTION SWITCH (`x-actions.section`): the stack becomes ONE named screen, everything above it
@@ -664,7 +663,7 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
       if (screen != null) {
         // The stack is already this screen: nothing happens, not even an event (`sectionSwitchSameScreen`).
         final next = sectionStackOf([for (final frame in _stack) frame.screen.screenId], screen.screenId);
-        if (next == null) return;
+        if (next == null) return null;
         // A section declared modal is a page: it is the root of the stack (`sectionTargetModal`,
         // `_presentationAt`).
         final before = _stack;
@@ -673,7 +672,7 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
           _moveOnStep(before, ScreenShownCause.switchSection);
         });
         _stackChanged(ScreenShownCause.switchSection);
-        return;
+        return null;
       }
       if (kDebugMode) {
         debugPrint(
@@ -682,23 +681,21 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
         );
       }
       // An unknown section is a host action, like `navigate` to an unknown screen.
-      _toHost(action, nodeId, origin);
-      return;
+      return _toHost(action, nodeId, origin);
     }
 
     if (action.type == ButtonAction.navigateBack) {
-      if (_goBack()) return;
+      if (_goBack()) return null;
       // Back from the first screen leaves the flow, and the renderer has no right to decide where
       // to. It is handed to the host.
-      _toHost(action, nodeId, origin);
-      return;
+      return _toHost(action, nodeId, origin);
     }
 
-    _toHost(action, nodeId, origin);
+    return _toHost(action, nodeId, origin);
   }
 
   /// Hand the action to the host: with the record if it asked for one, without if not.
-  void _toHost(ButtonAction action, String nodeId, ActionOrigin origin) => handToHost(
+  Future<void>? _toHost(ButtonAction action, String nodeId, ActionOrigin origin) => handToHost(
     action,
     nodeId,
     origin,

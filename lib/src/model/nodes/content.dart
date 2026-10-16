@@ -14,6 +14,7 @@ final class SpacerNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.size,
     required this.orientation,
   });
@@ -39,6 +40,7 @@ SpacerNode _parseSpacer(_RawNode node, VisibilityCondition? visibleIf) {
     motion: node.motion,
     pull: node.pull,
     pin: node.pin,
+    pinTop: node.pinTop,
     size: FieldSpacing.parse(props['size'], fieldDefault: SpacingToken.md),
     orientation: OrientationToken.parse(props['orientation']),
   );
@@ -57,6 +59,7 @@ final class DividerNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.color,
     required this.spacing,
     required this.orientation,
@@ -86,6 +89,7 @@ DividerNode _parseDivider(_RawNode node, VisibilityCondition? visibleIf) {
     motion: node.motion,
     pull: node.pull,
     pin: node.pin,
+    pinTop: node.pinTop,
     // The default is `border`, not `muted`: in 7.3.0 the `border` token appeared precisely for dividers,
     // yet the field default stayed the color of secondary TEXT, so a document without `color` was drawn with
     // a dark line. The schema closed this gap (`DividerProps.color.default: "border"`), and the mirror must
@@ -109,6 +113,7 @@ final class TextNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.content,
     required this.align,
     required this.maxLines,
@@ -116,11 +121,15 @@ final class TextNode extends ChildNode {
     this.spans = const {},
     this.marker = TextMarker.none,
     this.animateChanges = false,
+    this.animateIn = false,
   });
 
   /// The numbers of the text lead to their new values from data instead of jumping (9.21.0); only the
   /// literal `true` is read.
   final bool animateChanges;
+
+  /// The value grows from zero each time the node is shown (9.24.0); only the literal `true` is read.
+  final bool animateIn;
 
   /// The list item marker (9.17.0). [TextMarker.none] is plain text.
   final TextMarker marker;
@@ -152,6 +161,7 @@ TextNode _parseText(_RawNode node, VisibilityCondition? visibleIf) {
     motion: node.motion,
     pull: node.pull,
     pin: node.pin,
+    pinTop: node.pinTop,
     content: BindableString.parse(props['content'], key: node.key('content')),
     align: AlignToken.parse(props['align']),
     maxLines: _intIn(props, 'maxLines', 1, 20),
@@ -160,6 +170,7 @@ TextNode _parseText(_RawNode node, VisibilityCondition? visibleIf) {
     // 9.17.0: a list item. A word outside the list, or a non-string, means no marker.
     marker: readTextMarker(props['marker']),
     animateChanges: props['animateChanges'] == true,
+    animateIn: props['animateIn'] == true,
   );
 }
 
@@ -176,6 +187,7 @@ final class ImageNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.source,
     required this.aspectRatio,
     required this.alt,
@@ -209,6 +221,7 @@ ImageNode _parseImage(_RawNode node, VisibilityCondition? visibleIf) {
     motion: node.motion,
     pull: node.pull,
     pin: node.pin,
+    pinTop: node.pinTop,
     source: ImageSource.parse(props['source']),
     // 9.9.0: a word of the list or a `{ width, height }` pair; anything unreadable gives `16:9`.
     aspectRatio: ImageRatio.parse(props['aspectRatio']),
@@ -231,6 +244,7 @@ final class IconNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.name,
     required this.size,
     required this.alt,
@@ -269,6 +283,7 @@ IconNode _parseIcon(_RawNode node, VisibilityCondition? visibleIf) {
     motion: node.motion,
     pull: node.pull,
     pin: node.pin,
+    pinTop: node.pinTop,
     // A field that is not there at all gives the field default from the artifact (`star`), as with all
     // props. A field that IS there and is not readable (an unknown name, an object, a number, `null`) is NOT
     // the default but an empty box: `unknownIcon` is stronger than `unknownToken` (9.3.0).
@@ -293,6 +308,7 @@ final class BadgeNode extends ChildNode {
     super.motion,
     super.pull,
     super.pin,
+    super.pinTop,
     required this.label,
     required this.tone,
     this.icon,
@@ -329,6 +345,7 @@ BadgeNode _parseBadge(_RawNode node, VisibilityCondition? visibleIf) {
     motion: node.motion,
     pull: node.pull,
     pin: node.pin,
+    pinTop: node.pinTop,
     label: BindableString.parse(props['label'], key: node.key('label')),
     tone: BadgeToneToken.parse(props['tone']),
     icon: iconBesideTextOf(props['icon']),

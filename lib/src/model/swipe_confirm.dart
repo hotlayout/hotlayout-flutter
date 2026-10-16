@@ -8,6 +8,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'action.dart';
+
 /// The only word of the contract; an ordinary press is the absence of the field.
 const String kConfirmSwipe = 'swipe';
 
@@ -67,3 +69,51 @@ double swipeThumbStartOf(SwipeTrack track, double progress) =>
 
 /// Whether the drag is captured by the button: more movement along the line than across. Until then the body scrolls.
 bool swipeCapturedBy(double dx, double dy) => dx.abs() > dy.abs();
+
+// ───────────────────────────── the busy state (9.24.0, `x-swipeConfirmBusy`) ─────────────────────────────
+
+/// The time limit of "busy" when the host answered nothing, milliseconds.
+const int kSwipeBusyMaxMs = 8000;
+
+/// The thumb glides to the end in this long after a release past the threshold.
+const int kSwipeCompleteMs = 200;
+
+/// The thumb returns to the start in this long.
+const int kSwipeReturnMs = 250;
+
+/// One turn of the indicator.
+const int kSwipeSpinnerTurnMs = 800;
+
+/// Who runs the action of the button.
+enum SwipeRunner { reader, host, none, invalid }
+
+/// What the thumb does after the action runs.
+enum SwipeAfterRelease { busy, back }
+
+/// Who runs the action, judged on the action AS HANDED OVER (parameters from data substituted, a standard action
+/// checked): `none` and an invalid standard action do nothing; `navigate`, `navigate.back`,
+/// `navigate.section` and the write actions are the reader's; the rest is the host's.
+SwipeRunner swipeRunnerOf(ButtonAction action) {
+  if (action.type == ButtonAction.noneType) return SwipeRunner.none;
+  if (action.invalid != null) return SwipeRunner.invalid;
+  return switch (action.type) {
+    ButtonAction.navigate || ButtonAction.navigateBack || ButtonAction.navigateSection || 'setValue' || 'toggleValue' => SwipeRunner.reader,
+    _ => SwipeRunner.host,
+  };
+}
+
+SwipeAfterRelease swipeAfterReleaseOf(SwipeRunner runner) =>
+    runner == SwipeRunner.none || runner == SwipeRunner.invalid ? SwipeAfterRelease.back : SwipeAfterRelease.busy;
+
+/// What ends "busy".
+enum SwipeBusyEvent { fulfilled, rejected, screenChanged, timeout }
+
+enum SwipeBusyOutcome { back, gone, stay }
+
+/// How "busy" ends. [promise] is whether the host answered with a promise (a `Future`); the time limit acts only
+/// without one: a promise is held until it is settled.
+SwipeBusyOutcome swipeBusyOutcomeOf(SwipeBusyEvent event, {required bool promise}) {
+  if (event == SwipeBusyEvent.screenChanged) return SwipeBusyOutcome.gone;
+  if (event == SwipeBusyEvent.timeout) return promise ? SwipeBusyOutcome.stay : SwipeBusyOutcome.back;
+  return promise ? SwipeBusyOutcome.back : SwipeBusyOutcome.stay;
+}

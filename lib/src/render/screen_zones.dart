@@ -40,8 +40,12 @@ import '../model/screen_top_rules.dart';
 ///  * [shrink] (modal layer): the height is the content PLUS the zone, but not more than
 ///    available; for taller content the body scrolls, while the layer's app bar and zone stay.
 ///
-/// Children in order: `[app bar?, body, pinned block?, low?]`; the presence of the first,
-/// third and fourth is told by [hasBar], [hasPinned], [hasLow] (the child count could not
+///  * TOP ZONE (schema 9.24.0, `x-style.layout.topZone`): the nodes pinned to the top stand right below the app bar
+///    (or at the top of the screen) and do not scroll. The body area starts at their bottom edge (lifted by the
+///    overlap of a pulled first child, as under the app bar) and is clipped there;
+///
+/// Children in order: `[app bar?, top zone?, body, pinned block?, low?]`; the presence of the first, second,
+/// fourth and fifth is told by [hasBar], [hasTop], [hasPinned], [hasLow] (the child count could not
 /// tell them apart).
 class ScreenZones extends MultiChildRenderObjectWidget {
   const ScreenZones({
@@ -52,6 +56,7 @@ class ScreenZones extends MultiChildRenderObjectWidget {
     this.bodyAtScreenTop = false,
     this.topInset = 0,
     this.hasBar = false,
+    this.hasTop = false,
     this.hasPinned = false,
     this.hasLow = false,
     this.tail,
@@ -74,6 +79,9 @@ class ScreenZones extends MultiChildRenderObjectWidget {
   /// Height of the on-screen keyboard above this widget's bottom (`viewInsets.bottom`).
   final double keyboard;
   final bool hasBar;
+
+  /// The top zone (9.24.0) stands between the app bar and the body.
+  final bool hasTop;
   final bool hasPinned;
   final bool hasLow;
 
@@ -85,6 +93,7 @@ class ScreenZones extends MultiChildRenderObjectWidget {
     bodyAtScreenTop: bodyAtScreenTop,
     topInset: topInset,
     hasBar: hasBar,
+    hasTop: hasTop,
     hasPinned: hasPinned,
     hasLow: hasLow,
     tail: tail,
@@ -99,6 +108,7 @@ class ScreenZones extends MultiChildRenderObjectWidget {
       ..bodyAtScreenTop = bodyAtScreenTop
       ..topInset = topInset
       ..hasBar = hasBar
+      ..hasTop = hasTop
       ..hasPinned = hasPinned
       ..hasLow = hasLow
       ..tail = tail;
@@ -118,6 +128,7 @@ class RenderScreenZones extends RenderBox
     required bool bodyAtScreenTop,
     required double topInset,
     required bool hasBar,
+    required bool hasTop,
     required bool hasPinned,
     required bool hasLow,
     ZoneTail? tail,
@@ -128,6 +139,7 @@ class RenderScreenZones extends RenderBox
        _bodyAtScreenTop = bodyAtScreenTop,
        _topInset = topInset,
        _hasBar = hasBar,
+       _hasTop = hasTop,
        _hasPinned = hasPinned,
        _hasLow = hasLow;
 
@@ -166,6 +178,13 @@ class RenderScreenZones extends RenderBox
     markNeedsLayout();
   }
 
+  bool _hasTop;
+  set hasTop(bool value) {
+    if (_hasTop == value) return;
+    _hasTop = value;
+    markNeedsLayout();
+  }
+
   bool _hasPinned;
   set hasPinned(bool value) {
     if (_hasPinned == value) return;
@@ -200,7 +219,8 @@ class RenderScreenZones extends RenderBox
   }
 
   RenderBox? get _bar => _hasBar ? firstChild : null;
-  RenderBox? get _body => _hasBar ? childAfter(firstChild!) : firstChild;
+  RenderBox? get _top => _hasTop ? (_hasBar ? childAfter(firstChild!) : firstChild) : null;
+  RenderBox? get _body => _hasTop ? childAfter(_top!) : (_hasBar ? childAfter(firstChild!) : firstChild);
   RenderBox? get _pinned => _hasPinned ? childAfter(_body!) : null;
   RenderBox? get _low => _hasLow ? lastChild : null;
 
@@ -212,6 +232,7 @@ class RenderScreenZones extends RenderBox
   }) {
     final width = constraints.maxWidth;
     final bar = _bar;
+    final topZone = _top;
     final body = _body;
     final pinned = _pinned;
     final low = _low;
@@ -223,6 +244,14 @@ class RenderScreenZones extends RenderBox
       barHeight = size.height;
       place?.call(bar, Offset.zero);
     }
+    // The top zone stands right under the app bar and has no height of its own beyond its nodes: its box already
+    // holds the gap above the first node and the safe inset when there is no app bar.
+    var topHeight = 0.0;
+    if (topZone != null) {
+      topHeight = measure(topZone, BoxConstraints(minWidth: width, maxWidth: width, maxHeight: maxHeight)).height;
+      place?.call(topZone, Offset(0, barHeight));
+    }
+    final headerHeight = barHeight + topHeight;
     // The bottom zone is measured BEFORE the body: its height does not depend on the scroll, and
     // the body takes what is left above it (`bodyArea`). The zone's height does not depend on the
     // screen: a screen shorter than its own zone gives the body zero and the zone extends past its
@@ -241,14 +270,14 @@ class RenderScreenZones extends RenderBox
     final lift = bounded && !_shrink ? math.max(0.0, _keyboard - lowHeight) : 0.0;
     // Top of the body area; may be above the screen (overlap greater than the app bar). From the top
     // edge of the screen with `bodyTop: screenTop`; below the inset on a screen without an app bar.
-    final top = _bodyAtScreenTop ? 0.0 : (bar == null ? _topInset : barHeight - _overlap);
+    final top = _bodyAtScreenTop ? 0.0 : (bar == null && topZone == null ? _topInset : headerHeight - _overlap);
     var bodyBottom = top;
     if (body != null) {
       final room = bounded ? math.max(0.0, maxHeight - (floats ? 0.0 : bottomHeight) - lift - top) : double.infinity;
       final fill = bounded && !_shrink;
       // A layer as tall as its content is not lower than the app bar that lies over it: the body area
       // reaches the bar's bottom edge (`bodyTop` with a bar in a layer).
-      final floor = _shrink && _bodyAtScreenTop ? math.max(0.0, barHeight - bottomHeight) : 0.0;
+      final floor = _shrink && _bodyAtScreenTop ? math.max(0.0, headerHeight - bottomHeight) : 0.0;
       final size = measure(
         body,
         BoxConstraints(
@@ -263,7 +292,7 @@ class RenderScreenZones extends RenderBox
     }
     // Top of the bottom zone = bottom of the body area, but not above the app bar's bottom edge.
     // A floating zone stands at the bottom of the screen whatever the body is: it is over it, not below it.
-    final zoneTop = math.max(floats ? maxHeight - lift - bottomHeight : bodyBottom, barHeight);
+    final zoneTop = math.max(floats ? maxHeight - lift - bottomHeight : bodyBottom, headerHeight);
     if (pinned != null) place?.call(pinned, Offset(0, zoneTop));
     if (low != null) place?.call(low, Offset(0, zoneTop + pinnedHeight));
     var height = zoneTop + bottomHeight;
@@ -300,14 +329,15 @@ class RenderScreenZones extends RenderBox
   double _intrinsic(double width, double Function(RenderBox child, double width) of) {
     final bar = _bar;
     final body = _body;
-    final barHeight = bar == null ? 0.0 : of(bar, width);
+    final topZone = _top;
+    final barHeight = (bar == null ? 0.0 : of(bar, width)) + (topZone == null ? 0.0 : of(topZone, width));
     final bodyHeight = body == null ? 0.0 : of(body, width);
     final pinned = _pinned;
     final low = _low;
     final bottomHeight = (pinned == null ? 0.0 : of(pinned, width)) + (low == null ? 0.0 : of(low, width));
     final bodyEnd = _bodyAtScreenTop
         ? bodyHeight
-        : (bar == null ? _topInset + bodyHeight : barHeight - _overlap + bodyHeight);
+        : (bar == null && topZone == null ? _topInset + bodyHeight : barHeight - _overlap + bodyHeight);
     return math.max(barHeight, bodyEnd) + bottomHeight;
   }
 
@@ -327,7 +357,7 @@ class RenderScreenZones extends RenderBox
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     if (!_bodyAtScreenTop) return defaultHitTestChildren(result, position: position);
     // The app bar lies over the body, so it is asked first (after the bottom zone, which is over both).
-    for (final child in [_low, _pinned, _bar, _body]) {
+    for (final child in [_low, _pinned, _bar, _top, _body]) {
       if (child == null) continue;
       final parentData = child.parentData! as ContainerBoxParentData<RenderBox>;
       final hit = result.addWithPaintOffset(
@@ -343,10 +373,14 @@ class RenderScreenZones extends RenderBox
   @override
   void paint(PaintingContext context, Offset offset) {
     final bar = _bar;
+    final topZone = _top;
     final body = _body;
     // With `bodyTop: screenTop` the app bar is painted OVER the body, after it.
     if (bar != null && !_bodyAtScreenTop) {
       context.paintChild(bar, (bar.parentData! as ContainerBoxParentData<RenderBox>).offset + offset);
+    }
+    if (topZone != null) {
+      context.paintChild(topZone, (topZone.parentData! as ContainerBoxParentData<RenderBox>).offset + offset);
     }
     if (body != null) {
       final local = (body.parentData! as ContainerBoxParentData<RenderBox>).offset;

@@ -129,20 +129,27 @@ void sendTrack(ButtonAction action, String nodeId, ActionOrigin origin, SduiTrac
 /// Hands the action to the host as the host receives it (`handedAction`): parameters from
 /// data substituted, a standard action checked against its form. `none` never reaches the
 /// host: it is a reader action that does nothing.
-void handToHost(
+///
+/// The answer is the host's promise, when the callback returned a `Future` (the callback types are `void`, so a
+/// closure or a method may return one anyway; [HostActions.handle] does): a "swipe to confirm" button stays busy
+/// until it completes. `null` when there was nothing to wait for. A failure of the `Future` is the host's to report;
+/// here it only ends the waiting.
+Future<void>? handToHost(
   ButtonAction action,
   String nodeId,
   ActionOrigin origin, {
   required SduiActionCallback? onAction,
   required SduiRecordActionCallback? onRecordAction,
 }) {
-  if (action.type == ButtonAction.noneType) return;
+  if (action.type == ButtonAction.noneType) return null;
   final handed = action.handOver(origin.read);
-  if (onRecordAction != null) {
-    onRecordAction(handed, nodeId, origin.record);
-  } else {
-    onAction?.call(handed, nodeId);
-  }
+  // The callbacks are typed `void`, so the result can only be read through `Function.apply`.
+  final Object? raw = onRecordAction != null
+      ? Function.apply(onRecordAction, [handed, nodeId, origin.record])
+      : (onAction == null ? null : Function.apply(onAction, [handed, nodeId]));
+  // Only a real `Future` is a promise; anything else (a thenable of another kind, a number) is "no promise".
+  return raw is Future ? raw.then<void>((_) {}, onError: (Object _) {}) : null;
 }
 
-typedef ActionHandler = void Function(ButtonAction action, String nodeId, ActionOrigin origin);
+/// Takes an action with its origin; the result is the host's promise (see [handToHost]), or `null`.
+typedef ActionHandler = Future<void>? Function(ButtonAction action, String nodeId, ActionOrigin origin);

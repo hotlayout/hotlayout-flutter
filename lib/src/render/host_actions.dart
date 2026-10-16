@@ -172,12 +172,16 @@ class HostActions {
   Set<String> get running => Set.unmodifiable(_running);
 
   /// The `onRecordAction` of `renderDocument`, `ScreenFlow` and `renderScreen`.
-  void handle(ButtonAction action, String nodeId, Map<String, Object?>? record) {
+  ///
+  /// Returns the `Future` of an asynchronous handler (completed whether the handler succeeded or failed; the failure
+  /// goes to [onError]), `null` for anything that was done at once or not at all. A "swipe to confirm" button stays
+  /// busy until it completes.
+  Future<void>? handle(ButtonAction action, String nodeId, Map<String, Object?>? record) {
     final call = HostActionCall(action: action, nodeId: nodeId, record: record);
     if (_standardTypes.contains(action.type)) {
       if (action.invalid != null) {
         onMiss?.call(call, HostActionMiss.invalid);
-        return;
+        return null;
       }
       final done = _guard(
         call,
@@ -190,25 +194,26 @@ class HostActions {
         ),
       );
       if (done == false) onMiss?.call(call, HostActionMiss.noExecutor);
-      return;
+      return null;
     }
 
     final handler = handlers[action.type];
     if (handler == null) {
       onMiss?.call(call, HostActionMiss.noHandler);
-      return;
+      return null;
     }
     if (exclusive && _running.contains(action.type)) {
       onMiss?.call(call, HostActionMiss.busy);
-      return;
+      return null;
     }
     final result = _guard(call, () => handler(call));
     if (result is Future<void>) {
       if (exclusive) _running.add(action.type);
-      result.then<void>((_) {}, onError: (Object error, StackTrace stack) => _report(call, error, stack)).whenComplete(() {
+      return result.then<void>((_) {}, onError: (Object error, StackTrace stack) => _report(call, error, stack)).whenComplete(() {
         if (exclusive) _running.remove(action.type);
       });
     }
+    return null;
   }
 
   /// Runs [body], reporting a synchronous error instead of throwing it into the renderer.

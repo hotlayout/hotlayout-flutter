@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.23.0';
+const String kSupportedSchemaVersion = '9.24.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -451,6 +451,13 @@ const Map<String, String> kFeatureCatalog = {
   'listFilter': '9.23.0',
   'textGradient': '9.23.0',
   'compactNumber': '9.23.0',
+  // 9.24.0: a value that grows when shown, "busy" after a swipe, the motion of the dot, the top zone. A 9.23 reader
+  // shows the value at once, returns the thumb after the action, shows the dot at once and scrolls the nodes with
+  // the body (`olderReader`).
+  'valueAppear': '9.24.0',
+  'swipeConfirmBusy': '9.24.0',
+  'navBadgeMotion': '9.24.0',
+  'topZone': '9.24.0',
 };
 
 /// Whether THIS code supports a capability the document names.

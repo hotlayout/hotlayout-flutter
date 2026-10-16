@@ -863,7 +863,8 @@ void main() {
 
     testWidgets('pin in the wrong place or with the wrong word -- the node is an ordinary body child, nothing vanished', (tester) async {
       _view(tester, 320, 568);
-      for (final raw in <Object?>['top', true, null, 1, 'Bottom', '']) {
+      // `top` is a word of the contract since 9.24.0 (the top zone, `top_zone_cases_test.dart`).
+      for (final raw in <Object?>['up', true, null, 1, 'Bottom', '']) {
         await pumpDocument(tester, _doc([_screen('a', [_block('Блок', 48, rawPin: raw), _text('end', 'Кінець')])]));
         expect(tester.takeException(), isNull, reason: '$raw');
         expect(find.descendant(of: find.byType(SingleChildScrollView).last, matching: find.text('Блок')), findsOneWidget, reason: '$raw');

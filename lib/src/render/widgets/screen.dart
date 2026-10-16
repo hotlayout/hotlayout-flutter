@@ -102,13 +102,18 @@ extension ScreenWidgets on NodeRenderer {
           type: child is AppBarNode ? 'AppBar' : (child is NavBarNode ? kNavBarType : 'other'),
           pin: child.pin,
         ),
-    ]);
+    ], topPins: [for (final child in children) child.pinTop], bodyAtScreenTop: root.bodyTop == BodyTop.screenTop);
     final barDeclared = (zones.appBar == null ? null : children[zones.appBar!]);
     final AppBarNode? bar = barDeclared is AppBarNode && barDeclared.isVisible(data) ? barDeclared : null;
     // Body children BY THE DOCUMENT (hidden ones included): `buildChildColumn` filters them
     // itself, and list item numbering (schema 9.17.0) is counted over exactly this list;
     // otherwise a node hidden by a condition would not break the group.
     final bodySource = children.sublist(zones.bodyFrom, zones.bodyTo);
+    // THE TOP ZONE (schema 9.24.0, `x-style.layout.topZone`): the run of children pinned to the top, right after
+    // the app bar zone. By the document; the hidden ones take no room, and when all are hidden there is no zone.
+    final topSource = children.sublist(zones.topFrom, zones.topTo);
+    final topNodes = visibleNodes(topSource);
+    final hasTop = topNodes.isNotEmpty;
     final body = visibleNodes(bodySource);
     /*
      * THE BOTTOM ZONE (schema 9.12.0, `x-style.layout.bottomZone`): the last child if it is a
@@ -164,12 +169,12 @@ extension ScreenWidgets on NodeRenderer {
     // The overlap: the first visible body child's `pull` minus the gap. Without an app bar there
     // is nothing to raise: the pulled child goes into the top padding.
     // From the top edge of the screen the pull raises nothing: there is nowhere above to raise the body.
-    final firstPull = bar == null || body.isEmpty || screenTop ? 0.0 : pullOf(body.first, root);
+    final firstPull = (bar == null && !hasTop) || body.isEmpty || screenTop ? 0.0 : pullOf(body.first, root);
     final overlap = math.max(0.0, firstPull - gap);
     // With a pinned block the body ends with the screen GAP instead of the bottom padding (a body
     // with no visible children has no gap); the padding itself goes under the block.
     final bodyBottom = pinned == null ? padding.bottom : (body.isEmpty ? 0.0 : gap);
-    final bodyPadding = bar == null
+    final bodyPadding = bar == null && !hasTop
         ? (pinned == null
               ? screenPadding
               : EdgeInsetsDirectional.only(top: padding.top, start: padding.start, end: padding.end, bottom: bodyBottom))
@@ -310,13 +315,31 @@ extension ScreenWidgets on NodeRenderer {
               bodyAtScreenTop: screenTop,
               // Without an app bar zone the body area starts below the inset (from the top edge it
               // starts at the top and the reader adds nothing to its content).
-              topInset: barZone == null && !screenTop ? inset : 0,
+              topInset: barZone == null && !screenTop && !hasTop ? inset : 0,
               hasBar: barZone != null,
+              hasTop: hasTop,
               hasPinned: hasPinned,
               hasLow: hasLow,
               children: [
                 if (barZone != null)
                   KeyedSubtree(key: const ValueKey('hl-zone-bar'), child: KeyedSubtree(key: scroll.barKey, child: barZone)),
+                if (hasTop)
+                  KeyedSubtree(
+                    key: const ValueKey('hl-zone-top'),
+                    child: Padding(
+                      // Under an app bar (or the strip of the navigation bar) the screen gap; at the top of the screen
+                      // the safe inset and the root's top padding, outside the boxes of the nodes.
+                      padding: EdgeInsetsDirectional.only(
+                        top: barZone != null ? gap : inset + padding.top,
+                        start: padding.start,
+                        end: padding.end,
+                      ),
+                      child: ContentColumn(
+                        maxWidth: contentMax,
+                        child: buildChildColumn(topSource, gap: gap, align: root.align, pullParent: root, firstPullRead: false),
+                      ),
+                    ),
+                  ),
                 KeyedSubtree(key: const ValueKey('hl-zone-body'), child: scrollBody(scroll.controller, tail)),
                 if (pinned != null)
                   KeyedSubtree(

@@ -13,14 +13,14 @@
     { "name": "pin on the navigation bar means nothing: it is a zone already", "children": [{ "id": "a", "type": "Text" }, { "id": "nav", "type": "NavBar", "pin": "bottom" }], "expect": { "appBar": null, "body": ["a"], "pinned": null, "navBar": "nav" } },
     { "name": "the app bar is never pinned, even when it is the only child", "children": [{ "id": "bar", "type": "AppBar", "pin": "bottom" }], "expect": { "appBar": "bar", "body": [], "pinned": null, "navBar": null } },
     { "name": "an app bar that is not first is an ordinary child, so as the last child it can be pinned", "children": [{ "id": "a", "type": "Text" }, { "id": "bar", "type": "AppBar", "pin": "bottom" }], "expect": { "appBar": null, "body": ["a"], "pinned": "bar", "navBar": null } },
-    { "name": "a word of pin the reader does not know: as if there were no field", "children": [{ "id": "a", "type": "Text" }, { "id": "cta", "type": "Button", "pin": "top" }], "expect": { "appBar": null, "body": ["a", "cta"], "pinned": null, "navBar": null } },
+    { "name": "a word of pin the reader does not know: as if there were no field", "children": [{ "id": "a", "type": "Text" }, { "id": "cta", "type": "Button", "pin": "top" }], "expect": { "appBar": null, "body": ["a", "cta"], "pinned": null, "navBar": null }, "refinedIn": "9.24.0", "refinedNote": "From 9.24.0 «top» is a word of the contract; here it stands after a child without the word, so it is still not read (x-style.layout.topZone.run)." },
     { "name": "only a pinned block and a navigation bar: the body is empty", "children": [{ "id": "cta", "type": "Button", "pin": "bottom" }, { "id": "nav", "type": "NavBar" }], "expect": { "appBar": null, "body": [], "pinned": "cta", "navBar": "nav" } },
     { "name": "an empty root: nothing anywhere", "children": [], "expect": { "appBar": null, "body": [], "pinned": null, "navBar": null } }
   ],
 
   "pinCases": [
     { "name": "bottom", "pin": "bottom", "expect": "bottom" },
-    { "name": "a word of a newer minor", "pin": "top", "expect": null },
+    { "name": "a word of a newer minor", "pin": "top", "expect": null, "refinedIn": "9.24.0", "refinedNote": "From 9.24.0 «top» is the word of the top zone (x-style.layout.topZone, contract/fixtures/top-zone/top-zone-cases.json). The bottom zone still does not read it: this row stays true for the bottom zone." },
     { "name": "true is not a word", "pin": true, "expect": null },
     { "name": "null", "pin": null, "expect": null },
     { "name": "a number", "pin": 1, "expect": null },
@@ -282,5 +282,28 @@
     { "name": "only a dot, no number in 9.22", "block": "navBadge", "rule": "count", "expect": "none-in-9.22" },
     { "name": "the accessible name of the item does not change", "block": "navBadge", "rule": "accessibleName", "expect": "unchanged-the-dot-is-not-announced" },
     { "name": "a condition the reader does not understand draws no dot", "block": "navBadge", "rule": "unknownCondition", "expect": "no-dot" }
+  ],
+  "navBadgeMotionNote": "Schema 9.24.0, rules: x-style.layout.navBadgeMotion. The dot appears with a short flash and disappears by fading when its condition changes its answer on a shown screen. «navBadgeMotionCases» — whether the dot moves. «navBadgeAppearScaleCases» — the scale of the dot at t milliseconds of the appearance. «navBadgeDisappearOpacityCases» — its opacity at t milliseconds of the fading. Compare numbers with a tolerance of 1e-9.",
+  "navBadgeMotionCases": [
+    { "name": "the first show with the dot: no flash", "input": { "shownBefore": false, "before": false, "after": true }, "expect": "none" },
+    { "name": "the condition becomes true on a shown screen: the flash", "input": { "shownBefore": true, "before": false, "after": true }, "expect": "appear" },
+    { "name": "the condition becomes false: the dot fades", "input": { "shownBefore": true, "before": true, "after": false }, "expect": "disappear" },
+    { "name": "the same answer: nothing moves", "input": { "shownBefore": true, "before": true, "after": true }, "expect": "none" },
+    { "name": "reduce motion: the dot appears at once", "input": { "shownBefore": true, "before": false, "after": true, "reducedMotion": true }, "expect": "none" },
+    { "name": "reduce motion: the dot disappears at once", "input": { "shownBefore": true, "before": true, "after": false, "reducedMotion": true }, "expect": "none" }
+  ],
+  "navBadgeAppearScaleCases": [
+    { "name": "the start is a point", "t": 0, "expect": 0 },
+    { "name": "half way to the peak", "t": 96, "expect": 0.625 },
+    { "name": "the peak at six tenths of 320 ms", "t": 192, "expect": 1.25 },
+    { "name": "half way back", "t": 256, "expect": 1.125 },
+    { "name": "the end", "t": 320, "expect": 1 },
+    { "name": "after the end", "t": 1000, "expect": 1 }
+  ],
+  "navBadgeDisappearOpacityCases": [
+    { "name": "the start", "t": 0, "expect": 1 },
+    { "name": "half way", "t": 100, "expect": 0.5 },
+    { "name": "the end", "t": 200, "expect": 0 },
+    { "name": "after the end", "t": 400, "expect": 0 }
   ]
 }

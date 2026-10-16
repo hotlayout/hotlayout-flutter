@@ -162,6 +162,9 @@ void main() {
         // (`bottom_zone_rules.dart`) and `border_dash.dart`; values are checked by `bottom_zone_cases_test.dart`
         // and `border_dash_cases_test.dart`.
         'navFloat', 'navBadge', 'borderDash',
+        // 9.24.0: the motion of the dot and the top zone. Mirrors are `bottom_zone_rules.dart` and
+        // `top_zone_rules.dart`; values are checked by `bottom_zone_cases_test.dart` and `top_zone_cases_test.dart`.
+        'navBadgeMotion', 'topZone',
       });
     });
 

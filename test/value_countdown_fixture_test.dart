@@ -48,7 +48,7 @@ void main() {
 
   test('the fixture is in the catalogue, at 9.21.0, in two languages', () {
     final doc = loadFixture('value-countdown-screens');
-    expect(doc.schemaVersion, '9.23.0');
+    expect(doc.schemaVersion, '9.24.0');
     expect(fixtureIds, contains('value-countdown-screens'));
     expect(doc.screens.map((screen) => screen.screenId), ['balance', 'mission']);
     expect(doc.locales, ['en', 'uk']);

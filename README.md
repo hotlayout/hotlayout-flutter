@@ -74,7 +74,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.24.0
+  hotlayout_flutter: ^0.25.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -801,8 +801,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.24.0` | — |
-| Document contract (schema) | `9.23.0` | `kSupportedSchemaVersion` |
+| Package | `0.25.0` | — |
+| Document contract (schema) | `9.24.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -824,7 +824,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.23.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.24.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -882,6 +882,7 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.21.0 | numbers that lead to their new values, a countdown that ticks, round ends of a scale, an app bar that changes on scroll | [Changing values](#changing-values-and-a-countdown), [Progress bar and ring](#progress-bar-and-ring), [The app bar](#the-app-bar) |
 | 9.22.0 | a floating navigation bar, a dot on a navigation item, "swipe to confirm", a dashed border | [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block), [Swipe to confirm](#swipe-to-confirm), [Dashed border](#dashed-border) |
 | 9.23.0 | a filtered list, a comparison with another path, a gradient on the letters of a text, a compact number | [Filtered list](#filtered-list), [Gradient on text](#gradient-on-text), [Sentences, numbers, money and days](#sentences-numbers-money-and-days) |
+| 9.24.0 | a value that grows when shown, a swipe that stays busy, the motion of the dot, nodes pinned to the top | [Changing values](#changing-values-and-a-countdown), [Swipe to confirm](#swipe-to-confirm), [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block), [The top of the screen](#the-top-of-the-screen) |
 
 ### Behaviour that changed between package versions
 
@@ -899,6 +900,7 @@ If you update from an older version of the package, these are the places where t
 | 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.23.0 | A button with `confirm: 'swipe'` no longer runs its action on a tap or a click: the thumb has to be dragged, or Enter / Space / the screen reader's "activate" used. A `NavBar` with `float: true` lies over the body (the body area reaches the bottom of the screen and the last row scrolls clear of the bar). A `Repeater` with `where` draws only the records that pass, and `limit` counts those. |
+| 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
 | 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
 
@@ -1059,7 +1061,10 @@ The state is computed from the data on every build. The place in the group ("2 o
 
 - **The track** is the box of the button as usual (the role, the node's own `style`, the size); the inline padding of the size is not read. The thumb is a circle `height − 2 × border − 2 × xs` across, `xs` inside the border, and its fill is the background of the *role* (the node's own `style.background` paints the track, not the thumb); a role without a background gives `primary` and `onPrimary`. The picture on it is the button's icon, or `chevron-right`, mirrored in right-to-left writing. The label is centred between the two places of the thumb; the natural width is the label plus the room of the thumb on both sides.
 - **Without a gesture** it is an ordinary button named by its label: Enter and Space act at once (a held key once), and so does the "activate" action of a screen reader. A disabled button (`disabledIf`, `requiresFilled`) does not move and does nothing.
-- **A vertical drag scrolls the body.** The thumb returns after a release (instantly with `MediaQuery.disableAnimations`).
+- **A vertical drag scrolls the body.** A drag released before the threshold returns the thumb.
+- **After the action the thumb stays busy.** The action runs at once; the thumb glides to the end (200 ms) and stays there with a ring of three quarters instead of the picture, turning once in 800 ms. A tap, a drag and a key do nothing meanwhile, the name is still the label, and the button is announced as not enabled. What ends it is the host's answer: **return a `Future` from your action callback** (or a `HostActions` handler) and the thumb returns over 250 ms when it completes, also when it fails (report the failure yourself). Without a `Future` the thumb returns after eight seconds, unless the screen changed first and the button went with it. An action of the reader (`navigate…`, a write action) and of the host keep the thumb busy; `none` and an invalid standard action send it back at once. A screen shown again has the thumb at the start; with `MediaQuery.disableAnimations` the thumb jumps and the ring stands still.
+
+For example, an `onAction` that returns the `Future` of your `redeem` call keeps the thumb busy for as long as the call runs.
 
 ### Changing values and a countdown
 
@@ -1076,6 +1081,12 @@ The state is computed from the data on every build. The place in the group ("2 o
 - **Parts round down** and add up to the same duration; a past moment is zeros. Without a readable `unit`, or on a value that is not a date, the value is shown as it is.
 - **The screen ticks by itself**: every second when one of its countdown parts is `seconds`, every minute otherwise, only while the screen is shown (a screen under another route, with `TickerMode` off, stops and reads the clock again when it is shown). The number is never more than one tick behind the clock.
 - **The clock is the device's.** Pass `now` to `renderDocument` to pin the moment (nothing then ticks, and you drive the time by passing a new `now`).
+
+**`animateIn: true`** (on `Text`, `ProgressBar` and `CircularProgress`) grows the value from zero each time the node is **shown**: the first screen of a flow, a page pushed on top, a page shown again by "back", a section switch, a node that appears by a condition or as a new record of a list. A screen under a modal layer stays shown, so closing the layer is not a show, and a change of `data` is not a show either. It uses the curve, the duration and the steps above, and starts together with the slide of the page, not after it.
+
+- **What grows**: the numbers of a text as with `animateChanges`; of a scale the `value` (a literal one too), while `max` stands at once. The fill and the arc grow without a step, the label by steps.
+- **When nothing grows**: no field, `MediaQuery.disableAnimations`, a value that is not a number (no data included) and a value of zero. All nodes of a screen start at the same moment.
+- **With `animateChanges`** a change of data during the appearance leads from the value shown at that moment; **without it** the new value stands at once and ends the appearance. A new language ends it too. The screen reader hears the final value.
 
 ### Dashed border
 
@@ -1328,6 +1339,8 @@ All optional: a field without these is drawn as before.
 
 ### The top of the screen
 
+**Nodes pinned to the top** (`pin: 'top'`). The children of the screen root that stand in a run at the start (right after the app bar, or first) and carry the word do not scroll: they stay under the app bar while the body scrolls beneath, and the body is clipped at their bottom edge. The first child without the word ends the run, and the word is not read after it; the app bar and the navigation bar are never pinned. The run is counted by the document, not by visibility (a hidden node takes no room, and when all are hidden there is no zone). With `bodyTop: 'screenTop'` the word is not read. Without an app bar the safe inset and then the root's top padding stand above the first node, outside the node boxes; between the nodes is the screen gap, less the `pull` of a later node (the `pull` of the first one is not read). The nodes take their own presses. In a modal layer the zone stands at the top of the layer, below its app bar.
+
 `Screen.props.bodyTop: 'screenTop'` makes the body start at the top edge of the screen, with the app bar lying over it where it always stood (it still does not scroll).
 
 - **The renderer adds the top safe inset itself**, from the `MediaQuery.viewPadding` of its own context: inside the app bar (its box is taller by the inset, so a named background covers the status bar), or above the body when there is no app bar.
@@ -1349,7 +1362,7 @@ No new parameter in your app.
 
 **A floating bar** (`NavBar.float: true`, read where the bar stands at the bottom). The whole bottom zone — the pinned block and the bar — lies OVER the body: the body area reaches the bottom of the screen, its content scrolls under the bar (a bar with `style.backdropBlur` shows it through the glass), and the content ends with the height of the zone, so the last row can be scrolled clear of it. The look of the pill is the node's `style` (`margin`, `radius`, `backdropBlur`, `shadow`); the renderer draws no pill of its own. The bottom safe inset lies UNDER the box of the bar as transparent room, so the bar hangs above the home indicator instead of stretching to the physical bottom. A touch between the pill and the screen edge reaches the body. At the top of a wide screen the field is not read.
 
-**A dot on an item** (`NavItem.badgeWhen`, a condition of the form of `visibleIf`): a circle 8 dp across in the `accent` colour on the top corner of the icon on the side of the end of the line (the left one in right-to-left writing). It does not change the size of the item, is not clipped by it and is not announced. A condition the renderer cannot read gives no dot (unlike `visibleIf`, which then shows the node).
+**A dot on an item** (`NavItem.badgeWhen`, a condition of the form of `visibleIf`): a circle 8 dp across in the `accent` colour on the top corner of the icon on the side of the end of the line (the left one in right-to-left writing). It does not change the size of the item, is not clipped by it and is not announced. A condition the renderer cannot read gives no dot (unlike `visibleIf`, which then shows the node). When the condition changes its answer **while the screen is shown**, the dot appears with a flash (scale 0 to 1.25 to 1 over 320 ms) or fades (200 ms, in place until the end); the first show, a screen shown again and `MediaQuery.disableAnimations` give no motion, and the item never changes size or name.
 
 ### Windows and modal sheets
 

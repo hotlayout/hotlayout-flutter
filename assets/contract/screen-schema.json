@@ -1751,10 +1751,11 @@
       "$ref": "#/$defs/SpacingRef"
     },
     "NodePin": {
-      "description": "Pins this child to the BOTTOM of the screen (9.12.0): it leaves the scrolling body and stands in the bottom zone, always on screen, while the body scrolls above it. Read only on ONE node: the last child of the screen root, not counting the «NavBar»; anywhere else the field is not read and the node is an ordinary child. Rules — «x-style.layout.bottomZone». No field — the child scrolls with the body, exactly as before 9.12.0.",
+      "description": "Pins this child of the screen root to an edge of the screen: it leaves the scrolling body and stands, always on screen, while the body scrolls. «bottom» (9.12.0) — the bottom zone; read only on ONE node: the last child of the root, not counting the «NavBar»; rules — «x-style.layout.bottomZone». «top» (9.24.0) — the top zone, below the app bar; read on the children in a run at the start (right after the «AppBar» zone, or first), not with «bodyTop: screenTop»; rules — «x-style.layout.topZone». Anywhere else the field is not read and the node is an ordinary child. No field — the child scrolls with the body.",
       "type": "string",
       "enum": [
-        "bottom"
+        "bottom",
+        "top"
       ]
     },
     "ShowOn": {
@@ -3594,6 +3595,11 @@
           "description": "When the DATA change the value of this node while it is shown, the reader leads from the old value to the new one (9.21.0): a number of a text with a numeric format counts through the values between, a scale grows. Duration, curve, steps and when there is no transition — «x-valueTransition». No field — the value changes at once, exactly as before 9.21.0.",
           "type": "boolean",
           "const": true
+        },
+        "animateIn": {
+          "description": "When the node is SHOWN, its value grows from zero to its own (9.24.0): a number of a text with a numeric format counts up from 0 with the same curve, duration and steps as «animateChanges»; a ProgressBar or CircularProgress fills from empty. Shown — the first show of the screen, a screen shown again («back»), a node that appears (condition, width class, a new record). Rules — «x-valueAppear». No field — the value is there at once, exactly as before 9.24.0.",
+          "type": "boolean",
+          "const": true
         }
       },
       "required": [
@@ -4971,6 +4977,11 @@
           "type": "boolean",
           "const": true
         },
+        "animateIn": {
+          "description": "When the node is SHOWN, its value grows from zero to its own (9.24.0): a number of a text with a numeric format counts up from 0 with the same curve, duration and steps as «animateChanges»; a ProgressBar or CircularProgress fills from empty. Shown — the first show of the screen, a screen shown again («back»), a node that appears (condition, width class, a new record). Rules — «x-valueAppear». No field — the value is there at once, exactly as before 9.24.0.",
+          "type": "boolean",
+          "const": true
+        },
         "segments": {
           "description": "Cuts the scale into this many equal steps with a gap between them. A step is filled WHOLE or not at all: filled = floor(ratio × segments). Geometry, gap, rounding and the gradient — «x-style.layout.progressSegments». No field — the continuous bar.",
           "type": "integer",
@@ -5153,6 +5164,11 @@
         },
         "animateChanges": {
           "description": "When the DATA change the value of this node while it is shown, the reader leads from the old value to the new one (9.21.0): a number of a text with a numeric format counts through the values between, a scale grows. Duration, curve, steps and when there is no transition — «x-valueTransition». No field — the value changes at once, exactly as before 9.21.0.",
+          "type": "boolean",
+          "const": true
+        },
+        "animateIn": {
+          "description": "When the node is SHOWN, its value grows from zero to its own (9.24.0): a number of a text with a numeric format counts up from 0 with the same curve, duration and steps as «animateChanges»; a ProgressBar or CircularProgress fills from empty. Shown — the first show of the screen, a screen shown again («back»), a node that appears (condition, width class, a new record). Rules — «x-valueAppear». No field — the value is there at once, exactly as before 9.24.0.",
           "type": "boolean",
           "const": true
         },
@@ -5895,7 +5911,7 @@
   },
   "$id": "https://hotlayout.com/schema/ui-document.json",
   "title": "UiDocument",
-  "x-schemaVersion": "9.23.0",
+  "x-schemaVersion": "9.24.0",
   "x-compatibility": {
     "policy": {
       "majorMustMatch": true,
@@ -6212,7 +6228,11 @@
       "borderDash": "9.22.0",
       "listFilter": "9.23.0",
       "textGradient": "9.23.0",
-      "compactNumber": "9.23.0"
+      "compactNumber": "9.23.0",
+      "valueAppear": "9.24.0",
+      "swipeConfirmBusy": "9.24.0",
+      "navBadgeMotion": "9.24.0",
+      "topZone": "9.24.0"
     }
   },
   "x-budget": {
@@ -8894,6 +8914,105 @@
         "olderReader": "solid",
         "cases": "contract/fixtures/border-dash/border-dash-cases.json"
       },
+      "navBadgeMotion": {
+        "refines": [
+          "x-style.layout.navBadge.shown"
+        ],
+        "field": "none-the-motion-belongs-to-the-dot",
+        "when": "the-condition-changes-its-answer-while-the-screen-is-shown",
+        "firstShow": "no-motion-the-dot-is-there-or-not",
+        "shownAgain": "no-motion-a-screen-shown-again-is-a-first-show",
+        "appear": {
+          "durationMs": 320,
+          "scale": [
+            0,
+            1.25,
+            1
+          ],
+          "at": [
+            0,
+            0.6,
+            1
+          ],
+          "between": "linear",
+          "origin": "centre-of-the-dot",
+          "opacity": 1
+        },
+        "disappear": {
+          "durationMs": 200,
+          "opacity": [
+            1,
+            0
+          ],
+          "between": "linear",
+          "scale": 1
+        },
+        "interrupted": "a-new-change-starts-its-own-motion-from-its-start",
+        "reducedMotion": "no-motion-the-dot-appears-and-disappears-at-once",
+        "layout": "the-dot-does-not-change-the-item-during-the-motion",
+        "accessibleName": "unchanged",
+        "editorCanvas": "no-motion",
+        "olderReader": "no-motion",
+        "cases": "contract/fixtures/bottom-zone/bottom-zone-cases.json"
+      },
+      "topZone": {
+        "field": "pin",
+        "word": "top",
+        "refines": [
+          "x-style.layout.screen.appBar",
+          "x-style.layout.screen.body.area",
+          "x-style.layout.bottomZone.pinned.elsewhere"
+        ],
+        "is": "children-of-the-screen-root-in-a-run-at-the-start-right-after-the-app-bar-zone-or-first-whose-pin-is-top",
+        "counts": "document-order-not-visibility",
+        "run": "the-first-child-without-the-word-ends-the-run-the-word-is-not-read-after-it",
+        "atMost": "no-limit",
+        "hidden": "no-room",
+        "never": [
+          "AppBar",
+          "NavBar"
+        ],
+        "withBodyAtScreenTop": "not-read-the-nodes-are-children-of-the-body",
+        "order": [
+          "safeInset",
+          "appBar",
+          "pinned"
+        ],
+        "position": "top-of-the-screen-fixed",
+        "scrolls": "never",
+        "place": {
+          "withAppBar": "below-the-app-bar-the-screen-gap-between",
+          "withoutAppBar": "first-node-below-the-safe-inset-and-the-root-top-padding",
+          "between": "screen-gap",
+          "pullOfTheFirst": "not-read",
+          "pullOfTheOthers": "as-in-the-screen-column",
+          "width": "as-a-child-of-the-screen-column-root-side-padding",
+          "contentMaxWidth": "the-same-column-as-the-body"
+        },
+        "safeInset": {
+          "withAppBar": "inside-the-app-bar-box-as-before",
+          "withoutAppBar": "reader-adds-the-platform-inset-above-the-zone-outside-the-node-boxes"
+        },
+        "background": "none-unless-the-node-names-one-the-screen-background-shows-through",
+        "body": {
+          "area": "from-the-bottom-edge-of-the-top-zone-to-the-top-edge-of-the-bottom-zone",
+          "lead": "screen-gap-inside-the-scroll",
+          "rootTopPadding": "goes-to-the-top-zone",
+          "clip": "bottom-edge-of-the-top-zone",
+          "pulledFirstChild": "lifts-the-body-area-onto-the-top-zone-as-onto-the-app-bar"
+        },
+        "firstScreen": "nodes-of-the-zone-are-never-below-the-fold",
+        "inModalLayer": "drawn-at-the-top-of-the-layer-below-its-app-bar",
+        "wide": {
+          "ownNavBar": "below-the-own-bar-of-the-navigation",
+          "sameInEveryWidthClass": true
+        },
+        "appBarScrolled": "the-threshold-reads-the-scroll-of-the-body-as-before",
+        "withoutOwnHeight": "sticks-together-with-the-app-bar-zone-by-the-same-host-switch",
+        "press": "nodes-of-the-zone-take-their-own-presses",
+        "olderReader": "reads-the-word-as-no-field-the-nodes-scroll-with-the-body",
+        "cases": "contract/fixtures/top-zone/top-zone-cases.json"
+      },
       "partStyle": {
         "keys": [
           "color",
@@ -10402,6 +10521,111 @@
     "localeWithoutData": "the-format-does-not-apply-the-value-as-it-is",
     "olderReader": "the-field-is-skipped-every-digit",
     "cases": "contract/fixtures/template/template-cases.json#compactCases"
+  },
+  "x-valueAppear": {
+    "prop": "animateIn",
+    "on": [
+      "Text",
+      "ProgressBar",
+      "CircularProgress"
+    ],
+    "value": "literal true or no field; no field — the value is there at once",
+    "refines": [
+      "x-valueTransition.whenNoTransition.firstShow"
+    ],
+    "from": 0,
+    "durationMs": 700,
+    "curve": "the curve of x-valueTransition",
+    "step": "the step of x-valueTransition with from = 0: whole when the value is whole, otherwise the digits of the format",
+    "formatted": "every value between is written by the same format, plural word and template as the final one",
+    "text": "the numbers of x-valueTransition.text.what",
+    "scale": {
+      "value": "grows from 0 — a literal value too",
+      "max": "stands at once",
+      "fill": "the ratio of the shown value and max, no step: the fill and the arc grow from empty",
+      "label": "the numbers of «valueOfMax» and «percent» of the shown value, by the step",
+      "segments": "filled steps follow the shown ratio"
+    },
+    "shown": {
+      "is": "the moment the node is drawn on a shown screen",
+      "firstShow": "the first screen of the flow and every screen pushed on top",
+      "back": "a screen shown again by «back» or by a section switch is shown again",
+      "underModalLayer": "a screen under a modal layer stays shown: closing the layer is not a show",
+      "appears": "a node that appears by a condition, a width class or as a new record of a list",
+      "sameScreen": "a change of data on a shown node is not a show"
+    },
+    "stagger": "none — every node starts at the moment it is shown",
+    "whenNoAppear": {
+      "order": [
+        "noField",
+        "reducedMotion",
+        "notANumber",
+        "zero"
+      ],
+      "notANumber": "no data or not a finite number: the fallback is there at once",
+      "zero": "the value is 0: nothing to grow",
+      "reducedMotion": "system «reduce motion»: the final value at once"
+    },
+    "withAnimateChanges": "the appearance runs from 0; a change of data during it or after it leads from the value shown at that moment (x-valueTransition.interrupted)",
+    "withoutAnimateChanges": "a change of data during the appearance shows the new value at once and ends it",
+    "localeChanged": "ends the appearance: the final value at once",
+    "semantics": "the screen reader hears the final value, not the values between",
+    "editorCanvas": "not animated — the document is edited there",
+    "olderReader": "skips the field — the value is there at once",
+    "cases": "contract/fixtures/value-transition/value-transition-cases.json"
+  },
+  "x-swipeConfirmBusy": {
+    "on": [
+      "Button"
+    ],
+    "when": "confirm-is-swipe",
+    "refines": [
+      "x-swipeConfirm.afterAction",
+      "x-swipeConfirm.release.atOrPastThreshold",
+      "x-swipeConfirm.motion"
+    ],
+    "release": {
+      "atOrPastThreshold": "act-at-once-then-the-thumb-glides-to-the-end-and-stays",
+      "belowThreshold": "return-no-action-no-event"
+    },
+    "keyboardAndAssistive": "act-at-once-then-the-same-as-after-a-swipe",
+    "completeMs": 200,
+    "returnMs": 250,
+    "curve": "ease-out-cubic",
+    "afterRelease": {
+      "readerAction": "busy-the-shown-screen-changes-at-once",
+      "hostAction": "busy",
+      "none": "return-at-once",
+      "invalid": "return-at-once"
+    },
+    "busy": {
+      "thumb": "at-the-end",
+      "glyph": "replaced-by-the-indicator",
+      "indicator": "a-ring-of-three-quarters-turning",
+      "indicatorSize": "the-glyph-size",
+      "indicatorColor": "the-glyph-color",
+      "indicatorStroke": "an-eighth-of-the-glyph-size",
+      "turnMs": 800,
+      "label": "stays",
+      "press": "nothing",
+      "gesture": "nothing",
+      "keyboard": "nothing",
+      "semantics": "button-named-by-the-label-busy"
+    },
+    "ends": {
+      "promiseFulfilled": "return",
+      "promiseRejected": "return",
+      "screenChanged": "gone-with-its-screen",
+      "noPromiseTimeoutMs": 8000,
+      "noPromiseTimeout": "return",
+      "promiseTimeout": "none-the-promise-is-held"
+    },
+    "shownAgain": "a-screen-shown-again-has-the-thumb-at-the-start",
+    "reducedMotion": "the-thumb-jumps-the-indicator-stands-still",
+    "disabled": "as-before-the-thumb-does-not-move",
+    "editorPreview": "busy-for-a-moment-then-the-step-of-the-flow",
+    "olderReader": "the-thumb-returns-to-the-start-after-the-action",
+    "cases": "contract/fixtures/swipe-confirm/swipe-confirm-cases.json"
   },
   "x-generatedFrom": "src/entities/component-schema — generated, do not edit by hand"
 }

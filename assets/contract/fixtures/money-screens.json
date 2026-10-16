@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "9.23.0",
+  "schemaVersion": "9.24.0",
   "documentId": "money",
   "name": "Money as money",
   "initialScreenId": "account",

@@ -38,7 +38,15 @@ typedef RootChildInfo = ({String type, bool pin});
 /// `childrenCases`). The body is the rest; its bounds are [bodyFrom] and
 /// [bodyTo] (a half-open range).
 final class ScreenZoneChildren {
-  const ScreenZoneChildren({this.appBar, this.pinned, this.navBar, required this.bodyFrom, required this.bodyTo});
+  const ScreenZoneChildren({
+    this.appBar,
+    this.pinned,
+    this.navBar,
+    required this.bodyFrom,
+    required this.bodyTo,
+    this.topFrom = 0,
+    this.topTo = 0,
+  });
 
   final int? appBar;
   final int? pinned;
@@ -47,6 +55,14 @@ final class ScreenZoneChildren {
   /// The body is the children with index in `[bodyFrom, bodyTo)`.
   final int bodyFrom;
   final int bodyTo;
+
+  /// The children pinned to the top (`pin: 'top'`, 9.24.0) are those with index in `[topFrom, topTo)`; the range is
+  /// empty when there are none.
+  final int topFrom;
+  final int topTo;
+
+  /// Whether there is a top zone.
+  bool get hasTop => topTo > topFrom;
 }
 
 /// Which child of the root is in which zone: three rules together, by the
@@ -58,7 +74,15 @@ final class ScreenZoneChildren {
 ///  * pinned block: the last child NOT COUNTING the navigation bar, if its
 ///    `pin` is `bottom` (`pinElsewhere`); an app bar as the first child and the
 ///    navigation bar itself are never pinned.
-ScreenZoneChildren screenChildrenByZone(List<RootChildInfo> children) {
+///
+/// The TOP zone (9.24.0, `topZone`): the run of children right after the app bar zone (or first) whose `pin` is `top`
+/// ([topPins], parallel to [children]); the first child without the word, an `AppBar` or a `NavBar` ends it, and the
+/// word is not read after it. With `bodyTop: screenTop` ([bodyAtScreenTop]) there is no run: the nodes are body children.
+ScreenZoneChildren screenChildrenByZone(
+  List<RootChildInfo> children, {
+  List<bool>? topPins,
+  bool bodyAtScreenTop = false,
+}) {
   final count = children.length;
   final appBar = count > 0 && children.first.type == 'AppBar' ? 0 : null;
   final navBar = count > 0 && children.last.type == kNavBarType ? count - 1 : null;
@@ -70,9 +94,23 @@ ScreenZoneChildren screenChildrenByZone(List<RootChildInfo> children) {
       pinned = index;
     }
   }
-  final from = appBar == null ? 0 : 1;
+  final topFrom = appBar == null ? 0 : 1;
+  var topTo = topFrom;
+  if (topPins != null && !bodyAtScreenTop) {
+    while (topTo < count && topPins[topTo] && children[topTo].type != 'AppBar' && children[topTo].type != kNavBarType) {
+      topTo += 1;
+    }
+  }
   final to = count - (navBar == null ? 0 : 1) - (pinned == null ? 0 : 1);
-  return ScreenZoneChildren(appBar: appBar, pinned: pinned, navBar: navBar, bodyFrom: from, bodyTo: math.max(from, to));
+  return ScreenZoneChildren(
+    appBar: appBar,
+    pinned: pinned,
+    navBar: navBar,
+    bodyFrom: topTo,
+    bodyTo: math.max(topTo, to),
+    topFrom: topFrom,
+    topTo: topTo,
+  );
 }
 
 // ───────────────────────────── the `widePlacement` field ─────────────────────────────
@@ -229,3 +267,42 @@ VisibilityCondition? navBadgeConditionOf(Object? raw) {
   final cornerX = rtl ? glyphLeft : glyphLeft + glyphSize;
   return (left: cornerX - kNavBadgeDiameter / 2, top: glyphTop - kNavBadgeDiameter / 2, size: kNavBadgeDiameter);
 }
+
+// ───────────────────────────── the motion of the dot (9.24.0) ─────────────────────────────
+
+/// The appearance of the dot lasts 320 ms and its fading 200 ms (`x-style.layout.navBadgeMotion`).
+const int kNavBadgeAppearMs = 320;
+const int kNavBadgeDisappearMs = 200;
+
+/// The peak of the flash and where it falls in the appearance.
+const double kNavBadgePeakScale = 1.25;
+const double kNavBadgePeakAt = 0.6;
+
+/// What the dot does when its condition is judged again (`navBadgeChangeOf`).
+enum NavBadgeChange { none, appear, disappear }
+
+/// Motion only on a CHANGE of the answer on a screen that is already shown: the first show, a screen shown again and
+/// "reduce motion" give none.
+NavBadgeChange navBadgeChangeOf({
+  required bool shownBefore,
+  required bool before,
+  required bool after,
+  bool reducedMotion = false,
+}) {
+  if (!shownBefore || reducedMotion || before == after) return NavBadgeChange.none;
+  return after ? NavBadgeChange.appear : NavBadgeChange.disappear;
+}
+
+double _lerp(double from, double to, double share) => from + (to - from) * share;
+
+double _share(num t, int duration) => math.min(1.0, math.max(0.0, t / duration));
+
+/// The scale of the dot [t] ms into the appearance: 0 to 1.25 at 0.6 of the time, then to 1, linear between.
+double navBadgeAppearScaleAt(num t) {
+  final p = _share(t, kNavBadgeAppearMs);
+  if (p <= kNavBadgePeakAt) return _lerp(0, kNavBadgePeakScale, p / kNavBadgePeakAt);
+  return _lerp(kNavBadgePeakScale, 1, (p - kNavBadgePeakAt) / (1 - kNavBadgePeakAt));
+}
+
+/// The opacity of the dot [t] ms into its fading: 1 to 0, linear.
+double navBadgeDisappearOpacityAt(num t) => 1 - _share(t, kNavBadgeDisappearMs);

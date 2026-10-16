@@ -111,7 +111,8 @@ extension ColumnWidgets on NodeRenderer {
   ///
   /// [pullParent] is the node whose children may be pulled (`pull`, schema 9.10.0): `Screen`,
   /// `Column` and a column `Container` pass it. Other parents (tab, accordion, choice group) do
-  /// not accept pulling, and the field is not read on their children.
+  /// not accept pulling, and the field is not read on their children. [firstPullRead] `false`: the `pull` of the
+  /// first node is not read (the top zone of a screen, 9.24.0).
   Widget buildChildColumn(
     List<ChildNode> source, {
     required double gap,
@@ -119,6 +120,7 @@ extension ColumnWidgets on NodeRenderer {
     JustifyToken justify = JustifyToken.start,
     bool freeHeight = false,
     UiNode? pullParent,
+    bool firstPullRead = true,
   }) {
     final nodes = visibleNodes(source);
     final children = <Widget>[];
@@ -128,7 +130,7 @@ extension ColumnWidgets on NodeRenderer {
       final child = _staysNaturalInColumn(node)
           ? renderNode(node, flow: Axis.vertical)
           : ColumnStretch(child: renderNode(node, flow: Axis.vertical, stretchAlign: align));
-      final pull = pullOf(node, pullParent);
+      final pull = i == 0 && !firstPullRead ? 0.0 : pullOf(node, pullParent);
       children.add(pull > 0 ? FlowPull(pull: pull, child: child) : child);
     }
     return StretchColumn(align: align, justify: justify, freeHeight: freeHeight, children: children);

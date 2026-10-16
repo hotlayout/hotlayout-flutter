@@ -1,9 +1,10 @@
-/// A value that leads to its new value (schema 9.21.0, `animateChanges`): the hook between the node and
-/// [ValueTransition].
+/// A value that leads to its new value (schema 9.21.0, `animateChanges`) or grows from zero when shown (9.24.0,
+/// `animateIn`): the hook between the node and [ValueTransition].
 library;
 
 import 'package:flutter/widgets.dart';
 
+import '../../model/bindable.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/progress_rules.dart';
@@ -19,20 +20,47 @@ extension TransitionWidgets on NodeRenderer {
   /// does not (no field, or nothing that comes from data: a literal is changed only by a new document, and a
   /// new document is a first show).
   Widget buildLeading(ChildNode node, NodeStyle? own, Slot slot) {
-    final targets = animatesChanges(node) ? transitionTargetsOf(node) : const <TransitionTarget>[];
-    if (targets.isEmpty) return _plain(node, this, own, slot);
+    final changes = animatesChanges(node) ? transitionTargetsOf(node) : const <TransitionTarget>[];
+    final appearing = animatesIn(node) ? appearTargetsOf(node) : const <TransitionTarget>[];
+    if (changes.isEmpty && appearing.isEmpty) return _plain(node, this, own, slot);
+    // The literal value of a scale that appears is read through a data path of its own, so the shown value can
+    // lie over it; without a shown value the path is empty and the literal itself is the fallback.
+    final literalScale = appearing.any((target) => target.path == kScaleLiteralKey);
+    final literal = switch (node) {
+      ProgressBarNode(:final value) when literalScale => value.resolve(data),
+      CircularProgressNode(:final value) when literalScale => value.resolve(data),
+      _ => null,
+    };
+    final drawn = literal == null
+        ? node
+        : switch (node) {
+            ProgressBarNode(:final value) => node.withValue(_literalPath(value, literal)),
+            CircularProgressNode(:final value) => node.withValue(_literalPath(value, literal)),
+            _ => node,
+          };
+    final targets = [
+      ...appearing,
+      for (final target in changes)
+        if (!appearing.any((other) => other.path == target.path)) target,
+    ];
     final record = recordIdentityOf(data.record);
     return ValueTransition(
       // A list instance is tracked by its record: a state moves with it when the list is reordered.
       key: record == null ? null : ValueKey('lead|${node.id}|$record'),
       targets: targets,
+      appears: {for (final target in appearing) target.path},
+      literals: {kScaleLiteralKey: ?literal},
+      animatesChanges: changes.isNotEmpty,
       data: data,
       identity: record ?? instance.join('/'),
       localeKey: '$locale|${strings.locale}',
       builder: (context, shown, active) =>
-          _announce(node, active, _plain(node, shown == data ? this : copy(data: shown), own, slot)),
+          _announce(drawn, active, _plain(drawn, shown == data ? this : copy(data: shown), own, slot)),
     );
   }
+
+  BindableNumber _literalPath(BindableNumber value, double literal) =>
+      value is BoundNumber ? value : BoundNumber(kScaleLiteralKey, literal);
 
   Widget _plain(ChildNode node, NodeRenderer renderer, NodeStyle? own, Slot slot) => switch (node) {
     TextNode() => renderer.buildText(node, own),
@@ -58,6 +86,14 @@ extension TransitionWidgets on NodeRenderer {
     );
   }
 }
+
+/// Whether the node carries the flag. Only the literal `true` is read.
+bool animatesIn(ChildNode node) => switch (node) {
+  TextNode(:final animateIn) => animateIn,
+  ProgressBarNode(:final animateIn) => animateIn,
+  CircularProgressNode(:final animateIn) => animateIn,
+  _ => false,
+};
 
 /// Whether the node carries the flag. Only the literal `true` is read.
 bool animatesChanges(ChildNode node) => switch (node) {
