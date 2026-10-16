@@ -23,7 +23,15 @@ final class ProgressBarNode extends ChildNode {
     this.gradient,
     this.segments,
     this.currentColor,
+    this.cap,
+    this.animateChanges = false,
   });
+
+  /// Round ends (9.21.0); `null` is the ends as before: the theme's `pill` radius.
+  final ProgressCap? cap;
+
+  /// The value leads to a new value from data instead of jumping (9.21.0); only the literal `true` is read.
+  final bool animateChanges;
 
   final BindableNumber value;
   final BindableNumber max;
@@ -69,6 +77,8 @@ ProgressBarNode _parseProgressBar(_RawNode node, VisibilityCondition? visibleIf)
     gradient: GradientRef.tryParse(props['gradient']),
     segments: readSegments(props['segments']),
     currentColor: ColorRef.tryParse(props['currentColor']),
+    cap: ProgressCap.parse(props['cap']),
+    animateChanges: props['animateChanges'] == true,
   );
 }
 
@@ -105,7 +115,15 @@ final class CircularProgressNode extends ChildNode {
     this.gradient,
     this.labelTypography,
     this.labelColor,
+    this.cap,
+    this.animateChanges = false,
   });
+
+  /// Round ends of the arc (9.21.0); `null` is square ends, as before.
+  final ProgressCap? cap;
+
+  /// The value leads to a new value from data instead of jumping (9.21.0); only the literal `true` is read.
+  final bool animateChanges;
 
   /// Own style of the label in the center (9.17.0): `null` means there is no field or it has the wrong
   /// shape, and `caption` / `onSurface` applies. A token the theme does not know gives the fallback style
@@ -169,5 +187,7 @@ CircularProgressNode _parseCircularProgress(_RawNode node, VisibilityCondition? 
     // 9.17.0: own label style; a wrong shape means no field, and the fallback applies.
     labelTypography: TypographyRef.tryParse(props['labelTypography']),
     labelColor: ColorRef.tryParse(props['labelColor']),
+    cap: ProgressCap.parse(props['cap']),
+    animateChanges: props['animateChanges'] == true,
   );
 }

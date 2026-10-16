@@ -24,8 +24,19 @@ final class AppBarNode extends ChildNode {
     required this.subtitle,
     required this.showBack,
     this.titleAlign = AppBarTitleAlign.center,
+    this.titleShown,
+    this.styleScrolled,
     this.children = const [],
   });
+
+  /// When the title block is drawn (9.21.0): `scrolled` is only while the body is scrolled (at rest the block
+  /// keeps its place, invisible, and stays the name of the screen for the screen reader); `null` is always.
+  final TitleShown? titleShown;
+
+  /// The style of this bar while the body is scrolled (9.21.0): `background`, `color`, `shadow` and
+  /// `backdropBlur` only, laid LAST over the resolved style. It is read only when the bar is the app bar zone
+  /// of its screen.
+  final NodeStyle? styleScrolled;
 
   /// Where the title block stands (9.16.0): `start` is right after the leading zone, lines start-aligned;
   /// `center` (and anything that is not `start`) is as before 9.16.0.
@@ -70,6 +81,8 @@ AppBarNode _parseAppBar(_RawNode node, VisibilityCondition? visibleIf) {
         : BindableString.parse(props['subtitle'], key: node.key('subtitle')),
     showBack: _bool(props['showBack'], true),
     titleAlign: titleAlignOf(props['titleAlign']),
+    titleShown: TitleShown.parse(props['titleShown']),
+    styleScrolled: node.styleScrolled,
     // 9.9.0: the children of the app bar are its actions. Which types they are is decided at paint time
     // (`appBarChildren`), while parsing takes all of them: a child the app bar does not draw is still
     // visible to a walk of the tree.

@@ -42,7 +42,9 @@ class ScreenData {
   const ScreenData(this._document)
     : _record = null,
       _session = const <String, Object?>{},
-      _scope = const <String, Object?>{};
+      _scope = const <String, Object?>{},
+      _shown = const <String, Object?>{},
+      _labelShown = null;
 
   /// Document data plus the input of a specific screen.
   const ScreenData.scoped({
@@ -50,10 +52,14 @@ class ScreenData {
     Map<String, Object?>? record,
     Map<String, Object?> session = const <String, Object?>{},
     Map<String, Object?> scope = const <String, Object?>{},
+    Map<String, Object?> shown = const <String, Object?>{},
+    Map<String, Object?>? labelShown,
   }) : _document = document,
        _record = record,
        _session = session,
-       _scope = scope;
+       _scope = scope,
+       _shown = shown,
+       _labelShown = labelShown;
 
   static const ScreenData empty = ScreenData(<String, Object?>{});
 
@@ -61,6 +67,31 @@ class ScreenData {
   final Map<String, Object?>? _record;
   final Map<String, Object?> _session;
   final Map<String, Object?> _scope;
+
+  /// The numbers a node is LEADING to their new values right now (schema 9.21.0, `animateChanges`): path to the
+  /// value shown at this moment. Not a data layer: it lies over all of them and exists only for the subtree of
+  /// the node that leads, so what is drawn there is the shown number written by the same format, template and
+  /// plural word as the final one.
+  final Map<String, Object?> _shown;
+
+  /// The same numbers as the LABEL of a scale writes them (in steps), when they differ from [_shown].
+  final Map<String, Object?>? _labelShown;
+
+  /// This data with the numbers [shown] laid over every layer. [labelShown] are the steps the label of a scale
+  /// shows, where they differ.
+  ScreenData withShown(Map<String, Object?> shown, {Map<String, Object?>? labelShown}) => ScreenData.scoped(
+    document: _document,
+    record: _record,
+    session: _session,
+    scope: _scope,
+    shown: {..._shown, ...shown},
+    labelShown: labelShown,
+  );
+
+  /// The data as the LABEL of a scale reads it: the shown numbers in steps. The same data when there are none.
+  ScreenData get labelView => _labelShown == null
+      ? this
+      : ScreenData.scoped(document: _document, record: _record, session: _session, scope: _scope, shown: {..._shown, ..._labelShown});
 
   /// The record scope of the node (layer 1): a flat map of "path to value", or `null` when
   /// there is no record at all. This is what the host receives together with an action.
@@ -72,7 +103,7 @@ class ScreenData {
   /// entity to supply and reads data for that, and reading the scope from the scope itself would
   /// be circular. The record stays, since a host that computes the scope must see it.
   ScreenData get withoutScope =>
-      ScreenData.scoped(document: _document, record: _record, session: _session);
+      ScreenData.scoped(document: _document, record: _record, session: _session, shown: _shown, labelShown: _labelShown);
 
   /// The same data plus the RECORD OF A LIST INSTANCE under the prefix [item].
   ///
@@ -91,6 +122,8 @@ class ScreenData {
     record: overlayRecord(_record, instanceRecord(item, value)),
     session: _session,
     scope: _scope,
+    shown: _shown,
+    labelShown: _labelShown,
   );
 
   /// The records of a collection by path. An empty list if there is no data or it is not a list:
@@ -101,12 +134,15 @@ class ScreenData {
   }
 
   /// The value for a path: the first layer that has it ([readLayered]).
-  Object? lookup(String path) =>
-      readLayered(
-        {'record': _record, 'session': _session, 'host': _scope, 'data': _document},
-        path,
-        read: _lookupIn,
-      )?.value;
+  Object? lookup(String path) {
+    // A number that is being led to its new value shows the value of this moment, over every layer.
+    if (_shown.containsKey(path)) return _shown[path];
+    return readLayered(
+      {'record': _record, 'session': _session, 'host': _scope, 'data': _document},
+      path,
+      read: _lookupIn,
+    )?.value;
+  }
 
   /// The builder produces a flat "path to value" map (`data-contract`), but a real backend is
   /// more likely to send nested JSON, so both are supported: the exact key first, then a walk

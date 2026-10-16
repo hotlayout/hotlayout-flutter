@@ -11,9 +11,11 @@ import '../../model/bottom_zone_rules.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/screen_top_rules.dart';
+import '../../model/scrolled_bar.dart';
 import '../../model/tokens.dart';
 import '../../model/wide_chrome_rules.dart';
 import '../../model/width_class.dart';
+import '../body_scroll_tracker.dart';
 import '../modal_layer.dart';
 import '../node_renderer.dart';
 import '../render_scope.dart';
@@ -205,9 +207,10 @@ extension ScreenWidgets on NodeRenderer {
         pullParent: root,
       ),
     );
-    final scroll = distributes
+    Widget scrollBody(ScrollController controller) => distributes
         ? LayoutBuilder(
             builder: (context, constraints) => SingleChildScrollView(
+              controller: controller,
               padding: bodyPadding,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
@@ -219,7 +222,7 @@ extension ScreenWidgets on NodeRenderer {
               ),
             ),
           )
-        : SingleChildScrollView(padding: bodyPadding, child: bodyColumn);
+        : SingleChildScrollView(controller: controller, padding: bodyPadding, child: bodyColumn);
 
     /*
      * The bottom zone consists of TWO layout children: the pinned block and the "low part" (the
@@ -237,14 +240,21 @@ extension ScreenWidgets on NodeRenderer {
     // the body, inside the scroll view.
     // [inset] is the top safe inset: inside the app bar's box above its content, or inside the
     // navigation strip above its items (`safeTop.withAppBar`, `safeTop.wideOwnNavBar`).
-    Widget? barZoneFor(double inset) => bar != null
+    Widget? barZoneFor(double inset, bool scrolled) => bar != null
         ? Padding(
             padding: barPadding,
             child: styledNode(
               bar,
               Slot.free,
-              (renderer, _) => renderer.buildAppBar(bar, contentMax: contentMax, nav: navInBar),
+              (renderer, _) => renderer.buildAppBar(
+                bar,
+                contentMax: contentMax,
+                nav: navInBar,
+                // The bar that changes on scroll (9.21.0): its title waits for the scroll when it asks.
+                titleHidden: bar.titleShown == TitleShown.scrolled ? !scrolled : null,
+              ),
               extraTop: inset,
+              scrolledLayer: scrolled && bar.styleScrolled != null ? theme.applicableStyle(bar.styleScrolled!) : null,
               // The whole box of the app bar takes a press, also where nothing is drawn (from the top edge
               // the body lies UNDER it and must not get it). A recognizer-less opaque detector, not an
               // `AbsorbPointer`: the buttons in the bar must keep working.
@@ -258,66 +268,75 @@ extension ScreenWidgets on NodeRenderer {
                   Slot.free,
                   (renderer, own) => renderer.buildTopNavBar(navOnTop, own, contentMax: contentMax, topInset: inset),
                 ));
-    return Builder(
-      builder: (context) {
-        final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-        // THE TOP SAFE INSET (schema 9.19.0): the reader adds it, from its OWN context (a host that
-        // wrapped it in a `SafeArea` gives zero and nothing changes). A layer has none inside. It stands
-        // in the app bar's box, in the navigation strip, or, with neither, above the body area.
-        final inset = shrink ? 0.0 : topInsetOf(context);
-        final barZone = barZoneFor(inset);
-        // A sheet that became a window in a wide space: the layer's root takes its bottom corner
-        // radius from the top ones, and such a window has no bottom safe area inset
-        // (`modalLayer`).
-        final sheetWindow = SheetWindowScope.of(context);
-        final windowRadius = sheetWindow ? sheetWindowRadius(own?.radius) : own?.radius;
-        final boxStyle = identical(windowRadius, own?.radius) ? own : own!.withRadius(windowRadius);
-        return nodeBox(
-          boxStyle,
-          slot: Slot.fill,
-          paddingInside: true,
-          // Zones have keys: a bar that moves from the bottom zone to the top when a wider class
-          // arrives must not drag a rebuild of the body with it; the key keeps field state, focus
-          // and scroll position.
-          ScreenZones(
-            shrink: shrink,
-            overlap: overlap,
-            keyboard: keyboard,
-            bodyAtScreenTop: screenTop,
-            // Without an app bar zone the body area starts below the inset (from the top edge it
-            // starts at the top and the reader adds nothing to its content).
-            topInset: barZone == null && !screenTop ? inset : 0,
-            hasBar: barZone != null,
-            hasPinned: hasPinned,
-            hasLow: hasLow,
-            children: [
-              if (barZone != null) KeyedSubtree(key: const ValueKey('hl-zone-bar'), child: barZone),
-              KeyedSubtree(key: const ValueKey('hl-zone-body'), child: scroll),
-              if (pinned != null)
-                KeyedSubtree(
-                  key: const ValueKey('hl-zone-pinned'),
-                  child: Padding(
-                    padding: EdgeInsetsDirectional.only(start: padding.start, end: padding.end, bottom: padding.bottom),
-                    child: ContentColumn(
-                      maxWidth: contentMax,
-                      child: buildChildColumn([pinned], gap: gap, align: root.align),
+    return BodyScrollTracker(
+      // The app bar that changes on scroll (9.21.0) is the bar OF THE ZONE: a bar a condition hides, or one that
+      // is not first, has no body to follow.
+      tracking: bar != null && (bar.styleScrolled != null || bar.titleShown == TitleShown.scrolled),
+      bodyAtScreenTop: screenTop,
+      overlap: overlap,
+      builder: (context, scroll) => Builder(
+        builder: (context) {
+          final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+          // THE TOP SAFE INSET (schema 9.19.0): the reader adds it, from its OWN context (a host that
+          // wrapped it in a `SafeArea` gives zero and nothing changes). A layer has none inside. It stands
+          // in the app bar's box, in the navigation strip, or, with neither, above the body area.
+          final inset = shrink ? 0.0 : topInsetOf(context);
+          final barZone = barZoneFor(inset, scroll.scrolled);
+          // A sheet that became a window in a wide space: the layer's root takes its bottom corner
+          // radius from the top ones, and such a window has no bottom safe area inset
+          // (`modalLayer`).
+          final sheetWindow = SheetWindowScope.of(context);
+          final windowRadius = sheetWindow ? sheetWindowRadius(own?.radius) : own?.radius;
+          final boxStyle = identical(windowRadius, own?.radius) ? own : own!.withRadius(windowRadius);
+          return nodeBox(
+            boxStyle,
+            slot: Slot.fill,
+            paddingInside: true,
+            // Zones have keys: a bar that moves from the bottom zone to the top when a wider class
+            // arrives must not drag a rebuild of the body with it; the key keeps field state, focus
+            // and scroll position.
+            ScreenZones(
+              shrink: shrink,
+              overlap: overlap,
+              keyboard: keyboard,
+              bodyAtScreenTop: screenTop,
+              // Without an app bar zone the body area starts below the inset (from the top edge it
+              // starts at the top and the reader adds nothing to its content).
+              topInset: barZone == null && !screenTop ? inset : 0,
+              hasBar: barZone != null,
+              hasPinned: hasPinned,
+              hasLow: hasLow,
+              children: [
+                if (barZone != null)
+                  KeyedSubtree(key: const ValueKey('hl-zone-bar'), child: KeyedSubtree(key: scroll.barKey, child: barZone)),
+                KeyedSubtree(key: const ValueKey('hl-zone-body'), child: scrollBody(scroll.controller)),
+                if (pinned != null)
+                  KeyedSubtree(
+                    key: const ValueKey('hl-zone-pinned'),
+                    child: Padding(
+                      padding: EdgeInsetsDirectional.only(start: padding.start, end: padding.end, bottom: padding.bottom),
+                      child: ContentColumn(
+                        maxWidth: contentMax,
+                        child: buildChildColumn([pinned], gap: gap, align: root.align),
+                      ),
                     ),
                   ),
-                ),
-              if (hasLow)
-                KeyedSubtree(
-                  key: const ValueKey('hl-zone-low'),
-                  child: buildLowZone(
-                    nav: navBottom,
-                    // A window in the middle has no safe area inset (`safeArea.modalWindow`).
-                    safeInset: !window && !sheetWindow,
-                    contentMax: contentMax,
+                if (hasLow)
+                  KeyedSubtree(
+                    key: const ValueKey('hl-zone-low'),
+                    child: buildLowZone(
+                      nav: navBottom,
+                      // A window in the middle has no safe area inset (`safeArea.modalWindow`).
+                      safeInset: !window && !sheetWindow,
+                      contentMax: contentMax,
+                    ),
                   ),
-                ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+
+        },
+      ),
     );
   }
 

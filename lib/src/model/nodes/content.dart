@@ -115,7 +115,12 @@ final class TextNode extends ChildNode {
     required this.overflow,
     this.spans = const {},
     this.marker = TextMarker.none,
+    this.animateChanges = false,
   });
+
+  /// The numbers of the text lead to their new values from data instead of jumping (9.21.0); only the
+  /// literal `true` is read.
+  final bool animateChanges;
 
   /// The list item marker (9.17.0). [TextMarker.none] is plain text.
   final TextMarker marker;
@@ -154,6 +159,7 @@ TextNode _parseText(_RawNode node, VisibilityCondition? visibleIf) {
     spans: readTextSpans(props['spans']),
     // 9.17.0: a list item. A word outside the list, or a non-string, means no marker.
     marker: readTextMarker(props['marker']),
+    animateChanges: props['animateChanges'] == true,
   );
 }
 

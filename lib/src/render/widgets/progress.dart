@@ -3,8 +3,10 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../model/bindable.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
+import '../../model/progress_cap.dart';
 import '../../model/progress_rules.dart';
 import '../../model/style_values.dart';
 import '../../model/tokens.dart';
@@ -37,6 +39,21 @@ extension ProgressWidgets on NodeRenderer {
   double _progressThickness(ScaleRef? ref) =>
       (ref == null ? null : theme.resolveSpacing(ref)) ?? theme.spacing[kDefaultProgressThickness] ?? 0;
 
+  /// The label of a scale. `percent` is the SHOWN ratio; `valueOfMax` writes the numbers in steps while they are being
+  /// led to their new values (schema 9.21.0): whole when both ends are whole, otherwise three digits. Without a
+  /// transition [NodeRenderer.data] is the data itself and this is the plain label.
+  String? _progressLabel(
+    ProgressLabelFormatToken format,
+    BindableNumber valueRef,
+    BindableNumber maxRef,
+    double ratio,
+  ) => switch (format) {
+    ProgressLabelFormatToken.valueOfMax =>
+      '${formatNumber(valueRef.resolve(data.labelView))} / ${formatNumber(maxRef.resolve(data.labelView))}',
+    ProgressLabelFormatToken.percent => '${(ratio * 100).round()}%',
+    ProgressLabelFormatToken.none => null,
+  };
+
   /// The progress bar. Geometry and paint follow `x-style.layout.progress.bar`; see
   /// [ProgressTrack].
   Widget buildProgressBar(ProgressBarNode node) {
@@ -45,12 +62,7 @@ extension ProgressWidgets on NodeRenderer {
     // `max` is also a binding, so zero or a negative value from data is a real scenario: a
     // limit that is not a positive number means NO scale, not a full bar.
     final ratio = progressRatio(value, rawMax);
-    final label = switch (node.labelFormat) {
-      ProgressLabelFormatToken.valueOfMax =>
-        '${formatNumber(value)} / ${formatNumber(rawMax)}',
-      ProgressLabelFormatToken.percent => '${(ratio * 100).round()}%',
-      ProgressLabelFormatToken.none => null,
-    };
+    final label = _progressLabel(node.labelFormat, node.value, node.max, ratio);
     final (trackColor, fill) = _progressPaint(node.color, node.trackColor, node.gradient);
     return QuietColumn(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,6 +83,7 @@ extension ProgressWidgets on NodeRenderer {
             segments: node.segments,
             segmentGap: theme.spacing[kProgressSegmentGap] ?? 0,
             currentColor: node.currentColor == null ? null : theme.resolveColor(node.currentColor!),
+            roundEnds: node.cap == ProgressCap.round,
           ),
         ),
         if (label != null) ...[
@@ -116,12 +129,7 @@ extension ProgressWidgets on NodeRenderer {
      * purpose: a divergence would mean "75 %" in the ring and "75 %" in the bar could differ on
      * the same data.
      */
-    final label = switch (node.labelFormat) {
-      ProgressLabelFormatToken.valueOfMax =>
-        '${formatNumber(value)} / ${formatNumber(rawMax)}',
-      ProgressLabelFormatToken.percent => '${(ratio * 100).round()}%',
-      ProgressLabelFormatToken.none => null,
-    };
+    final label = _progressLabel(node.labelFormat, node.value, node.max, ratio);
 
     final (trackColor, fill) = _progressPaint(node.color, node.trackColor, node.gradient);
     final ring = CustomPaint(
@@ -131,6 +139,7 @@ extension ProgressWidgets on NodeRenderer {
         thickness: geometry.thickness,
         trackColor: trackColor,
         fill: fill,
+        roundEnds: node.cap == ProgressCap.round,
       ),
     );
 

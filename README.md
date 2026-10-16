@@ -74,7 +74,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.21.0
+  hotlayout_flutter: ^0.22.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -225,6 +225,7 @@ A text of the document can be a sentence with named places — `{done} / {total}
 | `format: 'number'` | `1,850` · `1 850` · `١٬٨٥٠` | group separators and decimal mark of the language shown; grouping is always on; up to three fraction digits |
 | `format: 'currency'`, `currency: 'JOD'` | `120 JOD` · `1 850,50 USD` | the amount, a no-break space, the ISO 4217 code — the same order in every language; a whole amount has no fraction, any other has the digits of the currency (USD 2, JOD 3, JPY 0) |
 | `format: 'daysUntil'` | `4` | whole days until the moment, rounded **up** (three hours left is 1), never below 0; no time zone is involved |
+| `format: 'countdownPart'`, `unit: 'hours'` | `14` · `05` (with `pad: 2`) | one part of the time left: `days`, `hours` (0–23), `minutes` (0–59) or `seconds` (0–59), rounded **down**, never below 0; written like `number`. See [Changing values and a countdown](#changing-values-and-a-countdown) |
 | a plural word | `1 day` · `4 days` · `5 днів` · `22 дні` | the form for the CLDR plural category of the number in the language of the **shown** words; a missing form is `other` |
 
 A currency sign instead of the code, the place of the currency and an explicit plus are in [Money](#money-sign-symbol-and-parts-of-an-amount).
@@ -765,8 +766,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.21.0` | — |
-| Document contract (schema) | `9.20.0` | `kSupportedSchemaVersion` |
+| Package | `0.22.0` | — |
+| Document contract (schema) | `9.21.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -788,7 +789,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.20.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.21.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -843,6 +844,7 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.18.0 | layout by width class; navigation at the top and a window on a wide screen | [Adaptive layout by width](#adaptive-layout-by-width) |
 | 9.19.0 | pressable cards, write actions, parts of a list row and of a field, money, the top of the screen, `alt`, `iconPath`, `dateParts`, `unset` | [Pressable cards](#pressable-cards) and the sections after it |
 | 9.20.0 | endless motion of a node, blur under a modal layer, glass | [Motion, blur and glass](#motion-blur-and-glass) |
+| 9.21.0 | numbers that lead to their new values, a countdown that ticks, round ends of a scale, an app bar that changes on scroll | [Changing values](#changing-values-and-a-countdown), [Progress bar and ring](#progress-bar-and-ring), [The app bar](#the-app-bar) |
 
 ### Behaviour that changed between package versions
 
@@ -857,6 +859,7 @@ If you update from an older version of the package, these are the places where t
 | 0.14.0 | `onWrite` may give a `num` (a number field). Host code that stored every value as a string must be reviewed. |
 | 0.17.0 | On a wide screen the navigation bar goes to the top and a modal sheet becomes a window. |
 | 0.20.0 | A document that names `motion` runs a ticker for as long as the node is on screen, so `pumpAndSettle` in a widget test never settles on such a screen (use `pump` with a duration). |
+| 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
 
@@ -948,7 +951,7 @@ This part is a reference. Nothing in it needs code in your app unless a section 
 | Area | Sections |
 |---|---|
 | Controls | [Buttons, icon buttons and chips](#buttons-icon-buttons-and-chips) · [Pressable cards](#pressable-cards) · [Write actions and choice](#write-actions-and-choice-from-plain-nodes) |
-| Text and numbers | [Rich text](#rich-text) · [Text emphasis and list items](#text-emphasis-and-list-items) · [Money](#money-sign-symbol-and-parts-of-an-amount) · [Dates](#parts-of-a-date) |
+| Text and numbers | [Changing values and a countdown](#changing-values-and-a-countdown) · [Rich text](#rich-text) · [Text emphasis and list items](#text-emphasis-and-list-items) · [Money](#money-sign-symbol-and-parts-of-an-amount) · [Dates](#parts-of-a-date) |
 | Pictures and progress | [Images](#images) · [Icons from data and descriptions](#descriptions-and-icons-from-data) · [Progress bar and ring](#progress-bar-and-ring) · [Carousel and segmented progress](#carousel-and-segmented-progress) |
 | Lists and fields | [Parts of a list row](#parts-of-a-list-row) · [Forms](#forms-text-fields-switches-and-checkboxes) · [A form for a survey](#a-form-for-a-survey) · [Parts of a text field](#parts-of-a-text-field) |
 | The screen | [The app bar](#the-app-bar) · [The top of the screen](#the-top-of-the-screen) · [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block) · [Windows and modal sheets](#windows-and-modal-sheets) · [The status bar](#the-status-bar) · [Motion, blur and glass](#motion-blur-and-glass) |
@@ -1009,6 +1012,23 @@ The state is computed from the data on every build. The place in the group ("2 o
 | `""`, `null`, an absent value, an empty list | yes |
 | a number (zero too), a flag (`false` too) | no |
 | a string of spaces | no (it is not trimmed) |
+
+
+### Changing values and a countdown
+
+**`animateChanges: true`** (on `Text`, `ProgressBar` and `CircularProgress`) leads a number to its new value when your `data` change under a screen that is already shown. A balance counts, a ring grows. Without the field a value changes at once, as before.
+
+- **What leads**: the number of a text (a binding `content`, or a value of a template with `number`, `currency` or no format) and the `value` and `max` of a scale, each on its own. Dates, `daysUntil` and a countdown part do not.
+- **The curve is the contract's, not the platform's**: `e = 1 - (1 - p)³` over 700 ms, then exactly the new value. A number in a text moves in whole steps when both ends are whole, otherwise by the digits of the currency (three for a plain number), cut towards the old value. The shown number is written by the same format, template and plural word as the final one. A scale fills smoothly; the label `valueOfMax` writes steps, `percent` the shown ratio.
+- **When nothing leads**: the first frame of a node, a node that appears, a new record of a list (records are told apart by an `id` field, otherwise by place), a screen shown again, a new language, a document with other bindings, a value that is not a number on either side (no data included), a value that did not change, and `MediaQuery.disableAnimations`. A change during a transition starts from the value shown at that moment and takes the whole duration.
+- **The screen reader hears the final value**, never the numbers in between.
+- **In tests** a leading number keeps a ticker alive for 700 ms: step through it with `pump(Duration)`.
+
+**`format: 'countdownPart'`** gives one part of the time left to a moment in your data (`unit`: `days`, `hours`, `minutes` or `seconds`; `pad: 2` writes at least two digits). The sentence is a template with its own words, so the order and the plural words belong to the translation: `{d} d {h} h {m} min {s} s`.
+
+- **Parts round down** and add up to the same duration; a past moment is zeros. Without a readable `unit`, or on a value that is not a date, the value is shown as it is.
+- **The screen ticks by itself**: every second when one of its countdown parts is `seconds`, every minute otherwise, only while the screen is shown (a screen under another route, with `TickerMode` off, stops and reads the clock again when it is shown). The number is never more than one tick behind the clock.
+- **The clock is the device's.** Pass `now` to `renderDocument` to pin the moment (nothing then ticks, and you drive the time by passing a new `now`).
 
 ### Rich text
 
@@ -1088,6 +1108,7 @@ Without any of them the text is exactly what [the basic formats](#sentences-numb
 - **The ring's arc lies inside the circle**: the outer diameter is the diameter (`size` × the `xl` spacing, or the smaller named side of the box content), the thickness is at most half of it. The arc starts at the top, runs clockwise, has flat ends and is not mirrored in a right-to-left language.
 - **A size given by the parent does not name the diameter** (a row weight, a stack fill layer): the ring keeps its size and stands at the centre of the place.
 - **A bar fills from the logical start** (the right in a right-to-left language) and its fill has a rounded end. A limit of zero or less is an empty scale, not a full one.
+- **`cap: 'round'`** (on both) makes the ends half circles of the thickness. On a ring they stay inside the filled part: the arc starts and stops half a thickness inside its edges, a share too small for two ends is a dot of the thickness, and a full scale is the whole ring with no seam. On a bar the track, the fill and every step have a radius of half the thickness whatever the theme's `pill` is, and a non-empty fill is never shorter than the thickness. A gradient runs along the filled part as before; an end takes the colour of the gradient at its own centre. Without the field, or with another word, the ends are as they always were.
 
 ### Carousel and segmented progress
 
@@ -1235,6 +1256,13 @@ All optional: a field without these is drawn as before.
 - The background of the root lies under every zone and does not scroll. The body is clipped at the bottom edge of the bar, so a bar without its own background shows the background of the screen, never text sliding under it.
 - A first body child pulled by `pull` raises the body area by its overlap (`pull` minus the gap, not above the top of the screen) from the first frame, and the body paints over the bar there.
 - A modal layer has the same zones: its body scrolls, its bar stays.
+
+**An app bar that changes on scroll.** `AppBar.styleScrolled` (`background`, `color`, `shadow` and `backdropBlur` only: nothing that changes the box) is laid LAST over the bar's style once the body is scrolled, and `titleShown: 'scrolled'` draws the title only then.
+
+- **The threshold** is `scrollTop > max(0, barBottom - bodyTop)`, strictly greater: without `bodyTop: 'screenTop'` any scroll counts; with it, the body has to pass the bottom edge of the bar zone, and a pulled first child moves the threshold to its overlap. The bar is measured, so the status-bar inset is inside the number.
+- **It acts on the bar of the zone only**, by the scroll of the body of ITS screen (a page or a modal layer); a scrolling row inside the body does not count. A bar a condition hides, or one that is not first, is not read.
+- **The change is immediate**, the box never changes, and the children of the bar have no style of their own for it: they take the colour from the bar. A token the theme does not know drops that field of the layer and the field under it stays.
+- **At rest the title keeps its place** and stays in the semantics tree as the name of the screen.
 
 ### The top of the screen
 

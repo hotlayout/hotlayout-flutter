@@ -614,5 +614,280 @@
     { "name": "null: zero", "safeTop": null, "height": 852, "effective": 0 },
     { "name": "true: zero", "safeTop": true, "height": 852, "effective": 0 },
     { "name": "a screen of zero height: zero", "safeTop": 59, "height": 0, "effective": 0 }
+  ],
+  "scrolledNote": "Schema 9.21.0 — the app bar after scrolling, by the form of decision 611: «styleScrolled» of the app bar node and «titleShown: scrolled» (rules: x-style.layout.appBarScrolled). «scrolledThresholdCases» — whether the bar is scrolled: scrolled <=> scrollTop > max(0, barBottom − bodyTop), logical pixels from the top of the screen. «scrolledLayerCases» — the style of the bar while scrolled: the layer lies last, over the base and the state. «scrolledDocumentCases» — documents the schema accepts or refuses.",
+  "scrolledThresholdCases": [
+    {
+      "name": "at rest under the app bar — not scrolled",
+      "scrollTop": 0,
+      "barBottom": 56,
+      "bodyTop": 56,
+      "threshold": 0,
+      "expected": false
+    },
+    {
+      "name": "one point of the body under the app bar — scrolled (Material 3)",
+      "scrollTop": 1,
+      "barBottom": 56,
+      "bodyTop": 56,
+      "threshold": 0,
+      "expected": true
+    },
+    {
+      "name": "the body from the top of the screen at rest — not scrolled",
+      "scrollTop": 0,
+      "barBottom": 103,
+      "bodyTop": 0,
+      "threshold": 103,
+      "expected": false
+    },
+    {
+      "name": "the body from the top: half of the bar zone is not enough",
+      "scrollTop": 50,
+      "barBottom": 103,
+      "bodyTop": 0,
+      "threshold": 103,
+      "expected": false
+    },
+    {
+      "name": "the body from the top: exactly the bar zone is not yet scrolled (strict)",
+      "scrollTop": 103,
+      "barBottom": 103,
+      "bodyTop": 0,
+      "threshold": 103,
+      "expected": false
+    },
+    {
+      "name": "the body from the top: one point past the bar zone — scrolled",
+      "scrollTop": 104,
+      "barBottom": 103,
+      "bodyTop": 0,
+      "threshold": 103,
+      "expected": true
+    },
+    {
+      "name": "a body lifted by a pulled first child: the overlap is the threshold",
+      "scrollTop": 16,
+      "barBottom": 56,
+      "bodyTop": 40,
+      "threshold": 16,
+      "expected": false
+    },
+    {
+      "name": "a body lifted by a pulled first child: one point past the overlap",
+      "scrollTop": 17,
+      "barBottom": 56,
+      "bodyTop": 40,
+      "threshold": 16,
+      "expected": true
+    },
+    {
+      "name": "a body below the bar edge: the threshold is never below zero",
+      "scrollTop": 1,
+      "barBottom": 56,
+      "bodyTop": 70,
+      "threshold": 0,
+      "expected": true
+    }
+  ],
+  "scrolledLayerCases": [
+    {
+      "name": "the scrolled layer lies over the base",
+      "base": {
+        "background": {
+          "kind": "color",
+          "color": "transparent"
+        }
+      },
+      "scrolled": {
+        "background": {
+          "kind": "color",
+          "color": "surface"
+        }
+      },
+      "expected": {
+        "background": {
+          "kind": "color",
+          "color": "surface"
+        }
+      }
+    },
+    {
+      "name": "the scrolled layer lies over the state of styleWhen",
+      "base": {
+        "color": "onSurface"
+      },
+      "state": {
+        "color": "primary"
+      },
+      "scrolled": {
+        "color": "onPrimary"
+      },
+      "expected": {
+        "color": "onPrimary"
+      }
+    },
+    {
+      "name": "fields the layer does not name stay",
+      "base": {
+        "padding": "md",
+        "color": "onSurface"
+      },
+      "scrolled": {
+        "shadow": "low"
+      },
+      "expected": {
+        "padding": "md",
+        "color": "onSurface",
+        "shadow": "low"
+      }
+    },
+    {
+      "name": "glass after scrolling",
+      "base": {
+        "color": "onSurface"
+      },
+      "scrolled": {
+        "backdropBlur": 20,
+        "background": {
+          "kind": "color",
+          "color": {
+            "token": "surface",
+            "opacity": 0.7
+          }
+        }
+      },
+      "expected": {
+        "color": "onSurface",
+        "backdropBlur": 20,
+        "background": {
+          "kind": "color",
+          "color": {
+            "token": "surface",
+            "opacity": 0.7
+          }
+        }
+      }
+    }
+  ],
+  "scrolledDocumentCases": [
+    {
+      "name": "a scrolled style on the app bar",
+      "node": {
+        "id": "bar",
+        "type": "AppBar",
+        "props": {
+          "title": {
+            "kind": "literal",
+            "value": "Mission"
+          },
+          "showBack": true
+        },
+        "styleScrolled": {
+          "background": {
+            "kind": "color",
+            "color": "surface"
+          },
+          "shadow": "low"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "the title only after scrolling",
+      "node": {
+        "id": "bar",
+        "type": "AppBar",
+        "props": {
+          "title": {
+            "kind": "literal",
+            "value": "Mission"
+          },
+          "showBack": true,
+          "titleShown": "scrolled"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "a word the schema does not know for the title",
+      "node": {
+        "id": "bar",
+        "type": "AppBar",
+        "props": {
+          "title": {
+            "kind": "literal",
+            "value": "Mission"
+          },
+          "showBack": true,
+          "titleShown": "rest"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "a box field in the scrolled style is refused by the structure",
+      "node": {
+        "id": "bar",
+        "type": "AppBar",
+        "props": {
+          "title": {
+            "kind": "literal",
+            "value": "Mission"
+          },
+          "showBack": true
+        },
+        "styleScrolled": {
+          "padding": "md"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "a size in the scrolled style is refused by the structure",
+      "node": {
+        "id": "bar",
+        "type": "AppBar",
+        "props": {
+          "title": {
+            "kind": "literal",
+            "value": "Mission"
+          },
+          "showBack": true
+        },
+        "styleScrolled": {
+          "height": 80
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "an empty scrolled style is refused",
+      "node": {
+        "id": "bar",
+        "type": "AppBar",
+        "props": {
+          "title": {
+            "kind": "literal",
+            "value": "Mission"
+          },
+          "showBack": true
+        },
+        "styleScrolled": {}
+      },
+      "valid": false
+    },
+    {
+      "name": "no other node has the field",
+      "node": {
+        "id": "box",
+        "type": "Container",
+        "props": {},
+        "styleScrolled": {
+          "shadow": "low"
+        }
+      },
+      "valid": false
+    }
   ]
 }

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'progress_cap.dart';
 import 'style_values.dart';
 
 /// Progress bar and ring: geometry and selection rules (schema 9.7.0, `x-style.layout.progress`).
@@ -199,7 +200,18 @@ final class BarGeometry {
     required double thickness,
     required double ratio,
     required double pill,
+    bool roundEnds = false,
   }) {
+    // Round ends (9.21.0): half the thickness for the track and the fill, no theme token; a non-empty fill
+    // is not shorter than the thickness.
+    if (roundEnds) {
+      return BarGeometry(
+        trackBlock: thickness,
+        fillInline: barCapFillInline(trackInline, thickness, ratio),
+        trackRadius: barCapRadius(thickness),
+        fillRadius: barCapRadius(thickness),
+      );
+    }
     final fillInline = trackInline * ratio.clamp(0.0, 1.0);
     return BarGeometry(
       trackBlock: thickness,
@@ -317,6 +329,7 @@ SegmentGeometry? segmentGeometry({
   required int segments,
   required double gap,
   required double pill,
+  bool roundEnds = false,
 }) {
   final inline = (trackInline - (segments - 1) * gap) / segments;
   if (!inline.isFinite || inline < kMinSegmentInline) return null;
@@ -332,7 +345,7 @@ SegmentGeometry? segmentGeometry({
     ],
     filled: filled,
     current: current,
-    radius: barFillRadius(inline, thickness, pill),
+    radius: roundEnds ? barCapRadius(thickness) : barFillRadius(inline, thickness, pill),
     filledInline: filled == 0 ? 0 : filled * inline + (filled - 1) * gap,
   );
 }

@@ -36,12 +36,12 @@ import 'widgets/list_tile.dart';
 import 'widgets/nav_bar.dart';
 import 'widgets/node_box.dart';
 import 'widgets/overlay.dart';
-import 'widgets/progress.dart';
 import 'widgets/repeater.dart';
 import 'widgets/row.dart';
 import 'widgets/screen.dart';
 import 'widgets/tabs.dart';
 import 'widgets/text.dart';
+import 'widgets/transition.dart';
 
 class NodeRenderer {
   NodeRenderer({
@@ -326,7 +326,7 @@ class NodeRenderer {
         RepeaterNode() => buildRepeater(node, own),
         SpacerNode() => buildSpacer(node),
         DividerNode() => buildDivider(node),
-        TextNode() => buildText(node),
+        TextNode() => buildLeading(node, own, slot),
         ImageNode() => buildImage(node),
         IconNode() => buildIcon(node),
         ButtonNode() => buildButton(node, own),
@@ -337,8 +337,8 @@ class NodeRenderer {
         NavBarNode() => buildNavBar(node, own, safeBottom: 0, zone: false),
         NavItemNode() => const SizedBox.shrink(),
         ListTileNode() => buildListTile(node),
-        ProgressBarNode() => buildProgressBar(node),
-        CircularProgressNode() => buildCircularProgress(node, own, slot),
+        ProgressBarNode() => buildLeading(node, own, slot),
+        CircularProgressNode() => buildLeading(node, own, slot),
         BadgeNode() => buildBadge(node, own),
         TextFieldNode() => buildTextField(node),
         SwitchNode() => buildToggle(node, InputToggleKind.switchControl, node.label, node.valuePath, node.disabledIf),

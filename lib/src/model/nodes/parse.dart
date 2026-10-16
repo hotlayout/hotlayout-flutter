@@ -19,6 +19,7 @@ final class _RawNode {
     this.pin,
     this.zone,
     this.motion,
+    this.styleScrolled,
     this._keys,
     this.widthClass,
     this.hiddenByClass,
@@ -28,7 +29,7 @@ final class _RawNode {
 
   static _RawNode of(Object? raw, LocalizationKeys keys, WidthClass widthClass, [int depth = 0]) {
     if (raw is! Map) {
-      return _RawNode('<malformed>', '<malformed>', const {}, null, null, null, const [], false, null, null, null, false, null, null, keys, widthClass, false, false, depth);
+      return _RawNode('<malformed>', '<malformed>', const {}, null, null, null, const [], false, null, null, null, false, null, null, null, keys, widthClass, false, false, depth);
     }
     final json = Map<String, Object?>.from(raw);
     final type = json['type'] is String ? json['type'] as String : '<no-type>';
@@ -56,6 +57,9 @@ final class _RawNode {
       barZoneOf(json['zone']),
       // 9.20.0: a form this reader cannot draw is no motion (the node stands).
       NodeMotion.tryParse(json['motion']),
+      // 9.21.0: the scrolled style is read by the schema of the app bar only; the node type decides whether it is
+      // used, so a stray field on another node is never read.
+      readScrolledStyle(json['styleScrolled']),
       keys,
       widthClass,
       // 9.18.0: `showOn` is the second, independent half of "is the node visible".
@@ -120,6 +124,9 @@ final class _RawNode {
 
   /// The endless motion of the node (9.20.0); `null` for no field or a form this reader cannot draw.
   final NodeMotion? motion;
+
+  /// The style of an app bar while its body is scrolled (9.21.0); `null` for no field or none readable.
+  final NodeStyle? styleScrolled;
 
   final LocalizationKeys _keys;
 

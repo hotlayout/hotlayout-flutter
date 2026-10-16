@@ -1108,6 +1108,10 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "styleScrolled": {
+          "description": "Style of this app bar while the body is scrolled (9.21.0): «background», «color», «shadow» and «backdropBlur» only — nothing that changes the box. The layer lies LAST, over the state of «styleWhen»; the threshold and when it applies — «x-style.layout.appBarScrolled». No field — the bar does not change on scroll, exactly as before 9.21.0.",
+          "$ref": "#/$defs/ScrolledBarStyle"
+        },
         "children": {
           "maxItems": 3,
           "type": "array",
@@ -1142,6 +1146,13 @@
           "enum": [
             "start",
             "center"
+          ]
+        },
+        "titleShown": {
+          "description": "When the title block is drawn (9.21.0). «scrolled» — only while the body is scrolled («x-style.layout.appBarScrolled»); at rest it is not drawn but keeps its place, so the zones do not jump. No field or an unknown word — always, exactly as before 9.21.0.",
+          "type": "string",
+          "enum": [
+            "scrolled"
           ]
         }
       },
@@ -1201,6 +1212,14 @@
             },
             "dateParts": {
               "$ref": "#/$defs/DateParts"
+            },
+            "unit": {
+              "$ref": "#/$defs/CountdownUnit"
+            },
+            "pad": {
+              "type": "number",
+              "const": 2,
+              "description": "At least this many digits, zeros in front («05»), beside «format: countdownPart» (9.21.0). No field — as many digits as the number has."
             }
           },
           "required": [
@@ -1250,7 +1269,8 @@
         "time",
         "number",
         "currency",
-        "daysUntil"
+        "daysUntil",
+        "countdownPart"
       ]
     },
     "CurrencyCode": {
@@ -1288,6 +1308,16 @@
       ],
       "description": "Which parts of a date to show, beside «format: date» (9.19.0): «dayMonth» — day and month in full, no year; «weekdayDayMonth» — the day of the week, day and month in full; «dayMonthYear» — day, month in full and year. Order and separators come from CLDR for the formatting locale. Rules — «x-dateParts». No field — year, short month and day, exactly as before 9.19.0. A word the reader does not know — the field is absent."
     },
+    "CountdownUnit": {
+      "type": "string",
+      "enum": [
+        "days",
+        "hours",
+        "minutes",
+        "seconds"
+      ],
+      "description": "Which part of the time left the «countdownPart» format shows (9.21.0): «days» — whole days; «hours» — 0–23; «minutes» — 0–59; «seconds» — 0–59. Required exactly when «format» is «countdownPart». Arithmetic, ticking and the clock — «x-countdown»."
+    },
     "TemplateValue": {
       "oneOf": [
         {
@@ -1321,6 +1351,14 @@
             },
             "dateParts": {
               "$ref": "#/$defs/DateParts"
+            },
+            "unit": {
+              "$ref": "#/$defs/CountdownUnit"
+            },
+            "pad": {
+              "type": "number",
+              "const": 2,
+              "description": "At least this many digits, zeros in front («05»), beside «format: countdownPart» (9.21.0). No field — as many digits as the number has."
             }
           },
           "required": [
@@ -1768,6 +1806,28 @@
           "additionalProperties": false
         }
       ]
+    },
+    "ScrolledBarStyle": {
+      "type": "object",
+      "properties": {
+        "background": {
+          "$ref": "#/$defs/NodeBackground"
+        },
+        "color": {
+          "$ref": "#/$defs/ColorRef"
+        },
+        "shadow": {
+          "$ref": "#/$defs/ShadowRef"
+        },
+        "backdropBlur": {
+          "description": "Blur of whatever is painted UNDER the box of this node, clipped by its «radius» (9.20.0) — frosted glass on a card, a navigation bar or a button. Logical pixels, the standard deviation of a Gaussian blur; the node own background lies over the blur, the node and its children are never blurred. Not inherited. No field — no blur. Rules — «x-backdropBlur.style».",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
     },
     "ColumnNode": {
       "type": "object",
@@ -2964,6 +3024,14 @@
             },
             "dateParts": {
               "$ref": "#/$defs/DateParts"
+            },
+            "unit": {
+              "$ref": "#/$defs/CountdownUnit"
+            },
+            "pad": {
+              "type": "number",
+              "const": 2,
+              "description": "At least this many digits, zeros in front («05»), beside «format: countdownPart» (9.21.0). No field — as many digits as the number has."
             }
           },
           "required": [
@@ -3399,6 +3467,11 @@
         "marker": {
           "description": "List item marker before the text (9.17.0): «bullet» — «•» in the font of the text, «number» — the number of the item among consecutive numbered siblings and a dot, «none» or no field — plain text. The text hangs: its second line starts under the first line of the text, not under the marker («x-style.layout.listMarker»).",
           "$ref": "#/$defs/TextMarker"
+        },
+        "animateChanges": {
+          "description": "When the DATA change the value of this node while it is shown, the reader leads from the old value to the new one (9.21.0): a number of a text with a numeric format counts through the values between, a scale grows. Duration, curve, steps and when there is no transition — «x-valueTransition». No field — the value changes at once, exactly as before 9.21.0.",
+          "type": "boolean",
+          "const": true
         }
       },
       "required": [
@@ -4757,6 +4830,18 @@
           "description": "Gradient of the fill, stronger than «color» while it resolves. It runs along the FILLED part: position 0 — the start of the scale, position 1 — the end of the fill («x-style.layout.progress.gradient»); the angle is not read. No field, an unknown token or unordered stops — the fill is the solid «color».",
           "$ref": "#/$defs/GradientRef"
         },
+        "cap": {
+          "description": "Ends of the scale (9.21.0). «round» — the ends of the ring arc and of the bar track and fill are half-circles of the thickness, kept INSIDE the filled part: geometry — «x-style.layout.progressCap». No field or an unknown word — square ends of the ring arc and the theme «pill» radius of the bar, exactly as before 9.21.0.",
+          "type": "string",
+          "enum": [
+            "round"
+          ]
+        },
+        "animateChanges": {
+          "description": "When the DATA change the value of this node while it is shown, the reader leads from the old value to the new one (9.21.0): a number of a text with a numeric format counts through the values between, a scale grows. Duration, curve, steps and when there is no transition — «x-valueTransition». No field — the value changes at once, exactly as before 9.21.0.",
+          "type": "boolean",
+          "const": true
+        },
         "segments": {
           "description": "Cuts the scale into this many equal steps with a gap between them. A step is filled WHOLE or not at all: filled = floor(ratio × segments). Geometry, gap, rounding and the gradient — «x-style.layout.progressSegments». No field — the continuous bar.",
           "type": "integer",
@@ -4929,6 +5014,18 @@
         "gradient": {
           "description": "Gradient of the fill, stronger than «color» while it resolves. It runs along the FILLED part: position 0 — the start of the scale, position 1 — the end of the fill («x-style.layout.progress.gradient»); the angle is not read. No field, an unknown token or unordered stops — the fill is the solid «color».",
           "$ref": "#/$defs/GradientRef"
+        },
+        "cap": {
+          "description": "Ends of the scale (9.21.0). «round» — the ends of the ring arc and of the bar track and fill are half-circles of the thickness, kept INSIDE the filled part: geometry — «x-style.layout.progressCap». No field or an unknown word — square ends of the ring arc and the theme «pill» radius of the bar, exactly as before 9.21.0.",
+          "type": "string",
+          "enum": [
+            "round"
+          ]
+        },
+        "animateChanges": {
+          "description": "When the DATA change the value of this node while it is shown, the reader leads from the old value to the new one (9.21.0): a number of a text with a numeric format counts through the values between, a scale grows. Duration, curve, steps and when there is no transition — «x-valueTransition». No field — the value changes at once, exactly as before 9.21.0.",
+          "type": "boolean",
+          "const": true
         },
         "labelTypography": {
           "description": "Font style of the label in the center of the ring (9.17.0): a theme token or a token with overrides. No field — «x-style.layout.progress.ring.labelTypography». The label does not scale with the diameter.",
@@ -5660,7 +5757,7 @@
   },
   "$id": "https://hotlayout.com/schema/ui-document.json",
   "title": "UiDocument",
-  "x-schemaVersion": "9.20.0",
+  "x-schemaVersion": "9.21.0",
   "x-compatibility": {
     "policy": {
       "majorMustMatch": true,
@@ -5966,7 +6063,11 @@
       "treeDepthEight": "9.19.0",
       "pressableContainer": "9.19.0",
       "nodeMotion": "9.20.0",
-      "backdropBlur": "9.20.0"
+      "backdropBlur": "9.20.0",
+      "valueTransition": "9.21.0",
+      "countdownPart": "9.21.0",
+      "progressCap": "9.21.0",
+      "appBarScrolled": "9.21.0"
     }
   },
   "x-budget": {
@@ -8487,6 +8588,76 @@
         },
         "cases": "contract/fixtures/media-chrome/media-chrome-cases.json"
       },
+      "progressCap": {
+        "prop": "cap",
+        "on": [
+          "ProgressBar",
+          "CircularProgress"
+        ],
+        "words": [
+          "round"
+        ],
+        "withoutField": "exactly-as-before-9.21: the ring arc has square ends, the bar ends take the theme «pill» radius clamped to half the shorter side",
+        "refines": [
+          "x-style.layout.progress.ring.cap",
+          "x-style.layout.progress.bar.trackRadius",
+          "x-style.layout.progress.bar.fillRadius",
+          "x-style.layout.progressSegments.radius"
+        ],
+        "ring": {
+          "capAngle": "thetaC = thickness / (diameter - thickness) radians — half the thickness over the middle radius",
+          "ends": "half-circles of the thickness whose centres stand thetaC inside the filled part from each edge",
+          "arc": "square-ended arc between the centres, from thetaC to sweep - thetaC",
+          "dot": "sweep <= 2 * thetaC — a dot of the thickness centred at thetaC",
+          "full": "ratio >= 1 — the whole ring, no ends, no seam",
+          "empty": "ratio <= 0 — nothing over the track",
+          "track": "the whole circle, unchanged",
+          "gradient": "along the filled part as without the field; a dot or an end takes the gradient colour at its centre"
+        },
+        "bar": {
+          "radius": "thickness / 2 for the track, the fill and every step — the theme «pill» is not read",
+          "fill": "ratio > 0 — max(thickness, ratio * track), at most the track; ratio <= 0 — nothing",
+          "start": "the inline start as without the field"
+        },
+        "unknownWord": "field-is-absent",
+        "olderReader": "skips the field — square arc ends, the theme «pill» bar",
+        "cases": "contract/fixtures/progress/progress-cases.json#capCases"
+      },
+      "appBarScrolled": {
+        "prop": "styleScrolled",
+        "titleProp": "titleShown",
+        "on": "the app bar node only — no other node schema has the field",
+        "keys": [
+          "background",
+          "color",
+          "shadow",
+          "backdropBlur"
+        ],
+        "boxKeys": "forbidden by the structure: the threshold is measured by the bar box",
+        "layer": "last — over the base style, the width-class layers and the «styleWhen» state; merged by top-level fields",
+        "threshold": {
+          "formula": "scrolled <=> scrollTop > max(0, barBottom - bodyTop)",
+          "barBottom": "the bottom edge of the app-bar zone from the top of the screen, the top safe inset included",
+          "bodyTop": "the top of the BODY area from the top of the screen; with «bodyTop: screenTop» — 0",
+          "withoutScreenTop": "scrollTop > 0",
+          "strict": true,
+          "scrollTop": "how far the body is scrolled, logical pixels"
+        },
+        "applies": "only to the app bar that is the zone of the screen («screenAppBarOf»), of a page or a modal layer, by the scroll of ITS body",
+        "noZone": "an app bar hidden by a condition or not the first child is no zone — the field is not read",
+        "titleShown": {
+          "scrolled": "the title block is drawn only while scrolled; at rest it keeps its place, invisible",
+          "withoutField": "always"
+        },
+        "children": "no own «scrolled» style for the children of the bar; they inherit «color» as from the bar",
+        "transition": "immediate; a short fade is up to the reader",
+        "editorCanvas": "the bar at rest — the canvas never scrolls",
+        "statusBar": "one «statusBarIcons» request per screen — not changed on scroll",
+        "semantics": "the title stays in the accessibility tree while hidden at rest",
+        "unknownToken": "a field whose token the theme does not know is dropped — the field under it stays",
+        "olderReader": "skips both fields — the bar does not change on scroll and the title is always drawn",
+        "cases": "contract/fixtures/media-chrome/media-chrome-cases.json#scrolledThresholdCases"
+      },
       "partStyle": {
         "keys": [
           "color",
@@ -9180,7 +9351,8 @@
     "countableFormats": [
       "number",
       "currency",
-      "daysUntil"
+      "daysUntil",
+      "countdownPart"
     ],
     "pluralNumber": {
       "absolute": true,
@@ -9673,6 +9845,104 @@
     },
     "olderReader": "skips both fields — only the scrim, and no glass under a node",
     "cases": "contract/fixtures/motion/motion-cases.json"
+  },
+  "x-valueTransition": {
+    "prop": "animateChanges",
+    "on": [
+      "Text",
+      "ProgressBar",
+      "CircularProgress"
+    ],
+    "value": "literal true or no field; no field — the value changes at once",
+    "durationMs": 700,
+    "curve": {
+      "name": "ease-out-cubic",
+      "formula": "e = 1 - (1 - p)^3, p = min(1, t / durationMs)"
+    },
+    "shown": "v = from + (to - from) * e; at t >= durationMs exactly «to»",
+    "text": {
+      "what": "every number of «content»: a binding (and a binding value of a template) whose value is a number and whose format is absent, «number» or «currency»",
+      "notTransitioned": [
+        "date",
+        "dateTime",
+        "time",
+        "daysUntil",
+        "countdownPart"
+      ],
+      "step": {
+        "bothWhole": "whole numbers",
+        "otherwise": "«currency» — the fraction digits of the currency, «number» and no format — 3",
+        "rounding": "towards «from»: from + trunc(round((to - from) * e * 10^d, precision)) / 10^d",
+        "precision": 6
+      },
+      "formatted": "every value between is written by the same format, plural word and template as the final one"
+    },
+    "scale": {
+      "what": "«value» and «max» of a ProgressBar or CircularProgress, each its own transition",
+      "fill": "the ratio of the shown value and max, no step: the fill and the arc grow",
+      "label": "the numbers of «valueOfMax» — whole when both ends are whole; «percent» — of the shown ratio",
+      "segments": "filled steps follow the shown ratio — a step fills when the value passes it"
+    },
+    "whenNoTransition": {
+      "order": [
+        "noField",
+        "firstShow",
+        "reducedMotion",
+        "localeChanged",
+        "notANumber",
+        "sameValue"
+      ],
+      "firstShow": "first frame of the node, a node that appears (condition, width class, a new record), a screen shown again",
+      "notANumber": "the old or the new value is absent or not a finite number — «no data ↔ data» included",
+      "localeChanged": "the language of the screen changed in the same step",
+      "reducedMotion": "system «reduce motion»"
+    },
+    "interrupted": "a new change during a transition starts from the value shown at that moment, with the full duration",
+    "dataOnly": "only a change of the DATA under a path; a document with another literal is a new document — no transition",
+    "list": "a template instance is tracked by its record; a new record is a first show",
+    "semantics": "the screen reader hears the final value, not the values between",
+    "olderReader": "skips the field — the value changes at once",
+    "cases": "contract/fixtures/value-transition/value-transition-cases.json"
+  },
+  "x-countdown": {
+    "format": "countdownPart",
+    "pathType": "date",
+    "props": {
+      "unit": "unit",
+      "pad": "pad"
+    },
+    "units": [
+      "days",
+      "hours",
+      "minutes",
+      "seconds"
+    ],
+    "arithmetic": {
+      "left": "S = floor(max(0, moment - now) / 1000)",
+      "days": "floor(S / 86400)",
+      "hours": "floor(S / 3600) mod 24",
+      "minutes": "floor(S / 60) mod 60",
+      "seconds": "S mod 60",
+      "rounding": "down — the parts add up to the same duration",
+      "past": "every part is 0",
+      "timeZone": "none"
+    },
+    "written": "as «number» (groups, digits of the formatting locale); «pad: 2» — at least two integer digits, zeros in front",
+    "localeWithoutData": "plain digits, zeros in front with «pad»",
+    "plural": "the part is the number a plural word agrees with",
+    "sentence": "the template composes the parts with its own words — order and words belong to the translation",
+    "now": "the device clock; must be replaceable in tests",
+    "ticking": {
+      "seconds": "a screen with a «seconds» part redraws its countdown nodes every second",
+      "otherwise": "every minute",
+      "scope": "only nodes of the shown screen, only while it is shown",
+      "staleness": "the shown number is never more than one tick behind the clock"
+    },
+    "withoutUnit": "the format does not apply — the value as it is; the editor does not publish it (countdown_unit_required)",
+    "valueNotADate": "x-compatibility.policy.unparsableBoundValue",
+    "fallback": "never formatted",
+    "olderReader": "unknownBindingFormat — the value as it is (the ISO string)",
+    "cases": "contract/fixtures/template/template-cases.json"
   },
   "x-generatedFrom": "src/entities/component-schema — generated, do not edit by hand"
 }

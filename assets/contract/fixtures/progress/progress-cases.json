@@ -179,5 +179,254 @@
   "ringLabelNoneCases": [
     {"name": "labelFormat none: the label fields are kept in the document and draw nothing", "props": {"labelFormat": "none", "size": "md", "labelTypography": "displayL", "labelColor": "accent"}, "style": {}, "value": 74, "max": 119, "expect": {"text": null, "diameter": 72}},
     {"name": "no labelFormat field at all: nothing is drawn, as before", "props": {"size": "md", "labelTypography": "displayL"}, "style": {}, "value": 74, "max": 119, "expect": {"text": null, "diameter": 72}}
+  ],
+  "capNote": "Schema 9.21.0 — round ends of a scale: «cap: round» (rules: x-style.layout.progressCap). A ring row: the ratio, the diameter and the thickness in logical pixels; «expected» — what is drawn over the track (none, dot, arc, full), the centres of the ends in degrees from the top clockwise and thetaC in radians. A bar row: the length of the track; «expected» — the length of the fill and the radius of every end. Compare with a tolerance of 1e-6.",
+  "capCases": [
+    {
+      "name": "ring: nothing filled — nothing over the track",
+      "widget": "CircularProgress",
+      "ratio": 0,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "none",
+        "startDeg": 0,
+        "endDeg": 0,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: a negative ratio is nothing",
+      "widget": "CircularProgress",
+      "ratio": -0.2,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "none",
+        "startDeg": 0,
+        "endDeg": 0,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: a tiny share is a dot of the thickness at thetaC, not a sliver past 0 %",
+      "widget": "CircularProgress",
+      "ratio": 0.01,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "dot",
+        "startDeg": 5.208707228,
+        "endDeg": 5.208707228,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: just under two cap angles is still a dot",
+      "widget": "CircularProgress",
+      "ratio": 0.028,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "dot",
+        "startDeg": 5.208707228,
+        "endDeg": 5.208707228,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: just over two cap angles is a short arc with two ends",
+      "widget": "CircularProgress",
+      "ratio": 0.03,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "arc",
+        "startDeg": 5.208707228,
+        "endDeg": 5.591292772,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: a quarter — square arc between the centres of two round ends",
+      "widget": "CircularProgress",
+      "ratio": 0.25,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "arc",
+        "startDeg": 5.208707228,
+        "endDeg": 84.791292772,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: three quarters",
+      "widget": "CircularProgress",
+      "ratio": 0.75,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "arc",
+        "startDeg": 5.208707228,
+        "endDeg": 264.791292772,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: almost full — the ends do not meet past 100 %",
+      "widget": "CircularProgress",
+      "ratio": 0.99,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "arc",
+        "startDeg": 5.208707228,
+        "endDeg": 351.191292772,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: full — the whole ring, no ends, no seam",
+      "widget": "CircularProgress",
+      "ratio": 1,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "full",
+        "startDeg": 0,
+        "endDeg": 360,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: over full is full",
+      "widget": "CircularProgress",
+      "ratio": 1.4,
+      "diameter": 96,
+      "thickness": 8,
+      "expected": {
+        "kind": "full",
+        "startDeg": 0,
+        "endDeg": 360,
+        "capAngle": 0.090909091
+      }
+    },
+    {
+      "name": "ring: zero thickness draws nothing",
+      "widget": "CircularProgress",
+      "ratio": 0.5,
+      "diameter": 96,
+      "thickness": 0,
+      "expected": {
+        "kind": "none",
+        "startDeg": 0,
+        "endDeg": 0,
+        "capAngle": 0.0
+      }
+    },
+    {
+      "name": "ring: a thick stroke on a small ring",
+      "widget": "CircularProgress",
+      "ratio": 0.5,
+      "diameter": 48,
+      "thickness": 12,
+      "expected": {
+        "kind": "arc",
+        "startDeg": 19.098593171,
+        "endDeg": 160.901406829,
+        "capAngle": 0.333333333
+      }
+    },
+    {
+      "name": "ring: thickness over half of the diameter is clamped to half",
+      "widget": "CircularProgress",
+      "ratio": 0.5,
+      "diameter": 40,
+      "thickness": 30,
+      "expected": {
+        "kind": "arc",
+        "startDeg": 57.295779513,
+        "endDeg": 122.704220487,
+        "capAngle": 1.0
+      }
+    },
+    {
+      "name": "bar: nothing filled",
+      "widget": "ProgressBar",
+      "ratio": 0,
+      "track": 300,
+      "thickness": 8,
+      "expected": {
+        "fillInline": 0,
+        "radius": 4.0
+      }
+    },
+    {
+      "name": "bar: a tiny share is a dot of the thickness",
+      "widget": "ProgressBar",
+      "ratio": 0.01,
+      "track": 300,
+      "thickness": 8,
+      "expected": {
+        "fillInline": 8,
+        "radius": 4.0
+      }
+    },
+    {
+      "name": "bar: half",
+      "widget": "ProgressBar",
+      "ratio": 0.5,
+      "track": 300,
+      "thickness": 8,
+      "expected": {
+        "fillInline": 150.0,
+        "radius": 4.0
+      }
+    },
+    {
+      "name": "bar: full",
+      "widget": "ProgressBar",
+      "ratio": 1,
+      "track": 300,
+      "thickness": 8,
+      "expected": {
+        "fillInline": 300,
+        "radius": 4.0
+      }
+    },
+    {
+      "name": "bar: over full is the track",
+      "widget": "ProgressBar",
+      "ratio": 1.2,
+      "track": 300,
+      "thickness": 8,
+      "expected": {
+        "fillInline": 300,
+        "radius": 4.0
+      }
+    },
+    {
+      "name": "bar: a dot never runs past the track",
+      "widget": "ProgressBar",
+      "ratio": 0.5,
+      "track": 6,
+      "thickness": 8,
+      "expected": {
+        "fillInline": 6,
+        "radius": 4.0
+      }
+    },
+    {
+      "name": "bar: the radius is half of the thickness, whatever the theme «pill»",
+      "widget": "ProgressBar",
+      "ratio": 0.4,
+      "track": 200,
+      "thickness": 16,
+      "expected": {
+        "fillInline": 80.0,
+        "radius": 8.0
+      }
+    }
   ]
 }

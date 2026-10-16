@@ -416,6 +416,8 @@ void main() {
             if (node.style?.background != null) node.style!.background,
             for (final entry in node.styleWhen)
               if (entry.style.background != null) entry.style.background,
+            // 9.21.0: the style of an app bar while its body is scrolled.
+            if (node is AppBarNode && node.styleScrolled?.background != null) node.styleScrolled!.background,
           ],
         );
         expect(parsed.length, backgrounds.length, reason: '$id: a background got lost on the way');

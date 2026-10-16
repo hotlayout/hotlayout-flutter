@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../model/bindable.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
+import '../../model/scrolled_bar.dart';
 import '../../model/style_values.dart';
 import '../../model/tokens.dart';
 import '../layout/styled_size.dart';
@@ -69,6 +70,9 @@ extension NodeBoxWidgets on NodeRenderer {
    *  - a scrolling row: `padding` goes inside the scroll view; see `buildRow`.
    */
   ///
+  /// [scrolledLayer] is the style an app bar takes while its body is scrolled (`styleScrolled`, already filtered
+  /// by the theme), laid over the resolved style.
+  ///
   /// [around] replaces what wraps the finished box (by default the press of a pressable container);
   /// [extraTop] is room added to the TOP INSIDE the box (the top safe inset in an app bar, 9.19.0): the
   /// box is taller by it, so a named background covers it.
@@ -79,13 +83,17 @@ extension NodeBoxWidgets on NodeRenderer {
     AlignToken? stretchAlign,
     Widget Function(Widget box)? around,
     double extraTop = 0,
+    NodeStyle? scrolledLayer,
   }) {
     // AN UNKNOWN WIDGET WITH A STYLE: the style is ignored entirely and the children are drawn in
     // the PARENT's context. The reader builds no box around a node it does not understand: it
     // cannot know whether it is a card, a layer or something without a size.
-    final own = node is UnknownNode
+    final resolved = node is UnknownNode
         ? null
         : resolveNodeStyle(node.style, node.styleWhen, data, applicable: theme.applicableStyle);
+    // The layer of an app bar that is scrolled now (9.21.0) lies LAST: over the base, the width layers and the
+    // state; its children inherit the colour from the result.
+    final own = withScrolledLayer(resolved, scrolledLayer);
     final hasRole = node is ButtonNode || node is BadgeNode || node is IconButtonNode;
     // A role does not override an inherited color, and these widgets have no children, so there
     // is nobody to pass their own color on to.

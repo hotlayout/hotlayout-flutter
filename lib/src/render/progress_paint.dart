@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+import '../model/progress_cap.dart';
 import '../model/progress_rules.dart';
 
 /// Painting of the progress bar and ring (schema 9.7.0, `x-style.layout.progress`).
@@ -59,7 +60,12 @@ class ProgressTrack extends LeafRenderObjectWidget {
     this.segments,
     this.segmentGap = 0,
     this.currentColor,
+    this.roundEnds = false,
   });
+
+  /// Round ends (schema 9.21.0, `cap: 'round'`): half circles of half the thickness on the track, the fill and
+  /// every step, whatever the theme's `pill` is.
+  final bool roundEnds;
 
   final double ratio;
   final double thickness;
@@ -87,6 +93,7 @@ class ProgressTrack extends LeafRenderObjectWidget {
     segments: segments,
     segmentGap: segmentGap,
     currentColor: currentColor,
+    roundEnds: roundEnds,
     textDirection: Directionality.of(context),
   );
 
@@ -101,6 +108,7 @@ class ProgressTrack extends LeafRenderObjectWidget {
       ..segments = segments
       ..segmentGap = segmentGap
       ..currentColor = currentColor
+      ..roundEnds = roundEnds
       ..textDirection = Directionality.of(context);
   }
 }
@@ -116,7 +124,9 @@ class RenderProgressTrack extends RenderBox {
     int? segments,
     double segmentGap = 0,
     Color? currentColor,
+    bool roundEnds = false,
   }) : _segments = segments,
+       _roundEnds = roundEnds,
        _segmentGap = segmentGap,
        _currentColor = currentColor,
        _ratio = ratio,
@@ -173,6 +183,13 @@ class RenderProgressTrack extends RenderBox {
     if (value == _segmentGap) return;
     _segmentGap = value;
     markNeedsLayout();
+  }
+
+  bool _roundEnds;
+  set roundEnds(bool value) {
+    if (value == _roundEnds) return;
+    _roundEnds = value;
+    markNeedsPaint();
   }
 
   Color? _currentColor;
@@ -232,6 +249,7 @@ class RenderProgressTrack extends RenderBox {
         segments: steps,
         gap: _segmentGap,
         pill: _pillRadius,
+        roundEnds: _roundEnds,
       );
       // A step narrower than a pixel is not a step: a continuous bar (`belowMinSegment`).
       if (cut != null) {
@@ -244,6 +262,7 @@ class RenderProgressTrack extends RenderBox {
       thickness: thickness,
       ratio: _ratio,
       pill: _pillRadius,
+      roundEnds: _roundEnds,
     );
     final canvas = context.canvas;
     final track = RRect.fromRectAndRadius(
@@ -328,9 +347,13 @@ class RingPainter extends CustomPainter {
     required this.thickness,
     required this.trackColor,
     required this.fill,
+    this.roundEnds = false,
   });
 
   final double ratio;
+
+  /// Round ends of the arc (schema 9.21.0, `cap: 'round'`): see [ringCapGeometry].
+  final bool roundEnds;
 
   /// Thickness already clamped to half the diameter ([ringGeometry]).
   final double thickness;
@@ -375,13 +398,50 @@ class RingPainter extends CustomPainter {
         transform: const GradientRotation(-math.pi / 2),
       ).createShader(Offset.zero & size);
     }
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      sweep,
-      false,
-      paint,
-    );
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    if (!roundEnds) {
+      canvas.drawArc(rect, -math.pi / 2, sweep, false, paint);
+      return;
+    }
+    _paintRoundArc(canvas, center, rect, radius, sweep, paint);
+  }
+
+  /// The arc with round ends (`progressCap.ring`): a square-ended arc between the centres of the two ends, and the
+  /// ends as circles of the thickness. A full scale is the whole ring (no ends, no seam). A solid fill lets
+  /// the stroke round its own ends; a gradient paints each end with the colour of the gradient at its centre.
+  void _paintRoundArc(Canvas canvas, Offset center, Rect rect, double radius, double sweep, Paint paint) {
+    final diameter = radius * 2 + thickness;
+    final cap = ringCapGeometry(ratio, diameter, thickness);
+    switch (cap.kind) {
+      case RingCapKind.none:
+        return;
+      case RingCapKind.full:
+        canvas.drawCircle(center, radius, paint);
+      case RingCapKind.dot:
+        canvas.drawCircle(_onRing(center, radius, cap.capAngle), thickness / 2, _endPaint(sweep, cap.capAngle));
+      case RingCapKind.arc:
+        final end = sweep - cap.capAngle;
+        if (fill.colors == null) {
+          canvas.drawArc(rect, -math.pi / 2 + cap.capAngle, end - cap.capAngle, false, paint..strokeCap = StrokeCap.round);
+        } else {
+          canvas.drawArc(rect, -math.pi / 2 + cap.capAngle, end - cap.capAngle, false, paint);
+          canvas
+            ..drawCircle(_onRing(center, radius, cap.capAngle), thickness / 2, _endPaint(sweep, cap.capAngle))
+            ..drawCircle(_onRing(center, radius, end), thickness / 2, _endPaint(sweep, end));
+        }
+    }
+  }
+
+  /// The point of the middle line of the stroke at [angle] radians clockwise from the top.
+  Offset _onRing(Offset center, double radius, double angle) =>
+      center + Offset(math.sin(angle), -math.cos(angle)) * radius;
+
+  /// The paint of an end or a dot centred at [angle] of an arc of [sweep] radians: the fill colour, or the
+  /// gradient colour at that share of the filled part.
+  Paint _endPaint(double sweep, double angle) {
+    final colors = fill.colors;
+    return Paint()
+      ..color = colors == null ? fill.color! : gradientColorAt(colors, fill.positions!, (angle / sweep).clamp(0.0, 1.0));
   }
 
   @override
@@ -389,7 +449,8 @@ class RingPainter extends CustomPainter {
       old.ratio != ratio ||
       old.thickness != thickness ||
       old.trackColor != trackColor ||
-      old.fill != fill;
+      old.fill != fill ||
+      old.roundEnds != roundEnds;
 }
 
 /// The ring stands in the CENTRE of the place it was given (`ring.placement`), and takes its
@@ -449,4 +510,17 @@ class RenderRingPlacement extends RenderShiftedBox {
       (size.height - _diameter) / 2,
     );
   }
+}
+
+/// The colour of a gradient with [colors] at [positions] (ascending, 0…1) at the share [at] of the way, linear in
+/// the stops like a Flutter gradient: before the first stop the first colour, after the last the last.
+Color gradientColorAt(List<Color> colors, List<double> positions, double at) {
+  if (at <= positions.first) return colors.first;
+  for (var i = 1; i < colors.length; i += 1) {
+    if (at <= positions[i]) {
+      final span = positions[i] - positions[i - 1];
+      return Color.lerp(colors[i - 1], colors[i], span <= 0 ? 1 : (at - positions[i - 1]) / span)!;
+    }
+  }
+  return colors.last;
 }

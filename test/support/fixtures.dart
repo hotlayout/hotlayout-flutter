@@ -98,6 +98,9 @@ const List<String> fixtureIds = [
   'alt-icon-date-screens',
   // 9.20.0: floating and breathing nodes, glass on a card, a sheet over a blurred screen; en and uk.
   'motion-blur-screens',
+  // 9.21.0: a balance that counts, a ring and bars that grow, a countdown that ticks, an app bar that turns
+  // solid on scroll; en and uk.
+  'value-countdown-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

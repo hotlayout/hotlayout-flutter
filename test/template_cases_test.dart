@@ -146,6 +146,8 @@ void main() {
   final shownRows = (table['shownTemplateCases']! as List<Object?>).cast<Map<String, Object?>>();
   // 9.19.0: the parts of a date (`dateParts` beside `format: 'date'`).
   final dateRows = (table['datePartsCases']! as List<Object?>).cast<Map<String, Object?>>();
+  // 9.21.0: a part of the time left (`format: 'countdownPart'`, `unit`, `pad`).
+  final countdownRows = (table['countdownCases']! as List<Object?>).cast<Map<String, Object?>>();
   final shownTextRows = (table['shownTextCases']! as List<Object?>).cast<Map<String, Object?>>();
 
   test('the table is read in full, and every field of it is known to this test', () {
@@ -153,6 +155,8 @@ void main() {
     // would silently not fulfil.
     expect(rows, hasLength(179));
     expect(dateRows, hasLength(37));
+    expect(countdownRows, hasLength(28));
+    expect(countdownRows.where((row) => row['readerOnly'] != null), hasLength(3));
     const known = {
       'name',
       'value',
@@ -166,7 +170,7 @@ void main() {
       'mayDiffer',
       'readerOnly',
     };
-    for (final row in [...rows, ...dateRows, ...shownRows]) {
+    for (final row in [...rows, ...dateRows, ...countdownRows, ...shownRows]) {
       expect(
         row.keys.toSet().difference({...known, ..._ignoredFields, if (shownRows.contains(row)) 'shown'}),
         isEmpty,
@@ -178,6 +182,8 @@ void main() {
       hasLength(rows.length + dateRows.length),
       reason: 'row names are unique',
     );
+    // A group has its own names: «no data: the fallback, never formatted» stands in `cases` and in `countdownCases`.
+    expect(countdownRows.map((row) => row['name']).toSet(), hasLength(countdownRows.length));
   });
 
   test('table: exactly the groups this test knows', () {
@@ -187,11 +193,13 @@ void main() {
       'moneyNote', 'moneyCases',
       // 9.19.0: the parts of a date.
       'datePartsNote', 'datePartsCases',
+      // 9.21.0: a countdown part.
+      'countdownNote', 'countdownCases',
     });
   });
 
   test('an exception is named only for a row marked mayDiffer that EXISTS in the table', () {
-    final byName = {for (final row in [...rows, ...dateRows]) row['name']! as String: row};
+    final byName = {for (final row in [...rows, ...dateRows, ...countdownRows]) row['name']! as String: row};
     expect(byName.keys, containsAll(_formattingOnlyThroughRenderScreen));
     for (final name in _platformDiffers.keys) {
       expect(byName, contains(name), reason: 'exception for a row that is not in the table');
@@ -214,7 +222,9 @@ void main() {
         data[entry.key] = DateTime(at.year, at.month, at.day, at.hour, at.minute, at.second).toUtc().toIso8601String();
       }
     }
-    if ((row['name']! as String).startsWith('CLARIFIED-3 dateTime') && row['timeZone'] == 'UTC') {
+    // The `UTC` rows read the wall clock of UTC: the countdown row that names it (a `date` beside a stray `unit`) and the
+    // `CLARIFIED-3 dateTime...` rows. The other `UTC` rows hold invalid instants and are not shifted.
+    if (row['timeZone'] == 'UTC' && ((row['name']! as String).startsWith('CLARIFIED-3 dateTime') || countdownRows.contains(row))) {
       for (final entry in data.entries.toList()) {
         final at = DateTime.parse(entry.value! as String); // UTC
         data[entry.key] = DateTime(at.year, at.month, at.day, at.hour, at.minute, at.second).toUtc().toIso8601String();
@@ -229,7 +239,7 @@ void main() {
   group('rule: document string -> text', () {
     // `shownTemplateCases` are the same rows as `cases`, plus `shown`: `expected` stands BEFORE the whitespace
     // rule, so document string -> text is checked the same way, and `shown` - below.
-    for (final row in [...rows, ...dateRows, ...shownRows]) {
+    for (final row in [...rows, ...dateRows, ...countdownRows, ...shownRows]) {
       test(row['name']! as String, () {
         final value = BindableString.parse(row['value'], key: _place);
         final translation = row['translationLocale'] as String?;
@@ -265,7 +275,7 @@ void main() {
   });
 
   group('screen: the same row as a Text node in a document', () {
-    for (final row in [...rows, ...dateRows, ...shownRows]) {
+    for (final row in [...rows, ...dateRows, ...countdownRows, ...shownRows]) {
       testWidgets(row['name']! as String, (tester) async {
         final translation = row['translationLocale'] as String?;
         final source = row['sourceLocale'] as String?;

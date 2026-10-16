@@ -28,7 +28,7 @@ extension AppBarWidgets on NodeRenderer {
   /// The bar has no background of its own: since schema 9.0.0 it lives in `style.background` and
   /// is drawn by the shared box. A bar without a style is TRANSPARENT, so the screen background
   /// (and its gradient) reaches the very top.
-  Widget buildAppBar(AppBarNode node, {int? contentMax, NavBarNode? nav}) {
+  Widget buildAppBar(AppBarNode node, {int? contentMax, NavBarNode? nav, bool? titleHidden}) {
     final subtitle = node.subtitle == null ? null : text(node.subtitle!);
     // App bar actions (schema 9.9.0): children of type `IconButton` in document order, ordinary
     // icon buttons with everything they have (role, size, style, name, action, touch target). A
@@ -147,7 +147,14 @@ extension AppBarWidgets on NodeRenderer {
         backSide: side,
         gap: theme.space(SpacingToken.sm),
         actionGap: theme.space(SpacingToken.xs),
-        children: [?leading, titles, ?navGroup, ...actions],
+        // `titleShown: 'scrolled'` (9.21.0): at rest the block keeps its place and is not painted, but stays in the
+        // semantics tree as the name of the screen (`Opacity(0)` with `alwaysIncludeSemantics`, not `Visibility`).
+        children: [
+          ?leading,
+          if (titleHidden == null) titles else Opacity(opacity: titleHidden ? 0 : 1, alwaysIncludeSemantics: true, child: titles),
+          ?navGroup,
+          ...actions,
+        ],
       ),
     );
   }

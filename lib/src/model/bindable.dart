@@ -1,5 +1,6 @@
 import '../data/screen_data.dart';
 import 'binding_format.dart';
+import 'countdown.dart';
 import 'date_parts.dart';
 import 'locale_resolve.dart';
 import 'localization.dart';
@@ -113,6 +114,7 @@ final class BoundString extends BindableString {
     this.forText = true,
     this.look = MoneyLook.none,
     this.dateParts,
+    this.countdown,
   });
 
   /// The binding from an object `{kind: 'binding', path, fallback, format?,
@@ -124,12 +126,17 @@ final class BoundString extends BindableString {
     final path = raw['path'];
     if (raw['kind'] != 'binding' || path is! String) return null;
     final currency = raw['currency'];
+    final wanted = formats ? BindingFormat.parse(raw['format']) : null;
+    // 9.21.0: a countdown part needs its `unit`; without a readable one the format does not apply and the
+    // value is shown as it is (`withoutUnit`).
+    final countdown = Countdown.readFor(wanted, raw);
+    final format = wanted == BindingFormat.countdownPart && countdown == null ? null : wanted;
     return BoundString(
       path,
       '${raw['fallback'] ?? fallback}',
       // An unknown format gives `null`, not a parse error: policy
       // `unknownBindingFormat: 'render-as-is'`.
-      format: formats ? BindingFormat.parse(raw['format']) : null,
+      format: format,
       // The shape of the code is not checked here: a code of the wrong shape
       // means "the format did not apply" (`missingCurrencyCode`), and
       // `formatBoundValue` is what says so.
@@ -139,6 +146,7 @@ final class BoundString extends BindableString {
       look: formats ? MoneyLook.read(raw, BindingFormat.parse(raw['format'])) : MoneyLook.none,
       // 9.19.0: the parts of a date, read only beside the `date` format.
       dateParts: formats ? DateParts.readFor(BindingFormat.parse(raw['format']), raw['dateParts']) : null,
+      countdown: countdown,
     );
   }
 
@@ -159,6 +167,9 @@ final class BoundString extends BindableString {
 
   /// Which parts of a date to show (9.19.0, `x-dateParts`); `null` is the date as before.
   final DateParts? dateParts;
+
+  /// The part of the time left to show (9.21.0, `x-countdown`); `null` unless the format is `countdownPart`.
+  final Countdown? countdown;
 
   /// Whether this is TEXT FOR A PERSON. `false` means a name that gets compared
   /// (`ChoiceGroup.value`): the rule "an empty string is no value"
@@ -217,6 +228,7 @@ final class BoundString extends BindableString {
         now: now ?? DateTime.now(),
         look: look,
         dateParts: dateParts,
+        countdown: countdown,
         // The composed form is isolated in a text written right to left. The direction is the one of
         // the language the text is SHOWN in (`directionFollows`).
         rtl: look.composed && isRtlLanguageTag(strings.shownLanguage(locale)),
@@ -237,7 +249,7 @@ final class BoundString extends BindableString {
   /// fallback text is not shown and gives no number.
   num? numberIn(ScreenData data, DateTime now) {
     final value = data.lookup(path);
-    if (_showable(value)) return numericBoundValue(value, format, now: now);
+    if (_showable(value)) return numericBoundValue(value, format, now: now, countdown: countdown);
     if (!_numericFallback.hasMatch(fallback)) return null;
     return numericBoundValue(num.tryParse(fallback), null, now: now);
   }

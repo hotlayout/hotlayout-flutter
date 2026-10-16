@@ -154,6 +154,10 @@ void main() {
         // `partStyle` and `listTileParts` (`part_style.dart`, `list_tile_parts.dart`, `list_tile_cases_test.dart`),
         // `inputParts` (`input_parts.dart`, `input_parts_cases_test.dart`).
         'composition', 'bodyTop', 'safeTop', 'widthUnset', 'partStyle', 'listTileParts', 'inputParts',
+        // 9.21.0: round ends of the scale and the app bar after scrolling. Mirrors are
+        // `progress_cap.dart` and `scrolled_bar.dart`; values are checked by `progress_cases_test.dart`
+        // (`capCases`) and `media_chrome_cases_test.dart` (`scrolled…`).
+        'progressCap', 'appBarScrolled',
       });
     });
 

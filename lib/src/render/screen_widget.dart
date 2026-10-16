@@ -12,6 +12,7 @@ import '../model/tokens.dart';
 import '../model/ui_document.dart';
 import '../theme/render_theme.dart';
 import 'carousel.dart';
+import 'countdown_clock.dart';
 import 'host_callbacks.dart';
 import 'inputs.dart';
 import 'labels.dart';
@@ -51,7 +52,7 @@ Widget screenWidget(
   // screen entry) and then painted as an ordinary document; when the class changes (rotation,
   // split screen) the same tree is repainted with other props, and the field keys and the
   // carousels' memory of the frame stay.
-  return WidthClassScope(
+  Widget drawn(DateTime? clock) => WidthClassScope(
     builder: (context, widthClass) {
       final root = screen.rootIn(widthClass);
       // The host's record is the same input as the rest: only the form's own data path keys, no
@@ -78,7 +79,7 @@ Widget screenWidget(
         // READER CLOCK (`readerClock: 'injectable-read-at-render'`). Read ONCE per screen, here, at
         // paint time: all strings of a frame count days from one instant, and the screen does not
         // repaint as time passes; the computed value stands until the next paint.
-        now: now ?? DateTime.now(),
+        now: clock ?? now ?? DateTime.now(),
         onAction: handler,
         onWrite: onWrite,
         labels: labels,
@@ -98,4 +99,9 @@ Widget screenWidget(
       );
     },
   );
+
+  // A countdown that ticks (9.21.0): a screen with a `countdownPart` redraws every second (a minute, with no
+  // seconds part) while it is shown. A host that pinned the moment (`now`) drives the time itself.
+  final every = now == null ? screen.countdownTick : null;
+  return every == null ? drawn(null) : CountdownClock(every: every, builder: (context, clock) => drawn(clock));
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'compatibility.dart';
 import 'composition_rules.dart' show exceedsParseLimit;
+import 'countdown.dart' show countdownTickOf, countdownUnitsIn;
 import 'locale_resolve.dart';
 import 'localization.dart';
 import 'media_chrome_rules.dart';
@@ -83,6 +84,19 @@ final class ScreenEntry {
   /// no copy of the tree is made.
   final ScreenSource? source;
 
+  /// How often this screen redraws its countdown nodes (schema 9.21.0, `countdownPart`): every second when it
+  /// has a `seconds` part, otherwise every minute; `null` when it has no countdown at all. Counted once per
+  /// screen entry, over the whole raw tree (a node a condition hides still counts: the cost is a timer).
+  Duration? get countdownTick {
+    final from = source;
+    if (from == null) return null;
+    final cached = _ticks[this];
+    if (cached != null) return cached.every;
+    final tick = _Tick(countdownTickOf(countdownUnitsIn(from.root)));
+    _ticks[this] = tick;
+    return tick.every;
+  }
+
   /// The tree of this screen as a reader of the given [widthClass] sees it.
   ///
   /// `compact` is `root` (the document base is the phone layout), and a document without
@@ -95,6 +109,15 @@ final class ScreenEntry {
     final cache = _resolved[this] ??= {};
     return cache[widthClass] ??= UiNode.parse(from.root, keys: from.keys, widthClass: widthClass);
   }
+}
+
+final Expando<_Tick> _ticks = Expando('countdown ticks');
+
+/// A cached answer that may be `null` (an Expando cannot hold `null` itself).
+final class _Tick {
+  const _Tick(this.every);
+
+  final Duration? every;
 }
 
 final Expando<Map<WidthClass, UiNode>> _resolved = Expando('resolved screen trees');

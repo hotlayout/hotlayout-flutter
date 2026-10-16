@@ -40,6 +40,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
+import 'countdown.dart';
 import 'date_parts.dart';
 import 'locale_resolve.dart';
 
@@ -53,7 +54,9 @@ enum BindingFormat {
   // 9.4.0, numbers: what text a number, an amount and a future instant become.
   number('number'),
   currency('currency'),
-  daysUntil('daysUntil');
+  daysUntil('daysUntil'),
+  // 9.21.0: one part of the time left (`unit`, `pad` beside it); the sentence is the template's.
+  countdownPart('countdownPart');
 
   const BindingFormat(this.wire);
 
@@ -294,8 +297,14 @@ String _plainDecimal(num magnitude) {
 /// part of the rule. The calculation is in milliseconds, as in the reference
 /// implementation: Dart microseconds would give a different number from the
 /// web at a day boundary.
-num? numericBoundValue(Object? value, BindingFormat? format, {DateTime? now}) {
+num? numericBoundValue(Object? value, BindingFormat? format, {DateTime? now, Countdown? countdown}) {
   switch (format) {
+    case BindingFormat.countdownPart:
+      // A part of the time left (9.21.0). Without `unit` the format does not apply (the caller passes no
+      // countdown), and there is no number.
+      final moment = _momentOf(value);
+      if (moment == null || countdown == null) return null;
+      return countdownPartOf(moment, now ?? DateTime.now(), countdown.unit);
     case BindingFormat.daysUntil:
       final moment = _momentOf(value);
       if (moment == null) return null;
@@ -323,7 +332,8 @@ String? _numberLocaleFor(String locale) {
 /// Fraction digits of a currency, from the `intl` package's table; two when
 /// there is no entry. There is no table of our own: it would go stale at the
 /// first ISO 4217 change.
-int _currencyFractionDigits(String code) {
+/// (public: the step of a number that leads to a new value is the currency's own, `transitionDigitsOf`).
+int currencyFractionDigits(String code) {
   try {
     // The locale is named explicitly so `intl` does not look up the current
     // one: only the digit count is needed here, and it does not depend on the language.
@@ -341,12 +351,17 @@ int _currencyFractionDigits(String code) {
 /// the same as the web does with `useGrouping: 'always'`.
 ///
 /// `null` means the language is not in `intl` (`missingNumberLocaleData`).
-String? _groupedNumber(num number, String? locale, {int? fractionDigits}) =>
-    _groupedParts(number, locale, fractionDigits: fractionDigits)?.text;
+String? _groupedNumber(num number, String? locale, {int? fractionDigits, int minimumIntegerDigits = 1}) =>
+    _groupedParts(number, locale, fractionDigits: fractionDigits, minimumIntegerDigits: minimumIntegerDigits)?.text;
 
 /// [_groupedNumber] together with the decimal separator of the language, which is where the fraction
 /// is cut off the integer digits (the LAST occurrence of the separator in the text).
-({String text, String decimal})? _groupedParts(num number, String? locale, {int? fractionDigits}) {
+({String text, String decimal})? _groupedParts(
+  num number,
+  String? locale, {
+  int? fractionDigits,
+  int minimumIntegerDigits = 1,
+}) {
   final blank = locale == null || locale.trim().isEmpty;
   final tag = blank ? null : _numberLocaleFor(locale);
   if (!blank && tag == null) return null;
@@ -360,7 +375,8 @@ String? _groupedNumber(num number, String? locale, {int? fractionDigits}) =>
   final signed = num.parse('${rounded.negative ? '-' : ''}${rounded.integer}${digits == 0 ? '' : '.${rounded.fraction}'}');
   formatter
     ..minimumFractionDigits = fractionDigits ?? 0
-    ..maximumFractionDigits = digits;
+    ..maximumFractionDigits = digits
+    ..minimumIntegerDigits = minimumIntegerDigits;
   return (text: formatter.format(signed), decimal: formatter.symbols.DECIMAL_SEP);
 }
 
@@ -390,9 +406,18 @@ String? formatBoundValue(
   MoneyLook look = MoneyLook.none,
   bool rtl = false,
   DateParts? dateParts,
-}) => formatBoundPieces(value, format, locale: locale, currency: currency, now: now, look: look, rtl: rtl, dateParts: dateParts)
-    ?.map((piece) => piece.text)
-    .join();
+  Countdown? countdown,
+}) => formatBoundPieces(
+  value,
+  format,
+  locale: locale,
+  currency: currency,
+  now: now,
+  look: look,
+  rtl: rtl,
+  dateParts: dateParts,
+  countdown: countdown,
+)?.map((piece) => piece.text).join();
 
 /// [formatBoundValue] as PIECES (schema 9.19.0, `x-money.parts`): a formatted number or amount is up to
 /// five pieces of one place in logical order, each with the part it belongs to. A date, a time and
@@ -410,9 +435,19 @@ List<AmountPiece>? formatBoundPieces(
   MoneyLook look = MoneyLook.none,
   bool rtl = false,
   DateParts? dateParts,
+  Countdown? countdown,
 }) {
   try {
     switch (format) {
+      case BindingFormat.countdownPart:
+        final part = numericBoundValue(value, format, now: now, countdown: countdown);
+        if (part == null) return null;
+        // Written like `number` (groups and digits of the language); `pad: 2` is two integer digits at least.
+        // A language `intl` has no data for still gets the digits, with the zeros in front
+        // (`x-countdown.localeWithoutData`).
+        final digits = countdown!.pad;
+        final text = _groupedNumber(part, locale, minimumIntegerDigits: digits ?? 1) ?? '$part'.padLeft(digits ?? 1, '0');
+        return [(text: text, part: null)];
       case BindingFormat.number:
         final number = numericBoundValue(value, format, now: now);
         return number == null ? null : _amountPieces(number, locale, look: look, rtl: rtl);
@@ -436,7 +471,7 @@ List<AmountPiece>? formatBoundPieces(
         return _amountPieces(
           number,
           locale,
-          fractionDigits: whole ? 0 : _currencyFractionDigits(currency!),
+          fractionDigits: whole ? 0 : currencyFractionDigits(currency!),
           currency: currency,
           look: look,
           rtl: rtl,
