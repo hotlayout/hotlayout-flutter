@@ -40,9 +40,9 @@ Finder _tracks() => find.byType(ProgressTrack);
 void main() {
   final theme = RenderTheme.fallback();
 
-  test('the fixture is in the catalogue, at 9.25.0, in two languages', () {
+  test('the fixture is in the catalogue, at 9.27.0, in two languages', () {
     final doc = loadFixture(_id);
-    expect(doc.schemaVersion, '9.25.0');
+    expect(doc.schemaVersion, '9.27.0');
     expect(fixtureIds, contains(_id));
     expect(doc.locales, ['en', 'uk']);
   });

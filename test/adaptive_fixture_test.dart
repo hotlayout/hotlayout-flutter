@@ -40,7 +40,7 @@ Future<void> _pump(WidgetTester tester, double width, String screen, {String? lo
 void main() {
   test('fixture: schema version, catalog and three languages', () {
     final doc = loadFixture('adaptive-screens');
-    expect(doc.schemaVersion, '9.25.0');
+    expect(doc.schemaVersion, '9.27.0');
     expect(fixtureIds, contains('adaptive-screens'));
     expect(doc.screens.map((s) => s.screenId), ['home', 'lab', 'rewards', 'bonus']);
     expect(doc.screens.last.presentation, ScreenPresentationToken.modal);

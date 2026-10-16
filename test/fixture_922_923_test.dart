@@ -36,10 +36,10 @@ const _data = <String, Object?>{'task.progress': 2, 'user.points': 1250, 'offer.
 Rect _rect(WidgetTester tester, Finder finder) => tester.getRect(finder);
 
 void main() {
-  test('the fixtures are in the catalogue, at 9.25.0, in two languages', () {
+  test('the fixtures are in the catalogue, at 9.27.0, in two languages', () {
     for (final id in ['float-nav-swipe-screens', 'filter-gradient-compact-screens']) {
       final doc = loadFixture(id);
-      expect(doc.schemaVersion, '9.25.0');
+      expect(doc.schemaVersion, '9.27.0');
       expect(fixtureIds, contains(id));
       expect(doc.locales, ['en', 'uk']);
     }

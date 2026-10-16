@@ -250,7 +250,10 @@ void main() {
         if (scrollTop > 0) {
           // The body scrolls by gesture; the app bar does not move.
           final barBefore = barHeight == null || hiddenBar ? null : tester.getTopLeft(find.text('Шапка'));
-          await tester.drag(scroll.last, Offset(0, -scrollTop));
+          // A sheet has a second member in the gesture arena (the drag that closes it, schema 9.26.0), so the body's
+          // scroll view no longer wins at the first touch and the first `kDragSlopDefault` of the drag is the slop
+          // that decides, as it is under any button in a page. Drag that much more to scroll by `scrollTop`.
+          await tester.drag(scroll.last, Offset(0, -scrollTop - (shrink ? kDragSlopDefault : 0)));
           await tester.pumpAndSettle();
           if (barBefore != null) {
             expect(tester.getTopLeft(find.text('Шапка')), barBefore, reason: 'the app bar is the same at any scrollTop');

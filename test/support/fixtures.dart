@@ -109,6 +109,11 @@ const List<String> fixtureIds = [
   'appear-swipe-dot-screens',
   // 9.25.0: glowing scales, steps that fill smoothly, a shadow of the colour of the card, a press that sinks.
   'glow-press-screens',
+  // 9.26.0: a card that opens a window on a hold, a history grouped by days, a sheet that closes by a drag and one
+  // that waits for a button; en and uk.
+  'longpress-groups-sheet-screens',
+  // 9.27.0: a page opened from a row that follows the data when a task moves to another list; en and uk.
+  'live-record-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

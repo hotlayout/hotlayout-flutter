@@ -74,7 +74,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.26.1
+  hotlayout_flutter: ^0.27.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -496,7 +496,8 @@ The record of a node is a **flat map of paths to values** — `{'item.id': 'bott
 
 - A screen opened without a record (the initial screen, an `entry`, a button outside a list) reads `item.*` from the other layers: put the record into your data or return it from `scopeFor`.
 - The record belongs to a stack frame: going back drops it, and another row opens another record.
-- It is a snapshot taken when the row was pressed. The map is unmodifiable and holds only keys that have the form of a data path (`item.selectedId`; segments such as `__proto__` are dropped).
+- **It follows the data.** The record of a frame is the record of the list rows it came from, laid over one another (an inner row stronger). Every time you give new `data`, each frame of the stack looks for its rows again by the key `<item>.id` (the `id` field of the record, a non-empty string or a finite number; the same type and value, so `7` and `"7"` are two records): first in the collection the list read, then in every other collection the document names for the same entity (`doneTasks` after `tasks`). The first record with the key replaces the row whole; a row that is found nowhere keeps the last record it had, and a row with no `id` stays as it was opened. The stack, `onScreenShown` and the analytics are not touched — new data is not a show — and the screen keeps its scroll, its carousels and what was typed; a changed number counts to its new value as any does (`animateChanges`). A frame with no record (a page opened by a button) gets none from the data. The map handed to `onRecordAction` is the refreshed one.
+- The map is unmodifiable and holds only keys that have the form of a data path (`item.selectedId`; segments such as `__proto__` are dropped).
 - **Treat an id from the record as user input.** The values are yours, but check an id on your backend before you act on it.
 
 `renderScreen`, for a host that keeps the stack itself, takes the record of the screen as `record:`.
@@ -831,8 +832,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.26.1` | — |
-| Document contract (schema) | `9.25.0` | `kSupportedSchemaVersion` |
+| Package | `0.27.0` | — |
+| Document contract (schema) | `9.27.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -854,7 +855,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.25.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.27.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -914,6 +915,8 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.23.0 | a filtered list, a comparison with another path, a gradient on the letters of a text, a compact number | [Filtered list](#filtered-list), [Gradient on text](#gradient-on-text), [Sentences, numbers, money and days](#sentences-numbers-money-and-days) |
 | 9.24.0 | a value that grows when shown, a swipe that stays busy, the motion of the dot, nodes pinned to the top | [Changing values](#changing-values-and-a-countdown), [Swipe to confirm](#swipe-to-confirm), [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block), [The top of the screen](#the-top-of-the-screen) |
 | 9.25.0 | steps that fill smoothly, the glow of a scale, a shadow of the colour of the background, a press that sinks, a haptic request | [Progress bar and ring](#progress-bar-and-ring), [Shadow of the colour of the background](#shadow-of-the-colour-of-the-background), [Press feedback](#press-feedback), [Haptic feedback](#haptic-feedback) |
+| 9.26.0 | a long press on a card or a row, a list grouped by a field with a header, a sheet that closes by a drag down, `dismissible: false` | [Pressable cards](#pressable-cards), [Grouped list](#grouped-list), [Windows and modal sheets](#windows-and-modal-sheets) |
+| 9.27.0 | the record of a page opened from a row follows the data | [One screen, many records](#one-screen-many-records) |
 
 ### Behaviour that changed between package versions
 
@@ -931,6 +934,7 @@ If you update from an older version of the package, these are the places where t
 | 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.23.0 | A button with `confirm: 'swipe'` no longer runs its action on a tap or a click: the thumb has to be dragged, or Enter / Space / the screen reader's "activate" used. A `NavBar` with `float: true` lies over the body (the body area reaches the bottom of the screen and the last row scrolls clear of the bar). A `Repeater` with `where` draws only the records that pass, and `limit` counts those. |
+| 0.27.0 | The record of a page opened from a list row, of a sheet over it and of a page that carried it follows your `data`: when a collection holds the same record (by `<item>.id`) with other fields, the page shows them at once, and the record handed to `onRecordAction` is the refreshed one. Before, it stayed as it was when the row was pressed. A card with a `longPress` takes a hold of 450 ms as that long press and does not press on release; a modal sheet follows the finger down and closes by a drag, and a widget test that drags a body inside a sheet loses the first 18 dp of the drag to the touch slop, as under any button. |
 | 0.26.0 | Pressable nodes sink under the finger (see [Press feedback](#press-feedback)): a widget test that taps a card or a button and measures it at once sees it scaled, so advance time with `pump(Duration)` or `pumpAndSettle` first. A bar with steps fills a step smoothly while its value leads. `onHaptic` is new and optional; without it nothing changes. |
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
 | 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
@@ -1055,6 +1059,8 @@ A `Column`, `Row`, `Container` or `Stack` can carry an `action` (and a hidden `l
 - **The innermost control takes the press.** A button, an icon button, a list row with an action, a field, a switch, a choice option, the tab strip and the header of an accordion keep their taps. The card gets every other point of its box (without the margin) and nothing it did not take. A disabled button inside swallows the press: neither it nor the card does anything.
 - **For a screen reader the card is a button** whose name is the `label` first and then the text of its content. The controls inside stay separate nodes with their own names.
 - **Keyboard.** Enter and Space press it; a held key is one press. The keyboard focus shows a ring in the colour `primary` that follows the radius of the card. A card sinks a little under the finger (see [Press feedback](#press-feedback)); the keyboard gives no feedback.
+- **A long press** (`longPress`, with a `longPressLabel`): a second action of the card, with the form of `action` and the same way of running (`navigate`, `onAction` / `onRecordAction`, `track`, `haptic`). It fires at 450 ms while the finger is still down; the lifted finger then presses nothing. A finger that moves farther than 10 dp first is neither a long press nor a press (it scrolls). A hold released earlier is the press of `action`, and a card with no `longPress` takes a long hold as a press, as before. The innermost control takes the hold as it takes the press: a button in the card keeps its own press, and a row with its own `longPress` in a card gets its own. A card (or a `ListTile`) that holds only a long press is still a control: it is focused and named, and a tap on it does nothing. The pressed pose stays while the finger is down. A write action (`setValue`, `toggleValue`) on a long press is not run. The haptic request, the analytics event and the action of a long press go in that order, at the threshold.
+- **Long press for a screen reader and the keyboard.** The long press is a custom accessibility action named by `longPressLabel` (a name nobody can hear gives the platform's own long press action instead). The context menu key and Shift+F10 on the focused card perform it at once; Enter and Space stay the press. A `ListTile` with a `longPress` is a stop of the keyboard focus (without one it is not, as before); a row that is an option of a choice keeps the touch and does not run it.
 - **Depth.** The tree may be eight levels deep and a column may hold a column; the renderer checks neither. A screen whose tree goes deeper than 32 levels below its root is not drawn at all (a neutral notice, `RendererLabels.screenUnavailable`, stands in its place): half a screen would be a wrong screen.
 
 ### Write actions and choice from plain nodes
@@ -1130,6 +1136,15 @@ For example, an `onAction` that returns the `Future` of your `redeem` call keeps
 
 - **A comparison with another path**: a condition may carry `valuePath` instead of `value` (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`), read in the same scope as `path`. Nothing under it, `null` or an empty string is no operand: in `where` the condition then holds for every record (a chip "All" writes `""`); everywhere else (`visibleIf`, `styleWhen`, `disabledIf`, `badgeWhen`) it does not hold, for `eq` and `neq` alike. Types are not coerced: equal kinds compare as they are, different kinds as text, an order only between numbers.
 - **The empty state of a filtered list**: `{ path: "rewards", op: "isEmpty", item: "reward", where: … }` counts the records that pass the same filter (`limit` is not applied); no list under the path means no records.
+
+### Grouped list
+
+`Repeater.groupBy` is a path of the record (`activity.day`): records that follow one another with the same value form a group, and the **second child** of the list, the header, is drawn before each group, in the scope of the **first** record of the group (a press inside the header carries that record). The first child is the record's template, as before.
+
+- **The groups are made of the records the list draws**: after `where` and `limit`, in the order of the data (the backend sorts; the same value after another one starts a new group). An empty list has no headers.
+- **Same value**: absent, `null` and the empty string are one value; otherwise the same type and equal without conversion (`1` and `"1"` are two groups); an object or a list is a group of its own.
+- **One flow, one gap**: headers and records stand in one column with the `gap` of the list between every two. A header hidden by its condition takes no place. A numbered item counts records only.
+- **A list in a column only**: with `columns` (in the base or in a width class) or `direction: 'row'` (a carousel) the field is not read and the list is drawn without headers, as is a second child without `groupBy`.
 
 ### Gradient on text
 
@@ -1409,6 +1424,8 @@ A screen with `presentation: 'modal'` is a layer over the previous screen. Witho
 | Scrim | black at 45 % |
 | Closing | a tap beside the window and the system back button are `navigate.back` |
 
+- **A sheet follows the finger down.** A sheet from the bottom (not a window) is dragged by any point of it when its body is scrolled to the top, and when the body is scrolled away from its top the drag scrolls the body first. The drag starts when the finger moves down past 10 dp and more down than sideways, and the sheet never goes above its place. Released, a sheet dragged 0.3 of its height or more, or thrown down at 700 dp per second or faster, leaves (200 ms) and only then does the stack go one step back (`navigate.back`, the `back` event of `onScreenShown`); a fling up returns it whatever the distance, and so does any shorter drag (250 ms). The scrim fades with the share of the sheet still seen, the finger takes the touch from what is under it (a tap that began on a button is not a press), and under "reduce motion" the sheet still follows the finger but the return and the exit are instant. A window in the middle has no drag.
+- **`dismissible: false`** on the entry of a modal screen makes a layer that waits for an action: no drag, no tap on the scrim and no Esc close it. The system back stays with the host (the `PopScope` of the flow and `ScreenFlowController.goBack` still go back), and a `navigate.back` inside the layer closes it as ever. Only the word `false` is read, and only for a modal screen.
 - **The layer has no look of its own**: background, radius, shadow and padding are the `style` of the screen's root, and a root without a background is a transparent layer.
 - **The window is a modal layer in every rule**: it inherits the record of the screen beneath, and it is a "modal" in `ScreenShown`.
 

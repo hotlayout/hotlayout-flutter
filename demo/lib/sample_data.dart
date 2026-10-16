@@ -37,6 +37,7 @@ const String kSampleNow = '2026-10-10T09:00:00.000Z';
 const List<Map<String, Object?>> sampleTasks = [
   {
     'title': 'Spend 500 with your card',
+    'id': 'task-1',
     'description': 'Any amount, any merchant',
     'image': kSampleTaskImage,
     'progress': 3,
@@ -48,6 +49,7 @@ const List<Map<String, Object?>> sampleTasks = [
   },
   {
     'title': 'Set up a recurring payment',
+    'id': 'task-2',
     'description': 'Any amount, any merchant',
     'image': kSampleTaskImage,
     'progress': 1,
@@ -59,6 +61,7 @@ const List<Map<String, Object?>> sampleTasks = [
   },
   {
     'title': 'Invite a friend',
+    'id': 'task-3',
     'description': 'Any amount, any merchant',
     'image': kSampleTaskImage,
     'progress': 0,
@@ -77,6 +80,7 @@ const List<Map<String, Object?>> sampleTasks = [
 const List<Map<String, Object?>> sampleGroupTasks = [
   {
     'title': 'Pay a utility bill',
+    'id': 'group-task-1',
     'description': 'Any amount, any merchant',
     'image': kSampleTaskImage,
     'progress': 3,
@@ -88,6 +92,7 @@ const List<Map<String, Object?>> sampleGroupTasks = [
   },
   {
     'title': 'Top up your balance',
+    'id': 'group-task-2',
     'description': 'Any amount, any merchant',
     'image': kSampleTaskImage,
     'progress': 3,
@@ -99,6 +104,7 @@ const List<Map<String, Object?>> sampleGroupTasks = [
   },
   {
     'title': 'Order a card',
+    'id': 'group-task-3',
     'description': 'Any amount, any merchant',
     'image': kSampleTaskImage,
     'progress': 3,
@@ -108,6 +114,32 @@ const List<Map<String, Object?>> sampleGroupTasks = [
     'rewardPoints': 100,
     'status': 'locked',
   },
+];
+
+/// Records of the `doneTasks` collection - the same `task` item (dictionary 1.7.0): the tasks a person has completed.
+/// A task moves here from `tasks` when it is done, and a page opened from a row of `tasks` finds its record here
+/// (the live record, schema 9.27.0).
+const List<Map<String, Object?>> sampleDoneTasks = [
+  {
+    'id': 'done-1',
+    'title': 'Pay a gas bill',
+    'description': 'Any amount, any merchant',
+    'image': kSampleTaskImage,
+    'progress': 2,
+    'target': 2,
+    'completed': true,
+    'completedAt': '2026-10-02T08:40:00.000Z',
+    'rewardPoints': 80,
+    'status': 'completed',
+  },
+];
+
+/// Records of the `activities` collection - the `activity` item (dictionary 1.6.0): the history, one record per
+/// operation, in the order the backend sorted them (the days follow one another).
+const List<Map<String, Object?>> sampleActivities = [
+  {'title': 'Coffee week', 'points': 120, 'day': 'Today'},
+  {'title': 'Movie night', 'points': -300, 'day': 'Today'},
+  {'title': 'Strong week', 'points': 80, 'day': 'Yesterday'},
 ];
 
 /// Records of the `taskGroups` collection - the `taskGroup` item.
@@ -193,7 +225,7 @@ const List<Map<String, Object?>> sampleOffers = [
   },
 ];
 
-/// The whole data dictionary as values: 35 paths plus five collections.
+/// The whole data dictionary as values: its paths plus seven collections.
 const Map<String, Object?> sampleScreenData = {
   // ----------------------------------------------------------------- user.*
   'user.firstName': 'Alex',
@@ -297,8 +329,16 @@ const Map<String, Object?> sampleScreenData = {
   'account.balanceHidden': false,
   'account.period': 'week',
 
+  // Dictionary 1.6.0 and 1.7.0: the history record and the id of a task.
+  'activity.title': 'Welcome bonus',
+  'activity.points': 50,
+  'activity.day': 'Mon, Oct 12',
+  'task.id': 'card-payments',
+
   // --------------------------------------------------------------- collections
   'tasks': sampleTasks,
+  'doneTasks': sampleDoneTasks,
+  'activities': sampleActivities,
   'taskGroups': sampleTaskGroups,
   'items': sampleItems,
   'offers': sampleOffers,
