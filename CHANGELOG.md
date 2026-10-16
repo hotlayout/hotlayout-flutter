@@ -1,3 +1,7 @@
+## 0.26.1
+
+Fix: a solid `style.border` on a node with a radius is drawn OVER the content, as in CSS, and the content is clipped by the inner edge of the border (the outer radius minus the border width, never below zero). Before, the border lay under the content and the content was clipped by the outer radius, so a picture or a coloured box filling the card painted over the border on the rounded corners. A node without a border, a dashed border and the shadow and glass of the box are unchanged.
+
 ## 0.26.0
 
 Reads document contract **9.25.0** (theme 4.0.1, icon set 1.0.0 and data dictionary 1.5.0 unchanged). Five optional additions; a document without them is drawn exactly as by 0.25.0, except that pressable nodes now sink under the finger (see below).
