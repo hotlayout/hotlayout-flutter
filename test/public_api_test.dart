@@ -310,6 +310,8 @@ void main() {
       'DocumentLocalization', 'LocalizedStrings', 'LocaleResolution', 'directionOfLocale', 'isRtlLocale',
       // drawing
       'renderDocument', 'renderScreen', 'ScreenFlow', 'RendererLabels',
+      // motion between screens
+      'HotlayoutTransitions',
       // system "back" and the document stack
       'ScreenFlowController', 'ScreenFlowBackCallback',
       'SduiActionCallback', 'SduiRecordActionCallback', 'SduiValueWrite', 'ScreenScopeRequest', 'ScreenScopeResolver',

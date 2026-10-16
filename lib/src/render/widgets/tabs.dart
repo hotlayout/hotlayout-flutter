@@ -11,6 +11,8 @@ import '../../model/node_style.dart';
 import '../../model/tokens.dart';
 import '../layout/quiet_flex.dart';
 import '../motion.dart';
+import '../screen_transitions.dart';
+import '../tab_strip.dart';
 import '../node_renderer.dart';
 import '../tabs_scope.dart';
 import 'column.dart';
@@ -56,14 +58,15 @@ extension TabsWidgets on NodeRenderer {
         children: [
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: QuietRow(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var index = 0; index < tabs.length; index += 1) ...[
-                  if (index > 0) SizedBox(width: theme.space(SpacingToken.lg)),
-                  _tabTitle(tabs[index], open: index == open, onTap: () => select(index)),
-                ],
-              ],
+            // The indicator slides to the open title (`TabStrip`); at rest each title draws its own.
+            child: TabStrip(
+              open: open,
+              count: tabs.length,
+              gap: theme.space(SpacingToken.lg),
+              indicatorColor: theme.color(ColorToken.primary),
+              indicatorThickness: theme.space(SpacingToken.xs),
+              title: (index, {required indicator}) =>
+                  _tabTitle(tabs[index], open: index == open, drawIndicator: indicator, onTap: () => select(index)),
             ),
           ),
           SizedBox(height: theme.space(SpacingToken.md)),
@@ -84,7 +87,7 @@ extension TabsWidgets on NodeRenderer {
           // system "reduce motion" setting can be read only from the tree.
           Builder(
             builder: (context) => AnimatedSwitcher(
-              duration: motionOf(context, Motion.quick),
+              duration: transitionDurationOf(context, Motion.quick),
               switchInCurve: Motion.standard,
               switchOutCurve: Motion.standard,
               // `passthrough`: the panel is a column child and must receive the parent's content
@@ -112,7 +115,7 @@ extension TabsWidgets on NodeRenderer {
   /// The bottom padding is smaller by exactly the indicator thickness, so the total height equals
   /// what the other readers compute (a `titleS` line plus two `sm`), built from the same
   /// tokens.
-  Widget _tabTitle(TabNode tab, {required bool open, required VoidCallback onTap}) {
+  Widget _tabTitle(TabNode tab, {required bool open, required bool drawIndicator, required VoidCallback onTap}) {
     final indicator = theme.space(SpacingToken.xs);
     final padding = theme.space(SpacingToken.sm);
     // The tab reads the named color in ITS OWN context: the title is its prop, although it is
@@ -131,7 +134,7 @@ extension TabsWidgets on NodeRenderer {
           border: Border(
             bottom: BorderSide(
               width: indicator,
-              color: open ? theme.color(ColorToken.primary) : Colors.transparent,
+              color: open && drawIndicator ? theme.color(ColorToken.primary) : Colors.transparent,
             ),
           ),
         ),

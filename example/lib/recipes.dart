@@ -99,6 +99,18 @@ Widget drawWithBackGuard(
   );
 }
 
+/// A document whose screens change without motion: the host runs its own
+/// transitions around the flow.
+Widget withoutTransitions(UiDocument document, RenderTheme theme, Map<String, Object?> data) {
+  return renderDocument(
+    document,
+    theme: theme,
+    data: data,
+    // Every change of screen, modal layer and tab is instant.
+    transitions: HotlayoutTransitions.none,
+  );
+}
+
 /// Keeps the document object that is on screen when a refresh brings the
 /// same document: nothing to redraw.
 DocumentLoad apply(DocumentLoad? previous, DocumentLoad next) {

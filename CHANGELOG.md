@@ -1,3 +1,14 @@
+## 0.24.0
+
+Reads the same contracts as 0.23.0 (document 9.23.0, theme 4.0.1, icon set 1.0.0, data dictionary 1.5.0). Screens now move into place the way the platform moves them; the contract is silent about motion, so this is the renderer's own, and a document is drawn exactly as before once the motion is over.
+
+- **Transitions between screens, by the cause of the show.** A page opened forward slides in from the end of the line (iOS and macOS: the native navigation push, the previous page drifting a third of the way back; elsewhere: Material "fade forwards"), and "back" plays it in reverse, over 300 ms. A modal sheet rises from the bottom while the scrim and the backdrop blur thicken with it, and now also sinks back when closed (it used to vanish); a centred window grows from 96 % while it fades in, and shrinks away when closed. A section switch of the navigation bar is a 220 ms cross-fade of the new screen over the old one, which stays whole beneath it, so parts that are the same on both screens do not move. The first screen, a new entry and a new document appear without motion. Right-to-left writing mirrors the direction.
+- **Tabs**: the indicator slides from the old title to the new one while the panels cross-fade.
+- **The edge swipe back on iOS and macOS.** On a deeper page a swipe from the leading edge reveals the page below under the finger and goes back on release past half the width or with a fling, through the same step as every other "back" (`onSystemBack` is asked first). A swipe given up changes nothing and reports nothing. Not on the first screen, a modal layer, with `handleSystemBack: false` or without motion.
+- **`transitions`** on `renderDocument` and `ScreenFlow`: `HotlayoutTransitions.platform` (default) or `HotlayoutTransitions.none` for no motion at all. `MediaQuery.disableAnimations` always makes every change instant.
+- Motion never changes the flow: `onScreenShown` is called at the step, exactly once, as before; the stack, the record and the session are untouched; the leaving screen takes no touches and is not announced; a step taken during a transition is taken at once (a "back" while a page is still coming in plays the same motion back). A page revealed by "back" is built anew, as before.
+- For widget tests: after a page step both screens are in the tree for 300 ms, and a closed modal layer for 220 ms. Advance time with `pump(Duration)` or `pumpAndSettle`, or pass `transitions: HotlayoutTransitions.none`.
+
 ## 0.23.0
 
 Reads document contract **9.23.0** (theme 4.0.1, icon set 1.0.0 and data dictionary 1.5.0 unchanged). Two minors in one release (9.22.0 and 9.23.0), every field optional; a document without them is drawn exactly as by 0.22.0.

@@ -62,6 +62,7 @@ export 'src/render/direction.dart' show directionOfLocale, isRtlLocale;
 export 'src/render/labels.dart' show RendererLabels;
 export 'src/render/render_document.dart'
     show
+        HotlayoutTransitions,
         ScreenFlow,
         ScreenFlowBackCallback,
         ScreenFlowController,

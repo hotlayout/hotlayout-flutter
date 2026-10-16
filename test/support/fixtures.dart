@@ -215,9 +215,16 @@ Future<void> pumpDocument(
   /// Whether the host's `Scaffold` shrinks the body under the keyboard. `false` — the host does
   /// nothing, and the reader sees the keyboard in its own `MediaQuery`.
   bool resizeToAvoidBottomInset = false,
+
+  /// How one screen replaces another (the host's `transitions`).
+  HotlayoutTransitions transitions = HotlayoutTransitions.platform,
+
+  /// The platform the host's theme says it runs on; the test platform when `null`.
+  TargetPlatform? platform,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
+      theme: platform == null ? null : ThemeData(platform: platform),
       home: MediaQuery(
         data: MediaQueryData(
           disableAnimations: disableAnimations,
@@ -243,6 +250,7 @@ Future<void> pumpDocument(
             onWrite: onWrite,
             autofill: autofill,
             controller: controller,
+            transitions: transitions,
           ),
         ),
       ),

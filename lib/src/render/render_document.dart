@@ -6,6 +6,7 @@ import '../theme/render_theme.dart';
 import 'host_callbacks.dart';
 import 'labels.dart';
 import 'screen_flow.dart';
+import 'screen_transitions.dart';
 import 'screen_widget.dart';
 import 'version_notice.dart';
 
@@ -25,6 +26,7 @@ export 'layout/row_layout.dart' show RenderRowLayout, RowChildWidth, RowLayout, 
 export 'layout/stretch_column.dart' show FlowGap, FlowPull, RenderStretchColumn, StretchColumn;
 export 'modal_layer.dart' show kModalLayerKey;
 export 'screen_flow.dart' show ScreenFlow, ScreenFlowBackCallback, ScreenFlowController;
+export 'screen_transitions.dart' show HotlayoutTransitions;
 
 /// Draws a document: its screens, the navigation between them and its modal sheets.
 ///
@@ -64,6 +66,8 @@ export 'screen_flow.dart' show ScreenFlow, ScreenFlowBackCallback, ScreenFlowCon
 ///  * [autofill] — `false` turns every autofill hint of the text fields off.
 ///    Pass it for documents from a source you do not fully trust.
 ///  * [labels] — the renderer's own words, English by default.
+///  * [transitions] — how one screen replaces another: the platform's motion by default,
+///    [HotlayoutTransitions.none] for none (see [HotlayoutTransitions]).
 ///  * [controller], [onSystemBack], [handleSystemBack] — the system back
 ///    button and the document's stack; see [ScreenFlow].
 ///
@@ -94,6 +98,7 @@ Widget renderDocument(
   ScreenFlowController? controller,
   ScreenFlowBackCallback? onSystemBack,
   bool handleSystemBack = true,
+  HotlayoutTransitions transitions = HotlayoutTransitions.platform,
 }) {
   final verdict = doc.versionVerdict;
   // A different major version cannot be read. Silently drawing nothing is the worst option: the
@@ -120,6 +125,7 @@ Widget renderDocument(
     controller: controller,
     onSystemBack: onSystemBack,
     handleSystemBack: handleSystemBack,
+    transitions: transitions,
   );
 }
 

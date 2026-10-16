@@ -9,11 +9,16 @@ import 'package:flutter/material.dart';
 import '../model/media_chrome_rules.dart';
 import '../model/wide_chrome_rules.dart';
 import 'motion.dart';
+import 'screen_transitions.dart';
 import 'screen_zones.dart';
 
 /// Key of the modal layer's box, for tests that measure its rectangle.
 @visibleForTesting
 const Key kModalLayerKey = ValueKey<String>('hotlayout-modal-layer');
+
+/// The scale a centred window grows from while it fades in.
+@visibleForTesting
+const double kModalWindowStartScale = 0.96;
 
 /// A sheet shown on a wide place as a WINDOW (schema 9.18.0): the screen in the layer cannot
 /// tell this from its own width (that is 560, `compact`), so the layer tells it through this
@@ -47,11 +52,10 @@ class SheetWindowScope extends InheritedWidget {
 /// root's `style`. The scrim is black at 0.45 over the whole area; a touch outside the window
 /// is `navigate.back`, like the system "back".
 ///
-/// Only the APPEARANCE is animated. Disappearing is instant, by choice: a closing frame would
-/// have to be kept in the stack after it was removed, i.e. an "almost removed screen" would
-/// become flow state. The cost is a concept everyone touching navigation must keep in mind; the
-/// benefit is 200 ms the user does not wait for anyway, as they are already looking at where they
-/// returned. The sheet slides in, the window fades in (the contract is silent about motion).
+/// The sheet slides in from the bottom and the window grows from 96 % while it fades in (the
+/// contract is silent about motion). Closing plays the same in reverse ([closing]): the screen
+/// stack has already dropped the frame, and the flow keeps painting it here, untouchable, only
+/// until [onClosed]; the stack itself never holds an "almost removed" screen.
 class ModalLayer extends StatefulWidget {
   const ModalLayer({
     super.key,
@@ -60,6 +64,9 @@ class ModalLayer extends StatefulWidget {
     required this.placement,
     required this.windowMargin,
     this.backdropBlur,
+    this.animateIn = true,
+    this.closing = false,
+    this.onClosed,
   });
 
   final VoidCallback onDismiss;
@@ -74,6 +81,17 @@ class ModalLayer extends StatefulWidget {
   /// `null` means only the scrim, as before 9.20.0.
   final int? backdropBlur;
 
+  /// Whether the layer slides in when it is first built. `false` for a layer that was already
+  /// open and is only drawn again (the page above it went back), and when there is to be no motion.
+  final bool animateIn;
+
+  /// Whether the layer is on its way out: it plays its appearance in reverse, ignores touches, and
+  /// calls [onClosed] when it is gone.
+  final bool closing;
+
+  /// Called once the closing motion is over (after the frame, never during a build).
+  final VoidCallback? onClosed;
+
   @override
   State<ModalLayer> createState() => _ModalLayerState();
 }
@@ -87,15 +105,44 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    _controller.addStatusListener(_onStatus);
+    if (!widget.animateIn) {
+      _controller.value = 1;
+      if (widget.closing) _close();
+      return;
+    }
     /*
      * The duration is taken in the first frame, not in the constructor: `MediaQuery` cannot be
      * read during `initState`. Zero here means "the system asks for no motion": the controller
      * then jumps to the end and the layer simply appears.
      */
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _controller.duration = motionOf(context, Motion.sheet);
+      if (!mounted || widget.closing) return;
+      _controller.duration = transitionDurationOf(context, Motion.sheet);
       _controller.forward();
+    });
+  }
+
+  @override
+  void didUpdateWidget(ModalLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.closing && !oldWidget.closing) _close();
+  }
+
+  void _close() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Closing from where the appearance is now: a sheet closed half-way sinks from there.
+      _controller.duration = transitionDurationOf(context, Motion.sheet);
+      _controller.reverse();
+    });
+  }
+
+  void _onStatus(AnimationStatus status) {
+    if (status != AnimationStatus.dismissed || !widget.closing) return;
+    // Never from the build: the flow answers with `setState`.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onClosed?.call();
     });
   }
 
@@ -112,13 +159,16 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
     if (radius == null || progress <= 0) return scrim;
     final sigma = radius * progress;
     return ClipRect(
-      child: BackdropFilter(filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma), child: scrim),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+        child: scrim,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = CurvedAnimation(parent: _controller, curve: Motion.enter);
+    final progress = CurvedAnimation(parent: _controller, curve: Motion.enter, reverseCurve: Motion.exit);
     // The on-screen keyboard (`rules.focus.modal`): the layer rises above it instead of staying
     // under it. The keyboard height comes from the reader's own `MediaQuery` context; a host that
     // has already shrunk the screen gives zero.
@@ -174,10 +224,7 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
                 ? MediaQuery(
                     data: MediaQuery.of(context).copyWith(
                       viewInsets: MediaQuery.viewInsetsOf(context).copyWith(bottom: 0),
-                      viewPadding: MediaQuery.viewPaddingOf(context).copyWith(
-                        top: 0,
-                        bottom: keyboard > 0 ? 0 : null,
-                      ),
+                      viewPadding: MediaQuery.viewPaddingOf(context).copyWith(top: 0, bottom: keyboard > 0 ? 0 : null),
                       padding: MediaQuery.paddingOf(context).copyWith(top: 0, bottom: keyboard > 0 ? 0 : null),
                     ),
                     child: SheetWindowScope(sheetWindow: sheetWindow, child: widget.sheet),
@@ -189,41 +236,50 @@ class _ModalLayerState extends State<ModalLayer> with SingleTickerProviderStateM
 
         return AnimatedBuilder(
           animation: progress,
-          builder: (context, _) => Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.onDismiss,
-                  // The scrim thickens along with the layer's appearance: otherwise the screen under it would
-                  // darken before it becomes clear why.
-                  child: _blurUnder(
-                    ColoredBox(color: Colors.black.withValues(alpha: kModalScrimOpacity * progress.value)),
-                    progress.value,
+          builder: (context, _) => IgnorePointer(
+            ignoring: widget.closing,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: widget.onDismiss,
+                    // The scrim thickens along with the layer's appearance: otherwise the screen under it would
+                    // darken before it becomes clear why.
+                    child: _blurUnder(
+                      ColoredBox(color: Colors.black.withValues(alpha: kModalScrimOpacity * progress.value)),
+                      progress.value,
+                    ),
                   ),
                 ),
-              ),
-              if (window)
-                Padding(
-                  padding: EdgeInsets.only(top: safeTop, bottom: keyboard),
-                  child: Center(
-                    child: Opacity(opacity: progress.value, child: slot),
-                  ),
-                )
-              else
-                Padding(
-                  padding: EdgeInsets.only(top: safeTop, bottom: keyboard),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    /*
+                if (window)
+                  Padding(
+                    padding: EdgeInsets.only(top: safeTop, bottom: keyboard),
+                    child: Center(
+                      child: Opacity(
+                        opacity: progress.value,
+                        child: Transform.scale(
+                          scale: kModalWindowStartScale + (1 - kModalWindowStartScale) * progress.value,
+                          child: slot,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: EdgeInsets.only(top: safeTop, bottom: keyboard),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      /*
                      * The offset is in FRACTIONS OF THE LAYER'S OWN HEIGHT, not pixels: a sheet may be three
                      * rows or half the screen, and both must slide in the same way, from behind their own
                      * bottom edge. Pixels would give short sheets a long path from nowhere.
                      */
-                    child: FractionalTranslation(translation: Offset(0, 1 - progress.value), child: slot),
+                      child: FractionalTranslation(translation: Offset(0, 1 - progress.value), child: slot),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       },

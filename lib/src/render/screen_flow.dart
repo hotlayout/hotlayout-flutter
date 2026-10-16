@@ -11,7 +11,6 @@ import '../model/action.dart';
 import '../model/action_catalog.dart';
 import '../model/bottom_zone_rules.dart';
 import '../model/locale_resolve.dart';
-import '../model/media_chrome_rules.dart';
 import '../model/record_scope.dart';
 import '../model/tokens.dart';
 import '../model/ui_document.dart';
@@ -22,10 +21,13 @@ import 'direction.dart';
 import 'host_callbacks.dart';
 import 'labels.dart';
 import 'modal_layer.dart';
+import 'motion.dart';
+import 'screen_transitions.dart';
 import 'screen_widget.dart';
 import 'tap_target.dart';
 import 'write_run.dart';
 
+part 'screen_flow_motion.dart';
 part 'screen_flow_stack.dart';
 
 /// Called when the system back button (or gesture) arrives while the document
@@ -131,6 +133,7 @@ class ScreenFlow extends StatefulWidget {
     this.controller,
     this.onSystemBack,
     this.handleSystemBack = true,
+    this.transitions = HotlayoutTransitions.platform,
     super.key,
   });
 
@@ -244,8 +247,11 @@ class ScreenFlow extends StatefulWidget {
   /// document's `navigate.back` action — and a modal screen is closed. On the
   /// first screen the event is not intercepted: the route the flow stands in
   /// is popped by your `Navigator`, as it would be without the flow. The iOS
-  /// back swipe pops that route from the first screen only; on a deeper screen
-  /// it is disabled, as it is for any route that handles "back" itself.
+  /// back swipe of that route pops it from the first screen only; on a deeper
+  /// screen the route's swipe is off, and the flow offers its own instead (iOS
+  /// and macOS, with [transitions] on): a swipe from the leading edge goes one
+  /// page back inside the document, following the finger, and asks
+  /// [onSystemBack] first like any system "back".
   ///
   /// The flow takes part in "back" through a `PopScope`, so the usual Flutter
   /// rules apply: a dialog or sheet of the host that is open above the flow is
@@ -268,6 +274,15 @@ class ScreenFlow extends StatefulWidget {
   /// to cancel the step. Not called on the first screen, where the event is
   /// the host's already. See [ScreenFlowBackCallback].
   final ScreenFlowBackCallback? onSystemBack;
+
+  /// How one screen replaces another; [HotlayoutTransitions.platform] by default. See
+  /// [HotlayoutTransitions].
+  ///
+  /// Motion never changes the flow: a screen is shown (and [onScreenShown] is called) at the
+  /// moment of the step, not at the end of its transition; the screen that leaves is drawn only
+  /// while it moves away and takes no touches; and a step taken during a transition is taken at
+  /// once, from where the motion is.
+  final HotlayoutTransitions transitions;
 
   @override
   State<ScreenFlow> createState() => _ScreenFlowState();
@@ -293,8 +308,28 @@ typedef _Frame = ({
   CarouselMemory memory,
 });
 
-class _ScreenFlowState extends State<ScreenFlow> {
+class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
   late List<_Frame> _stack = [_initialFrame];
+
+  /// The scene drawn BESIDE the current one while a page step, an edge swipe or a section switch
+  /// moves; `null` at rest. Drawing only: the stack above is the flow.
+  _SceneMove? _move;
+
+  /// Modal layers the stack has dropped and that are still sinking away, with the identity of the
+  /// page they lie on.
+  final List<({_Frame frame, int index, CarouselMemory base})> _leaving = [];
+
+  /// The frame whose modal layer was just pushed and slides in; any other layer is drawn in place.
+  CarouselMemory? _enteringLayer;
+
+  /// The identity each page's scene is drawn under (see `_revealAnew`).
+  final Expando<Object> _sceneIdentity = Expando('hotlayout-scene');
+
+  /// Whether a finger is driving an edge swipe back right now.
+  bool _swiping = false;
+
+  /// `setState` for the parts of this state that live in extensions.
+  void _update(VoidCallback change) => setState(change);
 
   /// Margin of the window in the middle (`modalLayer.center.margin`, theme step `xl`).
   double get _windowMargin => widget.theme.space(SpacingToken.xl);
@@ -367,6 +402,7 @@ class _ScreenFlowState extends State<ScreenFlow> {
 
   @override
   void dispose() {
+    _move?.controller.dispose();
     HardwareKeyboard.instance.removeHandler(_onHardwareKey);
     final controller = widget.controller;
     if (controller != null) {
@@ -399,9 +435,11 @@ class _ScreenFlowState extends State<ScreenFlow> {
     } else if (!identical(oldWidget.data, widget.data)) {
       _yieldSessionToData();
     }
+    if (oldWidget.transitions != widget.transitions) _settle();
     final restarted = otherFlow || !_sameFlowDocument(oldWidget.doc);
     if (restarted) {
       _stack = [_initialFrame];
+      _settle();
       _stackChanged(ScreenShownCause.entry, duringBuild: true);
     } else if (controllerChanged) {
       _notifyController(duringBuild: true);
@@ -461,7 +499,11 @@ class _ScreenFlowState extends State<ScreenFlow> {
   /// would diverge from the first at the first change.
   bool _goBack() {
     if (!_canGoBack) return false;
-    setState(() => _stack = _stack.sublist(0, _stack.length - 1));
+    final before = _stack;
+    setState(() {
+      _stack = before.sublist(0, before.length - 1);
+      _moveOnStep(before, ScreenShownCause.back);
+    });
     _stackChanged(ScreenShownCause.back);
     return true;
   }
@@ -591,7 +633,11 @@ class _ScreenFlowState extends State<ScreenFlow> {
               : OpenedPresentation.page,
           carryRecord: action.carryRecord,
         );
-        setState(() => _stack = [..._stack, (screen: screen, params: action.params, record: record, memory: CarouselMemory())]);
+        final before = _stack;
+        setState(() {
+          _stack = [...before, (screen: screen, params: action.params, record: record, memory: CarouselMemory())];
+          _moveOnStep(before, ScreenShownCause.forward);
+        });
         _stackChanged(ScreenShownCause.forward);
         return;
       }
@@ -621,7 +667,11 @@ class _ScreenFlowState extends State<ScreenFlow> {
         if (next == null) return;
         // A section declared modal is a page: it is the root of the stack (`sectionTargetModal`,
         // `_presentationAt`).
-        setState(() => _stack = [(screen: screen, params: action.params, record: null, memory: CarouselMemory())]);
+        final before = _stack;
+        setState(() {
+          _stack = [(screen: screen, params: action.params, record: null, memory: CarouselMemory())];
+          _moveOnStep(before, ScreenShownCause.switchSection);
+        });
         _stackChanged(ScreenShownCause.switchSection);
         return;
       }
@@ -735,9 +785,12 @@ class _ScreenFlowState extends State<ScreenFlow> {
       onPopInvokedWithResult: _onSystemBack,
       child: Directionality(
         textDirection: directionOfLocale(_resolution.directionLocale),
-        // The root of the flow for touch areas: one for all layers, because a modal and the screen
-        // under it are the same flow.
-        child: TapTargetScope(child: _buildStack()),
+        child: TransitionsScope(
+          transitions: widget.transitions,
+          // The root of the flow for touch areas: one for all layers, because a modal and the screen
+          // under it are the same flow.
+          child: TapTargetScope(child: _withEdgeSwipe(_buildStack())),
+        ),
       ),
     );
   }

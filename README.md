@@ -74,7 +74,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.23.0
+  hotlayout_flutter: ^0.24.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -484,7 +484,7 @@ There is nothing to wire. While the document has a screen to go back to, the And
 
 The renderer takes part through Flutter's `PopScope`, with `canPop` true exactly on the first screen, so the system shows the right predictive-back animation. Two consequences follow from how Flutter delivers the event:
 
-- **iOS back swipe.** It pops your route from the document's first screen. On a deeper screen the swipe is disabled, as for any route that handles "back" itself — the document's own back arrow is the way back.
+- **iOS back swipe.** It pops your route from the document's first screen. On a deeper screen your route's swipe is off, and the document offers its own: a swipe from the leading edge goes one page back inside the document, following the finger (see [Transitions between screens](#transitions-between-screens)).
 - **A nested `Navigator`** (a navigator per tab) receives the system back event only if your app forwards it, usually with `NavigatorPopHandler`. Forwarded, everything above works; not forwarded, the event never reaches the document — use the controller below.
 
 To drive "back" from your own control, give the flow a `ScreenFlowController`:
@@ -548,6 +548,40 @@ To step in before the flow goes back — unsaved input, a confirmation — pass 
 ```
 
 With `handleSystemBack: false` the renderer leaves the event alone altogether: the system back always goes to your `Navigator`, and `ScreenFlowController.goBack()` is how you step back inside the document.
+
+### Transitions between screens
+
+The document says which screen is shown and why; how one screen replaces another is the renderer's, and it follows the platform the app runs on (`Theme.of(context).platform`):
+
+| Why the screen is shown | Motion |
+|---|---|
+| the first screen, a new entry, a new document | none |
+| a page opened forward | iOS and macOS: the page slides in from the end of the line over the previous one, which drifts a third of the way back (the native navigation push). Elsewhere: the Material "fade forwards" transition, the page fading in from a quarter of its width toward the end of the line. 300 ms |
+| back from a page | the same, played in reverse |
+| a modal sheet opened / closed | the sheet rises from the bottom while the scrim and the backdrop blur thicken with it; it sinks back when closed. 220 ms |
+| a window (`modalPlacement: 'center'`) opened / closed | grows from 96 % while it fades in; the reverse when closed |
+| a section of the navigation bar | a short cross-fade: the new screen comes in over the old one, so parts that are the same on both (the app bar, the navigation bar) stay still. 220 ms |
+| another tab of `Tabs` | the panels cross-fade and the indicator slides to the open title. 150 ms |
+
+"End of the line" is the right edge in left-to-right writing and the left edge in right-to-left.
+
+**Motion never changes the flow.** `onScreenShown` is called at the moment of the step, exactly once, not at the end of the motion; the stack, the record a screen was opened with and what the user wrote are what they would be without motion. The screen that leaves is drawn only while it moves away, takes no touches and is not announced. A step taken while another one moves (a second "forward", a "back" while a page is still coming in) is taken at once, from where the motion is. A page revealed by a step back is built anew, as it is without motion.
+
+**The edge swipe back (iOS and macOS).** On a deeper page of the document a swipe from the leading edge (20 dp) reveals the page below under the finger and goes back when the finger lets go past half the width or with a fling; a swipe given up changes nothing and reports nothing. Going back asks `onSystemBack` first, like the system back. There is no swipe on the first screen (your route's own swipe works there), on a modal layer (its scrim and "back" close it), with `handleSystemBack: false` or with transitions off.
+
+To run no motion at all — your own transitions around the flow, or a test that should not wait — pass `transitions: HotlayoutTransitions.none`:
+
+```dart
+  return renderDocument(
+    document,
+    theme: theme,
+    data: data,
+    // Every change of screen, modal layer and tab is instant.
+    transitions: HotlayoutTransitions.none,
+  );
+```
+
+The system "reduce motion" setting (`MediaQuery.disableAnimations`) always makes every change instant and turns the edge swipe off.
 
 ## Theme
 
@@ -767,7 +801,7 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.23.0` | — |
+| Package | `0.24.0` | — |
 | Document contract (schema) | `9.23.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
@@ -865,6 +899,7 @@ If you update from an older version of the package, these are the places where t
 | 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.23.0 | A button with `confirm: 'swipe'` no longer runs its action on a tap or a click: the thumb has to be dragged, or Enter / Space / the screen reader's "activate" used. A `NavBar` with `float: true` lies over the body (the body area reaches the bottom of the screen and the last row scrolls clear of the bar). A `Repeater` with `where` draws only the records that pass, and `limit` counts those. |
+| 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
 
 ## Platform notes

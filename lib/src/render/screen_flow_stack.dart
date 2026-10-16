@@ -3,8 +3,7 @@
 part of 'screen_flow.dart';
 
 extension _ScreenFlowStack on _ScreenFlowState {
-  Widget _frameAt(int index) {
-    final frame = _stack[index];
+  Widget _frameAt(_Frame frame, int index) {
     return KeyedSubtree(
       // Keyed by position in the stack, not just `screenId`: returning to the same screen must
       // restore it from scratch rather than show the state of the previous one.
@@ -33,7 +32,7 @@ extension _ScreenFlowStack on _ScreenFlowState {
           autofill: widget.autofill,
           labels: widget.labels,
           memory: frame.memory,
-          presentation: _presentationAt(index),
+          presentation: index == 0 ? ScreenPresentationToken.page : frame.screen.presentation,
         ),
       ),
     );
@@ -57,29 +56,31 @@ extension _ScreenFlowStack on _ScreenFlowState {
   /// The layer SLIDES IN rather than appearing. A sheet that pops up instantly reads as a
   /// repainted screen, not as something laid OVER it, i.e. the very thing the presentation mode
   /// exists for disappears. Here motion carries meaning rather than decorating.
-  Widget _modalLayer(
-    Widget sheet, {
-    required String nodeId,
-    required Map<String, Object?>? record,
-    required ModalPlacement placement,
-    required double windowMargin,
-    int? backdropBlur,
-  }) =>
-      ModalLayer(
-        placement: placement,
-        backdropBlur: backdropBlur,
-        windowMargin: windowMargin,
-        // The scrim is not a node, so it has no record of its own: the host (if "back" would leave the
-        // flow) gets the layer's record.
-        onDismiss: () => _handleAction(
-          const ButtonAction(ButtonAction.navigateBack),
-          nodeId,
-          (record: record, insideListItem: false, read: readNothing),
-        ),
-        sheet: sheet,
-      );
+  Widget _modalLayer(_Frame frame, int index, {bool closing = false}) => ModalLayer(
+    // Keyed by the frame: a layer that starts closing keeps its state (scroll, fields) while it
+    // sinks away.
+    key: ObjectKey(frame.memory),
+    placement: frame.screen.placement,
+    backdropBlur: frame.screen.backdropBlur,
+    windowMargin: _windowMargin,
+    animateIn: identical(frame.memory, _enteringLayer),
+    closing: closing,
+    onClosed: closing ? () => _layerClosed(frame.memory) : null,
+    // The scrim is not a node, so it has no record of its own: the host (if "back" would leave the
+    // flow) gets the layer's record.
+    onDismiss: () => _handleAction(
+      const ButtonAction(ButtonAction.navigateBack),
+      frame.screen.screenId,
+      (record: frame.record, insideListItem: false, read: readNothing),
+    ),
+    sheet: _frameAt(frame, index),
+  );
 
-  Widget _buildStack() {
+  /// One scene: the page a list of frames paints at the bottom, and its modal layers over it.
+  ///
+  /// A scene that is not [current] is one moving away or revealed for a moment (a page step, an
+  /// edge swipe, a section switch): it takes no touches and is not announced.
+  Widget _scene(List<_Frame> frames, {required bool current}) {
     /*
      * WHAT IS PAINTED: the last NON-modal frame, and over it all the modal ones above it in the
      * stack.
@@ -90,12 +91,15 @@ extension _ScreenFlowStack on _ScreenFlowState {
      * The search starts from the TOP of the stack, not the bottom: under a modal the screen it was
      * opened from must remain, not the initial one.
      */
-    var base = _stack.length - 1;
-    while (base > 0 && _stack[base].screen.presentation == ScreenPresentationToken.modal) {
-      base -= 1;
-    }
-
-    final bottom = _frameAt(base);
+    final base = _baseOf(frames);
+    final baseMemory = frames[base].memory;
+    final leaving = current
+        ? [
+            for (final layer in _leaving)
+              if (identical(layer.base, baseMemory)) _modalLayer(layer.frame, layer.index, closing: true),
+          ]
+        : const <Widget>[];
+    final atRest = base == frames.length - 1 && leaving.isEmpty;
 
     /*
      * The `Stack` is ALWAYS there, layer or not: the bottom frame stays at the same place in the
@@ -103,19 +107,61 @@ extension _ScreenFlowStack on _ScreenFlowState {
      * focus and carousel memory are kept). Without a layer the frame's size is the same as it
      * would be: `passthrough` hands it the parent's constraints as they are.
      */
+    final scene = KeyedSubtree(
+      key: _sceneKey(frames),
+      child: Stack(
+        fit: atRest ? StackFit.passthrough : StackFit.loose,
+        children: [
+          _frameAt(frames[base], base),
+          for (var i = base + 1; i < frames.length; i += 1) _modalLayer(frames[i], i),
+          ...leaving,
+        ],
+      ),
+    );
+    return IgnorePointer(
+      ignoring: !current,
+      child: ExcludeSemantics(excluding: !current, child: scene),
+    );
+  }
+
+  Widget _buildStack() {
+    final current = _scene(_stack, current: true);
+    final move = _move;
+    if (move == null) return Stack(fit: StackFit.passthrough, children: [current]);
+    final other = _scene(move.other, current: false);
+    final progress = move.controller;
+
+    if (move.kind == _MoveKind.fade) {
+      return AnimatedBuilder(
+        animation: progress,
+        builder: (context, _) {
+          final look = sectionSwitchLook(progress.value);
+          return Stack(
+            fit: StackFit.passthrough,
+            children: [
+              Opacity(opacity: look.outgoing, child: other),
+              Opacity(opacity: look.incoming, child: current),
+            ],
+          );
+        },
+      );
+    }
+
+    final leavingOnTop = move.kind == _MoveKind.pop;
+    final cupertino = cupertinoPagesOf(context);
+    Widget page(PageRole role, Widget child) => PageMotion(
+      role: role,
+      progress: progress,
+      forward: move.kind == _MoveKind.push,
+      cupertino: cupertino,
+      linear: _swiping,
+      child: child,
+    );
     return Stack(
-      fit: base == _stack.length - 1 ? StackFit.passthrough : StackFit.loose,
+      fit: StackFit.passthrough,
       children: [
-        bottom,
-        for (var i = base + 1; i < _stack.length; i += 1)
-          _modalLayer(
-            _frameAt(i),
-            nodeId: _stack[i].screen.screenId,
-            record: _stack[i].record,
-            placement: _stack[i].screen.placement,
-            windowMargin: _windowMargin,
-            backdropBlur: _stack[i].screen.backdropBlur,
-          ),
+        page(PageRole.under, leavingOnTop ? current : other),
+        page(PageRole.over, leavingOnTop ? other : current),
       ],
     );
   }
