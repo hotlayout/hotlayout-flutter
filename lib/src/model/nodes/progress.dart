@@ -15,6 +15,7 @@ final class ProgressBarNode extends ChildNode {
     super.pull,
     super.pin,
     super.pinTop,
+    super.pressFeedbackOff,
     required this.value,
     required this.max,
     required this.color,
@@ -25,12 +26,16 @@ final class ProgressBarNode extends ChildNode {
     this.segments,
     this.currentColor,
     this.cap,
+    this.glow,
     this.animateChanges = false,
     this.animateIn = false,
   });
 
   /// Round ends (9.21.0); `null` is the ends as before: the theme's `pill` radius.
   final ProgressCap? cap;
+
+  /// The glow of the scale (9.25.0); `null` is no glow (no field or an unknown word).
+  final ProgressGlow? glow;
 
   /// The value leads to a new value from data instead of jumping (9.21.0); only the literal `true` is read.
   final bool animateChanges;
@@ -53,6 +58,7 @@ final class ProgressBarNode extends ChildNode {
         pull: pull,
         pin: pin,
         pinTop: pinTop,
+        pressFeedbackOff: pressFeedbackOff,
         value: other,
         max: max,
         color: color,
@@ -63,6 +69,7 @@ final class ProgressBarNode extends ChildNode {
         segments: segments,
         currentColor: currentColor,
         cap: cap,
+        glow: glow,
         animateChanges: animateChanges,
         animateIn: animateIn,
       );
@@ -103,6 +110,7 @@ ProgressBarNode _parseProgressBar(_RawNode node, VisibilityCondition? visibleIf)
     pull: node.pull,
     pin: node.pin,
     pinTop: node.pinTop,
+    pressFeedbackOff: node.pressFeedbackOff,
     value: BindableNumber.parse(props['value']),
     max: BindableNumber.parse(props['max'], fallback: 100),
     color: FieldColor.parse(props['color'], fieldDefault: ColorToken.primary),
@@ -113,6 +121,7 @@ ProgressBarNode _parseProgressBar(_RawNode node, VisibilityCondition? visibleIf)
     segments: readSegments(props['segments']),
     currentColor: ColorRef.tryParse(props['currentColor']),
     cap: ProgressCap.parse(props['cap']),
+    glow: ProgressGlow.parse(props['glow']),
     animateChanges: props['animateChanges'] == true,
     animateIn: props['animateIn'] == true,
   );
@@ -142,6 +151,7 @@ final class CircularProgressNode extends ChildNode {
     super.pull,
     super.pin,
     super.pinTop,
+    super.pressFeedbackOff,
     required this.value,
     required this.max,
     required this.color,
@@ -153,12 +163,16 @@ final class CircularProgressNode extends ChildNode {
     this.labelTypography,
     this.labelColor,
     this.cap,
+    this.glow,
     this.animateChanges = false,
     this.animateIn = false,
   });
 
   /// Round ends of the arc (9.21.0); `null` is square ends, as before.
   final ProgressCap? cap;
+
+  /// The glow of the scale (9.25.0); `null` is no glow (no field or an unknown word).
+  final ProgressGlow? glow;
 
   /// The value leads to a new value from data instead of jumping (9.21.0); only the literal `true` is read.
   final bool animateChanges;
@@ -180,6 +194,7 @@ final class CircularProgressNode extends ChildNode {
         pull: pull,
         pin: pin,
         pinTop: pinTop,
+        pressFeedbackOff: pressFeedbackOff,
         value: other,
         max: max,
         color: color,
@@ -191,6 +206,7 @@ final class CircularProgressNode extends ChildNode {
         labelTypography: labelTypography,
         labelColor: labelColor,
         cap: cap,
+        glow: glow,
         animateChanges: animateChanges,
         animateIn: animateIn,
       );
@@ -241,6 +257,7 @@ CircularProgressNode _parseCircularProgress(_RawNode node, VisibilityCondition? 
     pull: node.pull,
     pin: node.pin,
     pinTop: node.pinTop,
+    pressFeedbackOff: node.pressFeedbackOff,
     value: BindableNumber.parse(props['value']),
     max: BindableNumber.parse(props['max'], fallback: 100),
     color: FieldColor.parse(props['color'], fieldDefault: ColorToken.primary),
@@ -259,6 +276,7 @@ CircularProgressNode _parseCircularProgress(_RawNode node, VisibilityCondition? 
     labelTypography: TypographyRef.tryParse(props['labelTypography']),
     labelColor: ColorRef.tryParse(props['labelColor']),
     cap: ProgressCap.parse(props['cap']),
+    glow: ProgressGlow.parse(props['glow']),
     animateChanges: props['animateChanges'] == true,
     animateIn: props['animateIn'] == true,
   );

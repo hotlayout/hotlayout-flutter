@@ -22,6 +22,9 @@ import '../model/value_transition.dart';
 /// shown at that moment and takes the full duration. Each number (the value and the max of a scale) has its
 /// own transition.
 ///
+/// The numbers that run a transition now: the data path -> where the transition began and where it ends.
+typedef TransitionLeads = Map<String, ({num from, num to})>;
+
 /// The widget does not draw anything itself: [builder] gets the data with the shown numbers laid over every
 /// layer ([ScreenData.withShown]), so the text is written by the same format, template and plural word as the
 /// final one. [active] says that a number is between values now, for the screen reader to hear the final value
@@ -60,7 +63,9 @@ class ValueTransition extends StatefulWidget {
   /// What the language of the screen is; a change of it moves the numbers without a transition.
   final Object? localeKey;
 
-  final Widget Function(BuildContext context, ScreenData shown, bool active) builder;
+  /// [leads] are the numbers that run a transition now, by data path: where each began and where it ends. A bar with
+  /// steps needs them (schema 9.25.0): it fills a step smoothly between the two pictures at rest.
+  final Widget Function(BuildContext context, ScreenData shown, bool active, TransitionLeads leads) builder;
 
   @override
   State<ValueTransition> createState() => _ValueTransitionState();
@@ -206,11 +211,13 @@ class _ValueTransitionState extends State<ValueTransition> with SingleTickerProv
   Widget build(BuildContext context) {
     final shown = <String, Object?>{};
     final steps = <String, Object?>{};
+    final leads = <String, ({num from, num to})>{};
     var active = false;
     for (final target in widget.targets) {
       final run = _runs[target.path];
       if (run == null || !run.leading || _finished(run)) continue;
       active = true;
+      leads[target.path] = (from: run.from!, to: run.to!);
       final t = (_now - run.startedAt!).inMicroseconds / 1000;
       if (target.scale) {
         // The fill grows without a step; the label of the scale writes it in steps.
@@ -226,6 +233,6 @@ class _ValueTransitionState extends State<ValueTransition> with SingleTickerProv
       }
     }
     final data = active ? widget.data.withShown(shown, labelShown: steps.isEmpty ? null : steps) : widget.data;
-    return widget.builder(context, data, active);
+    return widget.builder(context, data, active, leads);
   }
 }

@@ -13,7 +13,7 @@
 ///    document is bound to;
 ///  * the **widget** — [renderDocument], with [SduiActionCallback] for the
 ///    actions the host performs itself ([runStandardAction] performs the
-///    checked ones, with executors the host passes in), [SduiTrackCallback]
+///    checked ones, with executors the host passes in), [SduiTrackCallback], [SduiHapticCallback]
 ///    for analytics events and [SduiScreenShownCallback] for screen views;
 ///    [HostActions] routes the host's own actions to one handler per type.
 ///
@@ -42,6 +42,8 @@ export 'src/model/action_catalog.dart'
         ScreenShownCause,
         StandardAction,
         TrackEvent;
+// The haptic request of a press (9.25.0): the words the host gets in `onHaptic`.
+export 'src/model/haptic.dart' show HapticWord;
 export 'src/model/node.dart' show UiNode;
 export 'src/model/tokens.dart' show ScreenPresentationToken;
 export 'src/model/ui_document.dart' show ScreenEntry, UiDocument;
@@ -69,6 +71,7 @@ export 'src/render/render_document.dart'
         ScreenScopeRequest,
         ScreenScopeResolver,
         SduiActionCallback,
+        SduiHapticCallback,
         SduiRecordActionCallback,
         SduiScreenShownCallback,
         SduiTrackCallback,

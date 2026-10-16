@@ -165,6 +165,7 @@ final class ListTileNode extends ChildNode {
     super.pull,
     super.pin,
     super.pinTop,
+    super.pressFeedbackOff,
     required this.leading,
     required this.title,
     required this.subtitle,
@@ -215,6 +216,7 @@ ListTileNode _parseListTile(_RawNode node, VisibilityCondition? visibleIf) {
     pull: node.pull,
     pin: node.pin,
     pinTop: node.pinTop,
+    pressFeedbackOff: node.pressFeedbackOff,
     leading: ListTileLeading.parse(props['leading']),
     title: BindableString.parse(props['title'], key: node.key('title')),
     subtitle: props['subtitle'] == null

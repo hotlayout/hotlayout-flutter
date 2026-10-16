@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show VoidCallback;
 
 import 'action_catalog.dart';
+import 'haptic.dart';
 
 // An action as written in the document: `{ type: string, params?: Map<String, String> }`.
 //
@@ -19,6 +20,7 @@ final class ButtonAction {
       invalid = null,
       paramBindings = const {},
       track = null,
+      haptic = null,
       carryRecord = false;
 
   const ButtonAction._(
@@ -28,6 +30,7 @@ final class ButtonAction {
     this.invalid,
     this.paramBindings = const {},
     this.track,
+    this.haptic,
     this.carryRecord = false,
   });
 
@@ -93,6 +96,10 @@ final class ButtonAction {
   /// action handed to the host: the event goes to `onTrack`.
   final TrackEvent? track;
 
+  /// The haptic request of the press (9.25.0): `null` for no field or an unknown word, and in an action handed to the
+  /// host. The word goes to `onHaptic`, once per press, before `track` and the action.
+  final HapticWord? haptic;
+
   /// `navigate` only: the opened page gets the record scope of the node even
   /// outside a list row. Exactly `true` in the document, nothing else.
   final bool carryRecord;
@@ -125,12 +132,13 @@ final class ButtonAction {
     if (type is! String || type.isEmpty) return none;
 
     final track = TrackEvent.parse(raw['track']);
+    final haptic = HapticWord.parse(raw['haptic']);
     final bindings = _parseBindings(raw['paramBindings']);
     final carry = raw['carryRecord'] == true;
 
     final rawParams = raw['params'];
     if (rawParams is! Map) {
-      return ButtonAction._(type, const {}, paramBindings: bindings, track: track, carryRecord: carry);
+      return ButtonAction._(type, const {}, paramBindings: bindings, track: track, haptic: haptic, carryRecord: carry);
     }
     // The schema promises Map<String, String> with keys of the `x-actions.params`
     // form, but a value from the network is checked here. An entry is SKIPPED
@@ -152,6 +160,7 @@ final class ButtonAction {
       Map.unmodifiable(params),
       paramBindings: bindings,
       track: track,
+      haptic: haptic,
       carryRecord: carry,
     );
   }

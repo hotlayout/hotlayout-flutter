@@ -1,6 +1,7 @@
 /// A collapsible block with a header.
 library;
 
+import 'press_feedback.dart';
 import 'package:flutter/material.dart';
 
 import '../model/tokens.dart';
@@ -53,7 +54,7 @@ class _AccordionBlockState extends State<AccordionBlock> {
       children: [
         TapTarget(
           child:
-          GestureDetector(
+          PressFeedback(kind: null, child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => setState(() => _expanded = !_expanded),
             /*
@@ -84,7 +85,7 @@ class _AccordionBlockState extends State<AccordionBlock> {
                 ),
               ],
             ),
-          ),
+          )),
         ),
         /*
          * The content EXPANDS rather than appearing: if only the arrow rotated smoothly while

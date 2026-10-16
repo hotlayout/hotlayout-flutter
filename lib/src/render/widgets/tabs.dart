@@ -1,6 +1,7 @@
 /// Tabs: a strip of titles over panels, one of which is shown.
 library;
 
+import '../press_feedback.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -125,7 +126,9 @@ extension TabsWidgets on NodeRenderer {
         ? own.partColor(ColorToken.primary)
         : own.partColor(ColorToken.muted, secondary: true);
 
-    return GestureDetector(
+    return PressFeedback(
+      kind: null,
+      child: GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -143,6 +146,7 @@ extension TabsWidgets on NodeRenderer {
           maxLines: 1,
           style: theme.text(TypographyToken.titleS).copyWith(color: color),
         ),
+      ),
       ),
     );
   }

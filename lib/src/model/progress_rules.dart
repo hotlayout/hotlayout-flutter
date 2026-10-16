@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'progress_cap.dart';
+import 'segment_transition.dart';
 import 'style_values.dart';
 
 /// Progress bar and ring: geometry and selection rules (schema 9.7.0, `x-style.layout.progress`).
@@ -288,6 +289,8 @@ final class SegmentGeometry {
     required this.current,
     required this.radius,
     required this.filledInline,
+    required this.fills,
+    required this.units,
   });
 
   final double inline;
@@ -302,6 +305,13 @@ final class SegmentGeometry {
 
   /// End of the last filled step is the end of the gradient line; 0 with no filled steps.
   final double filledInline;
+
+  /// The fill of every step, 0…1 from its logical start. All 0 or 1 at rest; one step has a fraction while a value
+  /// leads (9.25.0, `x-segmentsTransition`).
+  final List<double> fills;
+
+  /// The steps filled, with a fraction while a value leads; a whole number at rest.
+  final double units;
 }
 
 /// The bar's own minimum width is ONE in both kinds (`progressSegments.minInlineSize: 'gaps'`,
@@ -330,23 +340,29 @@ SegmentGeometry? segmentGeometry({
   required double gap,
   required double pill,
   bool roundEnds = false,
+  double? units,
 }) {
   final inline = (trackInline - (segments - 1) * gap) / segments;
   if (!inline.isFinite || inline < kMinSegmentInline) return null;
-  final filled = filledSegments(ratio, segments);
-  final current = filled < segments ? filled : null;
+  // [units] is the number of filled steps of a value that is leading (9.25.0); without it, whole steps at rest.
+  final drawn = units ?? filledSegments(ratio, segments).toDouble();
+  final fills = segmentFills(drawn, segments);
+  final filled = fills.where((fill) => fill >= 1).length;
+  final current = segmentCurrentOf(fills);
   return SegmentGeometry(
     inline: inline,
     gap: gap,
     starts: [for (var i = 0; i < segments; i += 1) i * (inline + gap)],
     states: [
       for (var i = 0; i < segments; i += 1)
-        i < filled ? SegmentState.filled : (i == current ? SegmentState.current : SegmentState.unfilled),
+        fills[i] >= 1 ? SegmentState.filled : (i == current ? SegmentState.current : SegmentState.unfilled),
     ],
     filled: filled,
     current: current,
     radius: roundEnds ? barCapRadius(thickness) : barFillRadius(inline, thickness, pill),
-    filledInline: filled == 0 ? 0 : filled * inline + (filled - 1) * gap,
+    filledInline: segmentFillInline(drawn, step: inline, gap: gap),
+    fills: fills,
+    units: drawn,
   );
 }
 

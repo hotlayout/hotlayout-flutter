@@ -2,6 +2,7 @@
 /// and keeps what the user is typing.
 library;
 
+import '../press_feedback.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -375,7 +376,7 @@ class _InputTextFieldState extends State<InputTextField> implements InputFieldHa
     final decoration = const InputDecoration.collapsed(hintText: null);
     final placeholder = widget.placeholder;
 
-    final input = Material(
+    final input = PressFeedback(kind: null, child: Material(
       type: MaterialType.transparency,
       child: TextField(
         controller: _controller,
@@ -405,7 +406,7 @@ class _InputTextFieldState extends State<InputTextField> implements InputFieldHa
         // There is no counter (`maxLength.counter: none`).
         buildCounter: null,
       ),
-    );
+    ));
 
     final textField = placeholder == null || placeholder.isEmpty
         ? input

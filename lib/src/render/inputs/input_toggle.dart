@@ -1,6 +1,7 @@
 /// The switch and the checkbox.
 library;
 
+import '../press_feedback.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -170,7 +171,10 @@ class _InputToggleState extends State<InputToggle> {
         canRequestFocus: !widget.disabled,
         skipTraversal: widget.disabled,
         onKeyEvent: _onKey,
-        child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: widget.disabled ? null : _press, child: row),
+        child: PressFeedback(
+          kind: null,
+          child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: widget.disabled ? null : _press, child: row),
+        ),
       ),
     );
     if (widget.disabled) result = Opacity(opacity: kInputDisabledOpacity, child: result);

@@ -264,6 +264,9 @@
         "shadow": {
           "$ref": "#/$defs/ShadowRef"
         },
+        "shadowColor": {
+          "$ref": "#/$defs/ShadowColor"
+        },
         "opacity": {
           "type": "number",
           "minimum": 0,
@@ -740,6 +743,13 @@
       ],
       "additionalProperties": false
     },
+    "ShadowColor": {
+      "description": "Colour of the shadow (9.25.0): «background» — every layer of «shadow» (a token or own layers) takes the hue of the own background of this node, keeping the opacity of the layer: a solid background gives its colour, a gradient the stop nearest to its middle. No background, an image background or a colour that does not resolve — the shadow keeps its own colour. Rules — «x-shadowColor». No field — the shadow keeps its own colour, exactly as before 9.25.0.",
+      "type": "string",
+      "enum": [
+        "background"
+      ]
+    },
     "ScreenStyleCase": {
       "type": "object",
       "properties": {
@@ -987,6 +997,7 @@
           "border",
           "background",
           "shadow",
+          "shadowColor",
           "opacity",
           "backdropBlur"
         ]
@@ -1204,6 +1215,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         },
         "styleScrolled": {
           "description": "Style of this app bar while the body is scrolled (9.21.0): «background», «color», «shadow» and «backdropBlur» only — nothing that changes the box. The layer lies LAST, over the state of «styleWhen»; the threshold and when it applies — «x-style.layout.appBarScrolled». No field — the bar does not change on scroll, exactly as before 9.21.0.",
@@ -1609,6 +1623,9 @@
         "shadow": {
           "$ref": "#/$defs/ShadowRef"
         },
+        "shadowColor": {
+          "$ref": "#/$defs/ShadowColor"
+        },
         "opacity": {
           "type": "number",
           "minimum": 0,
@@ -1831,6 +1848,7 @@
           "border",
           "background",
           "shadow",
+          "shadowColor",
           "opacity",
           "backdropBlur"
         ]
@@ -1923,6 +1941,13 @@
         }
       ]
     },
+    "NodePressFeedback": {
+      "description": "Feedback of a pressable node to the finger (9.25.0). The reader gives it by itself — «x-pressFeedback»: a card or a list row scales to 0.97, a button to 0.96, an icon button, a ghost button and a navigation item fade to 0.7. «none» — no feedback on this node. No field — the feedback of the contract.",
+      "type": "string",
+      "enum": [
+        "none"
+      ]
+    },
     "ScrolledBarStyle": {
       "type": "object",
       "properties": {
@@ -1998,6 +2023,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         },
         "propsOn": {
           "$ref": "#/$defs/ColumnPropsOn"
@@ -2097,6 +2125,18 @@
         },
         "track": {
           "$ref": "#/$defs/ActionTrack"
+        },
+        "haptic": {
+          "description": "Haptic feedback of the press (9.25.0) — a REQUEST to the host, like «track»: the reader never vibrates by itself, it hands the word to the host once per press, before the action and next to the analytics event. «light», «medium», «heavy» — an impact; «selection» — a change of choice; «success», «warning» — an outcome. Rules — «x-haptic». No field — no request.",
+          "type": "string",
+          "enum": [
+            "light",
+            "medium",
+            "heavy",
+            "selection",
+            "success",
+            "warning"
+          ]
         }
       },
       "required": [
@@ -2227,6 +2267,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         },
         "propsOn": {
           "$ref": "#/$defs/RowPropsOn"
@@ -2426,6 +2469,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "propsOn": {
           "$ref": "#/$defs/ContainerPropsOn"
         },
@@ -2582,6 +2628,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "propsOn": {
           "$ref": "#/$defs/GridPropsOn"
         },
@@ -2704,6 +2753,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "children": {
           "maxItems": 5,
           "type": "array",
@@ -2799,6 +2851,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "children": {
           "maxItems": 5,
           "type": "array",
@@ -2884,6 +2939,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "children": {
           "maxItems": 15,
           "type": "array",
@@ -2964,6 +3022,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         },
         "children": {
           "maxItems": 10,
@@ -3050,6 +3111,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         },
         "children": {
           "maxItems": 20,
@@ -3216,6 +3280,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "propsOn": {
           "$ref": "#/$defs/RepeaterPropsOn"
         },
@@ -3369,6 +3436,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -3457,6 +3527,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -3542,6 +3615,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -3745,6 +3821,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -3887,6 +3966,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -4328,6 +4410,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "zone": {
           "$ref": "#/$defs/NodeZone"
         }
@@ -4480,6 +4565,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "zone": {
           "$ref": "#/$defs/NodeZone"
         }
@@ -4601,6 +4689,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -4918,6 +5009,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -4982,6 +5076,9 @@
           "type": "boolean",
           "const": true
         },
+        "glow": {
+          "$ref": "#/$defs/ProgressGlow"
+        },
         "segments": {
           "description": "Cuts the scale into this many equal steps with a gap between them. A step is filled WHOLE or not at all: filled = floor(ratio × segments). Geometry, gap, rounding and the gradient — «x-style.layout.progressSegments». No field — the continuous bar.",
           "type": "integer",
@@ -5044,6 +5141,14 @@
         }
       ]
     },
+    "ProgressGlow": {
+      "description": "Glow of the FILLED part of the scale (9.25.0): a blurred copy of the fill under it, in its own colour or gradient — «soft» or «strong», numbers in «x-progressGlow». A bar with steps lights one step: the current one when «currentColor» paints it, otherwise the last step with any fill. It changes no layout and is not clipped by the own box of the node. No field or an unknown word — no glow, exactly as before 9.25.0.",
+      "type": "string",
+      "enum": [
+        "soft",
+        "strong"
+      ]
+    },
     "CircularProgressNode": {
       "type": "object",
       "properties": {
@@ -5097,6 +5202,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -5172,6 +5280,9 @@
           "type": "boolean",
           "const": true
         },
+        "glow": {
+          "$ref": "#/$defs/ProgressGlow"
+        },
         "labelTypography": {
           "description": "Font style of the label in the center of the ring (9.17.0): a theme token or a token with overrides. No field — «x-style.layout.progress.ring.labelTypography». The label does not scale with the diameter.",
           "$ref": "#/$defs/TypographyRef"
@@ -5242,6 +5353,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -5339,6 +5453,9 @@
         "motion": {
           "$ref": "#/$defs/NodeMotion"
         },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
+        },
         "children": {
           "maxItems": 5,
           "type": "array",
@@ -5426,6 +5543,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -5516,6 +5636,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -5740,6 +5863,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -5820,6 +5946,9 @@
         },
         "motion": {
           "$ref": "#/$defs/NodeMotion"
+        },
+        "pressFeedback": {
+          "$ref": "#/$defs/NodePressFeedback"
         }
       },
       "required": [
@@ -5911,7 +6040,7 @@
   },
   "$id": "https://hotlayout.com/schema/ui-document.json",
   "title": "UiDocument",
-  "x-schemaVersion": "9.24.0",
+  "x-schemaVersion": "9.25.0",
   "x-compatibility": {
     "policy": {
       "majorMustMatch": true,
@@ -6232,7 +6361,12 @@
       "valueAppear": "9.24.0",
       "swipeConfirmBusy": "9.24.0",
       "navBadgeMotion": "9.24.0",
-      "topZone": "9.24.0"
+      "topZone": "9.24.0",
+      "segmentsTransition": "9.25.0",
+      "progressGlow": "9.25.0",
+      "shadowColor": "9.25.0",
+      "pressFeedback": "9.25.0",
+      "haptic": "9.25.0"
     }
   },
   "x-budget": {
@@ -10626,6 +10760,184 @@
     "editorPreview": "busy-for-a-moment-then-the-step-of-the-flow",
     "olderReader": "the-thumb-returns-to-the-start-after-the-action",
     "cases": "contract/fixtures/swipe-confirm/swipe-confirm-cases.json"
+  },
+  "x-segmentsTransition": {
+    "prop": "segments",
+    "on": [
+      "ProgressBar"
+    ],
+    "refines": [
+      "x-style.layout.progressSegments.partial",
+      "x-valueAppear.scale.segments"
+    ],
+    "atRest": "whole steps: filled = floor(round(ratio * segments, precision)) — the rule of x-style.layout.progressSegments",
+    "during": "while the value of the bar runs a transition (x-valueTransition or x-valueAppear), the filled steps are a number with a fraction",
+    "units": "U(fromRatio) + (U(toRatio) - U(fromRatio)) * e, U(r) = filled steps at rest of the ratio r, e = the curve of x-valueTransition at the moment",
+    "ends": "both ends are pictures at rest: the bar never jumps when the transition ends",
+    "sameStep": "a change inside one step (U equal at both ends) moves nothing",
+    "stepFill": "clamp(units - index, 0, 1) of the step, from its logical start",
+    "partialStep": "a step with 0 < fill < 1 is drawn as its track or current colour with the fill over it, cut at fill * width, radius of the step kept",
+    "current": "the first step whose fill is below 1; none when every step is full",
+    "gradient": "along the drawn fill: position 1 is the end of the fill of the last step with any fill; gaps are cut out",
+    "interrupted": "a transition that starts from a value shown during another one starts from the whole steps of that value",
+    "label": "the label runs by the step of x-valueTransition, as before",
+    "semantics": "the screen reader hears the final value",
+    "reducedMotion": "no transition: whole steps at once",
+    "editorCanvas": "not animated",
+    "olderReader": "whole steps follow the shown ratio during the transition",
+    "cases": "contract/fixtures/progress/progress-cases.json"
+  },
+  "x-progressGlow": {
+    "prop": "glow",
+    "on": [
+      "ProgressBar",
+      "CircularProgress"
+    ],
+    "value": "one word of «strength»; no field or an unknown word — no glow",
+    "strength": {
+      "soft": {
+        "sigma": 4,
+        "opacity": 0.55
+      },
+      "strong": {
+        "sigma": 8,
+        "opacity": 0.9
+      }
+    },
+    "sigma": "standard deviation of a Gaussian blur, logical pixels (CSS blur(sigma px), Flutter MaskFilter.blur(normal, sigma))",
+    "opacity": "multiplies the alpha of the paint of the copy",
+    "paint": "a copy of the fill paint — its colour, or its gradient along the fill — under the shape; no offset, no spread",
+    "bar": "the fill, with its ends (cap); the track does not glow",
+    "ring": "the arc of the fill, with its ends (cap); the track does not glow",
+    "segments": {
+      "glows": "one step",
+      "current": "the current step (the first one not full) when currentColor paints it: the whole step glows in that colour",
+      "front": "otherwise the last step with any fill: the drawn part of its fill glows in the fill paint",
+      "others": "no glow",
+      "nothing": "no step filled and no painted current step — no glow"
+    },
+    "empty": "nothing is filled — no glow",
+    "layout": "none: the glow takes no room and moves nothing",
+    "clip": "not clipped by the track, the step or the box of the node; clipped only by ancestors that clip, as a shadow",
+    "transition": "follows the shown fill frame by frame (x-valueTransition, x-valueAppear, x-segmentsTransition)",
+    "reducedMotion": "not motion: drawn as named",
+    "semantics": "none",
+    "editorCanvas": "drawn: it is the look of the scale",
+    "olderReader": "skips the field — no glow",
+    "cases": "contract/fixtures/progress/progress-cases.json"
+  },
+  "x-shadowColor": {
+    "prop": "style.shadowColor",
+    "words": [
+      "background"
+    ],
+    "value": "one word; no field or an unknown word — the shadow keeps its own colour",
+    "with": "style.shadow — a theme token or own layers; without «shadow» the field does nothing",
+    "background": "the own background of the node after styleWhen and the width class (not inherited, not the role background)",
+    "layer": "every layer: the hue of the background, the opacity of the layer itself; offset, blur and spread unchanged",
+    "solid": "the colour of the background; its own opacity does not count — the layer carries it",
+    "gradient": "the colour of the stop nearest to position 0.5; on a tie the earlier one",
+    "none": "no background, an image background, or a colour that does not resolve — the layer keeps its own colour",
+    "roleWidget": "on a widget with a role it goes with «shadow» to the surface of the role",
+    "scrolled": "not in styleScrolled",
+    "inherited": false,
+    "olderReader": "skips the field — the shadow keeps its own colour",
+    "cases": "contract/fixtures/shadow-color/shadow-color-cases.json"
+  },
+  "x-pressFeedback": {
+    "field": "pressFeedback",
+    "words": [
+      "none"
+    ],
+    "value": "«none» — no feedback on this node; no field — the feedback below",
+    "who": "the node that performs the action of the press (the innermost control under the finger); its pressable ancestors give no feedback",
+    "kinds": {
+      "card": "a pressable container, a list row, an option and any other node that acts on press",
+      "button": "a Button that is not «ghost»",
+      "fade": "an IconButton, a ghost Button and a NavItem"
+    },
+    "pose": {
+      "card": {
+        "scale": 0.97,
+        "opacity": 1
+      },
+      "button": {
+        "scale": 0.96,
+        "opacity": 1
+      },
+      "fade": {
+        "scale": 1,
+        "opacity": 0.7
+      }
+    },
+    "origin": "the centre of the box of the node",
+    "down": {
+      "durationMs": 80,
+      "curve": [
+        0.2,
+        0,
+        0,
+        1
+      ],
+      "when": "the finger or the pointer goes down on the node"
+    },
+    "up": {
+      "durationMs": 160,
+      "curve": [
+        0.34,
+        1.56,
+        0.64,
+        1
+      ],
+      "when": "the finger is lifted, leaves the node or the press is cancelled",
+      "overshoot": "the curve passes 1 once: the node grows a little over its size and settles"
+    },
+    "shortPress": "a press shorter than «down» still reaches the pressed pose before it returns",
+    "keyboard": "no feedback: Enter and Space act at once",
+    "disabled": "no feedback",
+    "swipeConfirm": "no feedback: the gesture has its own",
+    "reducedMotion": "opacity only: every kind fades to 0.7, no scale",
+    "layout": "none: the scale is painting only, neighbours do not move",
+    "composes": "with node motion and the rotation of a layer: the press scale multiplies them",
+    "editorCanvas": "none — the node is selected there",
+    "olderReader": "no feedback",
+    "cases": "contract/fixtures/press-feedback/press-feedback-cases.json"
+  },
+  "x-haptic": {
+    "prop": "haptic",
+    "on": "any action — next to «type», like «track»",
+    "words": [
+      "light",
+      "medium",
+      "heavy",
+      "selection",
+      "success",
+      "warning"
+    ],
+    "meaning": {
+      "light": "a light impact",
+      "medium": "a medium impact",
+      "heavy": "a heavy impact",
+      "selection": "a change of choice",
+      "success": "an outcome: done",
+      "warning": "an outcome: attention"
+    },
+    "request": "handed to the host (onHaptic); the reader never vibrates by itself",
+    "when": "once per press, before the action, with the analytics event of the same press; also when the action is «none» or the host cancels it",
+    "order": [
+      "haptic",
+      "track",
+      "action"
+    ],
+    "notHanded": "a disabled button, a key auto-repeat, a press that did not reach the node, a drag to confirm before it completes",
+    "swipeConfirm": "when the drag completes, with the action",
+    "unknown": "an unknown word is no request",
+    "noDefault": "no field — no request, on every widget and action (a section switch too)",
+    "reducedMotion": "not motion — the host decides with the settings of the user",
+    "handedAction": "the action handed to the host does not carry the field",
+    "editorCanvas": "nothing; the preview writes the request into its run log",
+    "olderReader": "skips the field — no request",
+    "cases": "contract/fixtures/actions/action-cases.json"
   },
   "x-generatedFrom": "src/entities/component-schema — generated, do not edit by hand"
 }

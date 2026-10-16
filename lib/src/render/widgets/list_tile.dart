@@ -11,6 +11,8 @@ import '../choice_scope.dart';
 import '../icon_glyph.dart';
 import '../layout/quiet_flex.dart';
 import '../node_renderer.dart';
+import '../press_feedback.dart';
+import '../../model/press_feedback.dart';
 import '../tap_target.dart';
 import 'image.dart';
 import 'list_tile_parts.dart';
@@ -105,10 +107,13 @@ extension ListTileWidgets on NodeRenderer {
         // `GestureDetector`, not `InkWell`: the reader has no right to require a `Material` above
         // it, since the document can be embedded anywhere.
         child: selectable
-            ? GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => scope.select(option),
-                child: row,
+            ? PressFeedback(
+                kind: pressFeedbackKindOf(node),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => scope.select(option),
+                  child: row,
+                ),
               )
             : row,
       );
@@ -121,10 +126,13 @@ extension ListTileWidgets on NodeRenderer {
     if (action == null) return row;
 
     final tapped = TapTarget(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => emit(action, node.id),
-        child: row,
+      child: PressFeedback(
+        kind: pressFeedbackKindOf(node),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => emit(action, node.id),
+          child: row,
+        ),
       ),
     );
     final control = controlOfAction(action);

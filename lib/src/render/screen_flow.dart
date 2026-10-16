@@ -124,6 +124,7 @@ class ScreenFlow extends StatefulWidget {
     this.onAction,
     this.onRecordAction,
     this.onTrack,
+    this.onHaptic,
     this.onScreenChanged,
     this.onScreenShown,
     this.scopeFor,
@@ -213,6 +214,9 @@ class ScreenFlow extends StatefulWidget {
 
   /// The analytics event of a press (`action.track`); see [SduiTrackCallback].
   final SduiTrackCallback? onTrack;
+
+  /// The haptic request of a press (`action.haptic`); see [SduiHapticCallback]. The reader never vibrates by itself.
+  final SduiHapticCallback? onHaptic;
 
   /// Supplies the data of one screen from its navigation parameters.
   ///
@@ -604,7 +608,9 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
   /// and the mark "the node is in a list instance". They decide which record the screen opens
   /// with ([recordForOpenedScreen]), and the host gets the record with every action it receives.
   Future<void>? _handleAction(ButtonAction action, String nodeId, ActionOrigin origin) {
-    // The analytics event goes FIRST and exactly once, whatever happens next: a reader action
+    // The haptic request goes before everything (`haptic, track, action`), also for `none` and a failed transition.
+    sendHaptic(action, nodeId, origin, widget.onHaptic);
+    // The analytics event goes next and exactly once, whatever happens next: a reader action
     // handed to the host, `none`, a transition to a screen that does not exist.
     sendTrack(action, nodeId, origin, widget.onTrack);
 

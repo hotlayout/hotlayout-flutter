@@ -10,6 +10,8 @@ import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/tokens.dart';
 import '../key_repeat_guard.dart';
+import '../press_feedback.dart';
+import '../../model/press_feedback.dart';
 import '../../model/write_action.dart';
 import '../node_renderer.dart';
 import 'write_control.dart';
@@ -30,6 +32,7 @@ extension PressableWidgets on NodeRenderer {
       key: ValueKey<String>('sdui-press-${node.id}@${instance.join('.')}'),
       label: isSilentAccessibleName(label) ? null : label,
       control: controlOfAction(press.action),
+      feedback: pressFeedbackKindOf(node),
       focusRing: theme.color(ColorToken.primary),
       focusRadius: theme.resolveBoxRadius(own?.radius),
       onPress: () => emit(press.action, node.id),
@@ -59,6 +62,7 @@ class PressableCard extends StatefulWidget {
     required this.child,
     this.label,
     this.control,
+    this.feedback,
     this.focusRing,
     this.focusRadius,
   });
@@ -72,6 +76,9 @@ class PressableCard extends StatefulWidget {
   /// What a write action makes of the card (`x-choice`): an option of a choice (a radio with a checked state) or a
   /// toggle (a button with a toggled state); `null` for a card that does something else.
   final WriteControl? control;
+
+  /// How the card sinks under the finger (9.25.0); `null` when the node turned the feedback off.
+  final PressFeedbackKind? feedback;
 
   /// The colour of the ring drawn when the keyboard focus is on the card, or `null` for no ring, and the radius of
   /// the card it follows. Touch focus shows nothing.
@@ -124,18 +131,21 @@ class _PressableCardState extends State<PressableCard> {
                 onTap: onPress,
                 // The recognizer does not describe itself: the node above already says "button" and
                 // carries the tap action, and a second one would split the node and the text content.
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  excludeFromSemantics: true,
-                  onTap: onPress,
-                  // The structure is the same with and without the ring, so the state of what is inside survives
-                  // the focus coming and going.
-                  child: DecoratedBox(
-                    position: DecorationPosition.foreground,
-                    decoration: ring
-                        ? BoxDecoration(borderRadius: widget.focusRadius, border: Border.all(color: widget.focusRing!, width: 2))
-                        : const BoxDecoration(),
-                    child: widget.child,
+                child: PressFeedback(
+                  kind: widget.feedback,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    excludeFromSemantics: true,
+                    onTap: onPress,
+                    // The structure is the same with and without the ring, so the state of what is inside survives
+                    // the focus coming and going.
+                    child: DecoratedBox(
+                      position: DecorationPosition.foreground,
+                      decoration: ring
+                          ? BoxDecoration(borderRadius: widget.focusRadius, border: Border.all(color: widget.focusRing!, width: 2))
+                          : const BoxDecoration(),
+                      child: widget.child,
+                    ),
                   ),
                 ),
               ),

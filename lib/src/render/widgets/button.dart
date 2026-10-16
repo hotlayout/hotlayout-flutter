@@ -17,8 +17,10 @@ import '../../theme/render_theme.dart';
 import '../dashed_border.dart';
 import '../icon_box.dart';
 import '../key_repeat_guard.dart';
+import '../../model/press_feedback.dart';
 import '../layout/quiet_flex.dart';
 import '../node_renderer.dart';
+import '../press_feedback.dart';
 import '../render_scope.dart';
 import '../screen_form.dart';
 import '../swipe_confirm_button.dart';
@@ -86,7 +88,7 @@ extension ButtonWidgets on NodeRenderer {
       name: text(node.label),
       disabled: disabled,
       onPress: () => emit(node.action, node.id),
-      child: TapTarget(child: button),
+      child: TapTarget(child: PressFeedback(kind: pressFeedbackKindOf(node, disabled: disabled), child: button)),
     );
     return node.fullWidth && !natural ? SizedBox(width: double.infinity, child: target) : target;
   }
@@ -185,7 +187,7 @@ extension ButtonWidgets on NodeRenderer {
       name: name,
       disabled: disabled,
       onPress: () => emit(node.action, node.id),
-      child: TapTarget(child: button),
+      child: TapTarget(child: PressFeedback(kind: pressFeedbackKindOf(node, disabled: disabled), child: button)),
     );
   }
 
@@ -444,7 +446,7 @@ extension ButtonWidgets on NodeRenderer {
           borderSide(own?.border) ??
           (roleBorder == null ? null : BorderSide(color: roleBorder, width: kRoleBorderWidth)),
       radius: theme.resolveBoxRadius(own?.radius),
-      shadow: own?.shadow == null ? null : theme.resolveShadow(own!.shadow!),
+      shadow: own == null ? null : theme.resolveNodeShadow(own),
       padding: theme.resolveBoxSpacing(own?.padding),
       typography: own?.typography == null ? null : theme.resolveTypography(own!.typography!),
       blur: own?.backdropBlur,

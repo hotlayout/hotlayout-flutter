@@ -8,12 +8,14 @@ import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/progress_cap.dart';
 import '../../model/progress_rules.dart';
+import '../../model/segment_transition.dart';
 import '../../model/style_values.dart';
 import '../../model/tokens.dart';
 import '../layout/quiet_flex.dart';
 import '../node_renderer.dart';
 import '../progress_paint.dart';
 import '../render_scope.dart';
+import '../value_transition.dart' show TransitionLeads;
 import 'node_box.dart';
 import 'render_tokens.dart';
 
@@ -54,9 +56,29 @@ extension ProgressWidgets on NodeRenderer {
     ProgressLabelFormatToken.none => null,
   };
 
+  /// The steps filled WHILE a value leads (schema 9.25.0, `x-segmentsTransition`): a number with a fraction between the
+  /// whole steps of the two ends. `null` when neither the value nor the max runs a transition now, and the bar is
+  /// drawn in whole steps from the ratio it has.
+  double? _segmentUnits(ProgressBarNode node, TransitionLeads leads) {
+    final segments = node.segments;
+    if (segments == null) return null;
+    ({num from, num to})? leadOf(BindableNumber ref) => ref is BoundNumber ? leads[ref.path] : null;
+    final valueLead = leadOf(node.value);
+    final maxLead = leadOf(node.max);
+    if (valueLead == null && maxLead == null) return null;
+    final shownValue = node.value.resolve(data);
+    final shownMax = node.max.resolve(data);
+    final fromRatio = progressRatio(valueLead?.from ?? shownValue, maxLead?.from ?? shownMax);
+    final toRatio = progressRatio(valueLead?.to ?? shownValue, maxLead?.to ?? shownMax);
+    final eased = valueLead != null
+        ? transitionShareOf(valueLead.from, valueLead.to, shownValue)
+        : transitionShareOf(maxLead!.from, maxLead.to, shownMax);
+    return segmentUnitsAt(fromRatio: fromRatio, toRatio: toRatio, segments: segments, eased: eased);
+  }
+
   /// The progress bar. Geometry and paint follow `x-style.layout.progress.bar`; see
   /// [ProgressTrack].
-  Widget buildProgressBar(ProgressBarNode node) {
+  Widget buildProgressBar(ProgressBarNode node, {TransitionLeads leads = const {}}) {
     final value = node.value.resolve(data);
     final rawMax = node.max.resolve(data);
     // `max` is also a binding, so zero or a negative value from data is a real scenario: a
@@ -84,6 +106,8 @@ extension ProgressWidgets on NodeRenderer {
             segmentGap: theme.spacing[kProgressSegmentGap] ?? 0,
             currentColor: node.currentColor == null ? null : theme.resolveColor(node.currentColor!),
             roundEnds: node.cap == ProgressCap.round,
+            segmentUnits: node.segments == null ? null : _segmentUnits(node, leads),
+            glow: node.glow,
           ),
         ),
         if (label != null) ...[
@@ -140,6 +164,7 @@ extension ProgressWidgets on NodeRenderer {
         trackColor: trackColor,
         fill: fill,
         roundEnds: node.cap == ProgressCap.round,
+        glow: node.glow,
       ),
     );
 

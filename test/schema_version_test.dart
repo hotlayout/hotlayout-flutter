@@ -236,6 +236,8 @@ void main() {
         'border': {'width': 1, 'color': 'border'},
         'background': {'kind': 'color', 'color': 'surface'},
         'shadow': 'low',
+        // 9.25.0: the colour of the shadow from the background.
+        'shadowColor': 'background',
         'opacity': 0.5,
         // 9.20.0: glass.
         'backdropBlur': 12,

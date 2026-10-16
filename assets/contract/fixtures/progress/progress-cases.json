@@ -428,5 +428,51 @@
         "radius": 8.0
       }
     }
+  ],
+  "segmentFillNote": "Schema 9.25.0 — the steps of a bar during a value transition (rules: x-segmentsTransition). «segmentFillCases»: the ratio at the start and at the end of the transition, the eased share e of the curve of x-valueTransition at the moment; «expected» — the number of filled steps with a fraction, the fill of every step (0 to 1, from the logical start) and the current step (the first one not full; null — every step is full). At rest (e = 1, or no transition) the steps are whole, as in 9.11. «segmentFillInlineCases» — the length of the gradient line along the drawn fill for a step of «step» and a gap of «gap» logical pixels. «transitionShareCases» — the eased share recovered from the shown value of the scale. Compare with a tolerance of 1e-9.",
+  "segmentFillCases": [
+    {"name": "appear 4 of 6: the first frame is empty", "segments": 6, "fromRatio": 0, "toRatio": 0.6666666666666666, "eased": 0, "expected": {"units": 0, "fills": [0, 0, 0, 0, 0, 0], "current": 0}},
+    {"name": "appear 4 of 6 halfway along the curve: two whole steps", "segments": 6, "fromRatio": 0, "toRatio": 0.6666666666666666, "eased": 0.5, "expected": {"units": 2, "fills": [1, 1, 0, 0, 0, 0], "current": 2}},
+    {"name": "appear 4 of 6 at e = 0.875: the fourth step is half filled", "segments": 6, "fromRatio": 0, "toRatio": 0.6666666666666666, "eased": 0.875, "expected": {"units": 3.5, "fills": [1, 1, 1, 0.5, 0, 0], "current": 3}},
+    {"name": "appear 4 of 6 at the end: whole steps at rest", "segments": 6, "fromRatio": 0, "toRatio": 0.6666666666666666, "eased": 1, "expected": {"units": 4, "fills": [1, 1, 1, 1, 0, 0], "current": 4}},
+    {"name": "the end is a picture at rest: 0.55 of 6 grows to three steps, not 3.3", "segments": 6, "fromRatio": 0, "toRatio": 0.55, "eased": 1, "expected": {"units": 3, "fills": [1, 1, 1, 0, 0, 0], "current": 3}},
+    {"name": "0.55 of 6 halfway: one and a half steps", "segments": 6, "fromRatio": 0, "toRatio": 0.55, "eased": 0.5, "expected": {"units": 1.5, "fills": [1, 0.5, 0, 0, 0, 0], "current": 1}},
+    {"name": "a change inside one step moves nothing", "segments": 6, "fromRatio": 0.5, "toRatio": 0.55, "eased": 0.5, "expected": {"units": 3, "fills": [1, 1, 1, 0, 0, 0], "current": 3}},
+    {"name": "a step forward: the next step fills smoothly", "segments": 5, "fromRatio": 0.4, "toRatio": 0.6, "eased": 0.25, "expected": {"units": 2.25, "fills": [1, 1, 0.25, 0, 0], "current": 2}},
+    {"name": "down: the steps empty from the end", "segments": 6, "fromRatio": 0.6666666666666666, "toRatio": 0.16666666666666666, "eased": 0.5, "expected": {"units": 2.5, "fills": [1, 1, 0.5, 0, 0, 0], "current": 2}},
+    {"name": "to full: no current step at the end", "segments": 4, "fromRatio": 0.5, "toRatio": 1, "eased": 1, "expected": {"units": 4, "fills": [1, 1, 1, 1], "current": null}},
+    {"name": "the precision of 9.11 at both ends: 0.3 of 10 is three steps", "segments": 10, "fromRatio": 0, "toRatio": 0.30000000000000004, "eased": 1, "expected": {"units": 3, "fills": [1, 1, 1, 0, 0, 0, 0, 0, 0, 0], "current": 3}},
+    {"name": "the eased share is clamped to 0…1", "segments": 6, "fromRatio": 0, "toRatio": 1, "eased": 1.4, "expected": {"units": 6, "fills": [1, 1, 1, 1, 1, 1], "current": null}}
+  ],
+  "segmentFillInlineCases": [
+    {"name": "nothing filled — no line", "units": 0, "step": 50, "gap": 4, "expected": 0},
+    {"name": "two whole steps: one gap inside", "units": 2, "step": 50, "gap": 4, "expected": 104},
+    {"name": "three and a half: three gaps", "units": 3.5, "step": 50, "gap": 4, "expected": 187},
+    {"name": "a quarter of the first step: no gap", "units": 0.25, "step": 50, "gap": 4, "expected": 12.5}
+  ],
+  "transitionShareCases": [
+    {"name": "halfway up", "from": 0, "to": 100, "shown": 50, "expected": 0.5},
+    {"name": "a quarter down", "from": 100, "to": 0, "shown": 75, "expected": 0.25},
+    {"name": "equal ends — the transition is over", "from": 40, "to": 40, "shown": 40, "expected": 1},
+    {"name": "past the end stays at the end", "from": 0, "to": 100, "shown": 150, "expected": 1},
+    {"name": "before the start stays at the start", "from": 0, "to": 100, "shown": -5, "expected": 0}
+  ],
+  "glowNote": "Schema 9.25.0 — the glow of a scale: «glow: soft | strong» on ProgressBar and CircularProgress (rules: x-progressGlow). «glowStepCases»: which step of a bar with steps glows — «fills» are the fills of the steps (0 to 1), «currentPainted» says whether «currentColor» is there and resolves; «expected.kind» is «current» (the whole step glows in currentColor), «front» (the drawn part of the last step with any fill glows in the fill paint, «fill» is its share) or «none». «glowRuleCases» — keys of x-progressGlow.",
+  "glowStepCases": [
+    {"name": "at rest, 3 of 6, no current colour: the last filled step", "fills": [1, 1, 1, 0, 0, 0], "currentPainted": false, "expected": {"kind": "front", "index": 2, "fill": 1}},
+    {"name": "at rest, 3 of 6, a current colour: the current step", "fills": [1, 1, 1, 0, 0, 0], "currentPainted": true, "expected": {"kind": "current", "index": 3}},
+    {"name": "everything filled, a current colour: no current step, the last filled glows", "fills": [1, 1, 1, 1], "currentPainted": true, "expected": {"kind": "front", "index": 3, "fill": 1}},
+    {"name": "nothing filled, no current colour: no glow", "fills": [0, 0, 0, 0], "currentPainted": false, "expected": {"kind": "none"}},
+    {"name": "nothing filled, a current colour: the first step glows in it", "fills": [0, 0, 0, 0], "currentPainted": true, "expected": {"kind": "current", "index": 0}},
+    {"name": "during a transition, no current colour: the step that is filling", "fills": [1, 1, 0.5, 0, 0, 0], "currentPainted": false, "expected": {"kind": "front", "index": 2, "fill": 0.5}},
+    {"name": "during a transition, a current colour: the step that is filling is the current one", "fills": [1, 1, 0.5, 0, 0, 0], "currentPainted": true, "expected": {"kind": "current", "index": 2}}
+  ],
+  "glowRuleCases": [
+    {"name": "the word soft: sigma 4", "rule": "strength.soft.sigma", "expect": 4},
+    {"name": "the word soft: opacity 0.55", "rule": "strength.soft.opacity", "expect": 0.55},
+    {"name": "the word strong: sigma 8", "rule": "strength.strong.sigma", "expect": 8},
+    {"name": "the word strong: opacity 0.9", "rule": "strength.strong.opacity", "expect": 0.9},
+    {"name": "read on the bar and the ring", "rule": "on", "expect": ["ProgressBar", "CircularProgress"]},
+    {"name": "other steps do not glow", "rule": "segments.others", "expect": "no glow"}
   ]
 }

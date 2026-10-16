@@ -16,6 +16,7 @@ import 'localization.dart';
 import 'media_chrome_rules.dart';
 import 'motion_rules.dart';
 import 'progress_cap.dart';
+import 'progress_glow.dart';
 import 'node_style.dart';
 import 'offset_rules.dart';
 import 'part_style.dart';
@@ -169,6 +170,7 @@ sealed class UiNode {
           pull: node.pull,
           pin: node.pin,
           pinTop: node.pinTop,
+          pressFeedbackOff: node.pressFeedbackOff,
         );
       }(),
       // A type this version of the app does not know. For server-driven UI this is a normal situation: the
@@ -193,6 +195,7 @@ sealed class UiNode {
           pull: node.pull,
           pin: node.pin,
           pinTop: node.pinTop,
+          pressFeedbackOff: node.pressFeedbackOff,
         );
       }(),
     };
@@ -276,6 +279,7 @@ sealed class ChildNode extends UiNode {
     this.pull,
     this.pin = false,
     this.pinTop = false,
+    this.pressFeedbackOff = false,
   });
 
   /// The display condition from the document (5.0.0). `null` means the node is always shown.
@@ -331,6 +335,10 @@ sealed class ChildNode extends UiNode {
   /// decided by `screenChildrenByZone` from its place in the root (the run at the start).
   final bool pinTop;
 
+  /// NO PRESS FEEDBACK (9.25.0, `pressFeedback: 'none'`): the node that performs a press does not sink under the
+  /// finger. Only the word `none` is read; any other value is no field (the feedback is there).
+  final bool pressFeedbackOff;
+
   /// The node is HIDDEN BY THE WIDTH CLASS (9.18.0, `showOn`): the tree is resolved for one class, and that
   /// class is not in the node's list. `false` means there is no field.
   ///
@@ -367,6 +375,7 @@ final class UnknownNode extends ChildNode {
     super.pull,
     super.pin,
     super.pinTop,
+    super.pressFeedbackOff,
     required this.type,
     required this.children,
   });

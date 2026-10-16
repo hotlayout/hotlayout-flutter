@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../data/screen_data.dart';
 import 'bindable.dart';
 import 'motion_rules.dart';
+import 'shadow_color.dart';
 import 'style_values.dart';
 import 'text_emphasis.dart';
 import 'visibility.dart';
@@ -42,6 +43,7 @@ final class NodeStyle {
     this.border,
     this.background,
     this.shadow,
+    this.shadowColor,
     this.opacity,
     this.backdropBlur,
     this.textGradient,
@@ -75,6 +77,10 @@ final class NodeStyle {
   final NodeBorder? border;
   final NodeBackground? background;
   final ShadowRef? shadow;
+
+  /// The colour of the shadow (9.25.0): `background` makes every layer take the hue of the node's own background.
+  /// Not inherited; does nothing without `shadow`.
+  final ShadowColorWord? shadowColor;
 
   /// 0…1.
   final double? opacity;
@@ -112,6 +118,7 @@ final class NodeStyle {
       border: NodeBorder.tryParse(raw['border']),
       background: NodeBackground.tryParse(raw['background']),
       shadow: ShadowRef.tryParse(raw['shadow']),
+      shadowColor: ShadowColorWord.tryParse(raw['shadowColor']),
       opacity: _boundedOpacity(raw),
       backdropBlur: backdropBlurOf(raw['backdropBlur']),
       textGradient: GradientRef.tryParse(raw['textGradient']),
@@ -147,6 +154,7 @@ final class NodeStyle {
       border == null &&
       background == null &&
       shadow == null &&
+      shadowColor == null &&
       opacity == null &&
       backdropBlur == null &&
       textGradient == null;
@@ -175,6 +183,7 @@ final class NodeStyle {
       border: border ?? base.border,
       background: background ?? base.background,
       shadow: shadow ?? base.shadow,
+      shadowColor: shadowColor ?? base.shadowColor,
       opacity: opacity ?? base.opacity,
       backdropBlur: backdropBlur ?? base.backdropBlur,
       textGradient: textGradient ?? base.textGradient,
@@ -203,6 +212,7 @@ final class NodeStyle {
       border: keep('border') ? border : null,
       background: keep('background') ? background : null,
       shadow: keep('shadow') ? shadow : null,
+      shadowColor: keep('shadowColor') ? shadowColor : null,
       opacity: keep('opacity') ? opacity : null,
       backdropBlur: keep('backdropBlur') ? backdropBlur : null,
       textGradient: keep('textGradient') ? textGradient : null,
@@ -229,6 +239,7 @@ final class NodeStyle {
     border: border,
     background: background,
     shadow: shadow,
+    shadowColor: shadowColor,
     opacity: opacity,
     backdropBlur: backdropBlur,
     textGradient: textGradient,
@@ -248,6 +259,7 @@ final class NodeStyle {
       border: border,
       background: background,
       shadow: shadow,
+      shadowColor: shadowColor,
       opacity: opacity,
       backdropBlur: backdropBlur,
     );

@@ -16,6 +16,7 @@ export 'host_callbacks.dart'
         ScreenScopeRequest,
         ScreenScopeResolver,
         SduiActionCallback,
+        SduiHapticCallback,
         SduiRecordActionCallback,
         SduiScreenShownCallback,
         SduiTrackCallback,
@@ -58,6 +59,9 @@ export 'screen_transitions.dart' show HotlayoutTransitions;
 ///    per show.
 ///  * [onTrack] — the analytics event of a press (`action.track`), once per
 ///    press and before the action itself.
+///  * [onHaptic] — the haptic request of a press (`action.haptic`), once per
+///    press and before the analytics event and the action. The renderer never
+///    vibrates by itself: the host decides.
 ///  * [scopeFor] — the data of one screen, from its navigation parameters.
 ///  * [onWrite] — what the user changed in a bound input (`TextField`,
 ///    `Switch`, `Checkbox`, `ChoiceGroup`): the data path and a [String], a
@@ -88,6 +92,7 @@ Widget renderDocument(
   SduiActionCallback? onAction,
   SduiRecordActionCallback? onRecordAction,
   SduiTrackCallback? onTrack,
+  SduiHapticCallback? onHaptic,
   @Deprecated('Use onScreenShown: it says why the screen is shown and with which record.')
   ValueChanged<ScreenEntry>? onScreenChanged,
   SduiScreenShownCallback? onScreenShown,
@@ -116,6 +121,7 @@ Widget renderDocument(
     onAction: onAction,
     onRecordAction: onRecordAction,
     onTrack: onTrack,
+    onHaptic: onHaptic,
     onScreenChanged: onScreenChanged,
     onScreenShown: onScreenShown,
     scopeFor: scopeFor,
@@ -148,7 +154,8 @@ Widget renderDocument(
 /// off when `false`.
 /// [onRecordAction] is [onAction] plus the record of the node; when both are
 /// given, only [onRecordAction] is called. [onTrack] gets the analytics event of
-/// a press (`action.track`), before the action.
+/// a press (`action.track`), before the action; [onHaptic] gets the haptic request of the press (`action.haptic`),
+/// before the event.
 Widget renderScreen(
   ScreenEntry screen, {
   required RenderTheme theme,
@@ -163,6 +170,7 @@ Widget renderScreen(
   SduiActionCallback? onAction,
   SduiRecordActionCallback? onRecordAction,
   SduiTrackCallback? onTrack,
+  SduiHapticCallback? onHaptic,
   SduiValueWrite? onWrite,
   bool autofill = true,
   RendererLabels labels = const RendererLabels(),
@@ -178,8 +186,9 @@ Widget renderScreen(
   locale: locale,
   now: now,
   handler: (action, nodeId, origin) {
-    // The analytics event goes first, for any action; without a screen flow there is no
+    // The haptic request goes first, then the analytics event, for any action; without a screen flow there is no
     // navigation here, so the rest is handing over to the host.
+    sendHaptic(action, nodeId, origin, onHaptic);
     sendTrack(action, nodeId, origin, onTrack);
     return handToHost(action, nodeId, origin, onAction: onAction, onRecordAction: onRecordAction);
   },

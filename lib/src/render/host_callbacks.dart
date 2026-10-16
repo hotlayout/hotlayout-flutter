@@ -4,6 +4,7 @@ library;
 
 import '../model/action.dart';
 import '../model/action_catalog.dart';
+import '../model/haptic.dart';
 
 /// Receives every action the renderer did not perform itself, together with
 /// the id of the node that was tapped.
@@ -44,6 +45,12 @@ typedef SduiRecordActionCallback =
 /// but a companion of any action, and a host that counts analytics should not also have to
 /// handle the action itself.
 typedef SduiTrackCallback = void Function(TrackEvent event, String nodeId, Map<String, Object?>? record);
+
+/// Receives the haptic request of a press (`action.haptic`, schema 9.25.0): once per press, BEFORE the analytics event
+/// and the action of the same press, also for the `none` action. The reader never vibrates by itself: the host decides
+/// what the word means (`HapticFeedback.lightImpact` and the like) and whether to do it at all, with the settings of the
+/// user. [nodeId] and [record] are the same as in [SduiTrackCallback].
+typedef SduiHapticCallback = void Function(HapticWord word, String nodeId, Map<String, Object?>? record);
 
 /// Receives the "screen shown" event (`ScreenShown`): exactly once per show,
 /// after the frame, never from `build`.
@@ -119,7 +126,15 @@ typedef ActionOrigin = ({
 
 Object? readNothing(String path) => null;
 
-/// Analytics event of a press: FIRST, exactly once, for any action (including `none`).
+/// The haptic request of a press: the very first thing a press does, before the analytics event (`order: haptic, track,
+/// action`). Nothing when the action has no word or the host passed no callback.
+void sendHaptic(ButtonAction action, String nodeId, ActionOrigin origin, SduiHapticCallback? onHaptic) {
+  final word = action.haptic;
+  if (word == null || onHaptic == null) return;
+  onHaptic(word, nodeId, origin.record);
+}
+
+/// Analytics event of a press: after the haptic request, FIRST among the rest, exactly once, for any action (including `none`).
 void sendTrack(ButtonAction action, String nodeId, ActionOrigin origin, SduiTrackCallback? onTrack) {
   final track = action.track;
   if (track == null || onTrack == null) return;

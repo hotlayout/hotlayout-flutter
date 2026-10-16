@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "9.24.0",
+  "schemaVersion": "9.25.0",
   "documentId": "parts",
   "name": "Parts of a list row and of a text field",
   "initialScreenId": "card",

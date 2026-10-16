@@ -303,7 +303,7 @@ void main() {
       // the helper that executes ONLY a verified standard action
       'runStandardAction', 'StandardAction', 'OpenUrlAction', 'DeeplinkAction', 'CloseAction',
       'InvalidActionParam', 'ActionParamProblem', 'TrackEvent', 'ScreenShown', 'ScreenShownCause',
-      'SduiTrackCallback', 'SduiScreenShownCallback',
+      'SduiTrackCallback', 'SduiHapticCallback', 'HapticWord', 'SduiScreenShownCallback',
       // versions
       'VersionVerdict', 'kSupportedSchemaVersion', 'kSupportedThemeContractVersion', 'kIconSetVersion',
       // locales

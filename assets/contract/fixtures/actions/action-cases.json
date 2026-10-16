@@ -656,5 +656,21 @@
     { "name": "a button inside a card that writes: only the button acts", "nodes": [{ "id": "card", "type": "Column", "props": { "gap": "sm", "align": "start", "action": { "type": "setValue", "params": { "path": "survey.goal", "value": "gold" }, "track": { "event": "card_pressed" } } }, "children": [{ "id": "title", "type": "Text", "props": { "content": { "kind": "literal", "value": "Gold" }, "align": "start" } }, { "id": "eye", "type": "IconButton", "props": { "icon": "eye", "label": { "kind": "literal", "value": "Hide balance" }, "variant": "ghost", "size": "md", "action": { "type": "toggleValue", "params": { "path": "account.balanceHidden" } } } }] }], "presses": [{ "node": "eye", "how": "tap" }], "log": [["write", "account.balanceHidden", true]], "session": { "account.balanceHidden": true } },
     { "name": "an invalid write: the event goes, nothing is written and nothing is handed to the host", "nodes": [{ "id": "bad", "type": "Button", "props": { "label": { "kind": "literal", "value": "Agree" }, "variant": "secondary", "action": { "type": "setValue", "params": { "path": "survey.agreed", "value": "yes", "valueType": "boolean" }, "track": { "event": "agree_pressed" } }, "fullWidth": false } }], "presses": [{ "node": "bad", "how": "tap" }], "log": [["track", "agree_pressed"]], "session": {} },
     { "name": "clearing after a choice", "nodes": [{ "id": "month", "type": "Button", "props": { "label": { "kind": "literal", "value": "Month" }, "variant": "secondary", "action": { "type": "setValue", "params": { "path": "account.period", "value": "month" } }, "fullWidth": false } }, { "id": "reset", "type": "Button", "props": { "label": { "kind": "literal", "value": "Reset" }, "variant": "ghost", "action": { "type": "setValue", "params": { "path": "account.period" } }, "fullWidth": false } }], "presses": [{ "node": "reset", "how": "tap" }, { "node": "month", "how": "tap" }, { "node": "reset", "how": "tap" }], "log": [["write", "account.period", "month"], ["write", "account.period", ""]], "session": { "account.period": "" } }
+  ],
+  "hapticNote": "Schema 9.25.0 — haptic feedback of a press: «haptic» next to «type» and «track» on any action (rules: x-haptic). A request to the host, once per press, before the action; the reader never vibrates by itself. «hapticCases»: the action and whether the press reached the node of an enabled control; «expect» — the word handed to the host, or null. «hapticSchemaCases» — whether the schema accepts the action.",
+  "hapticCases": [
+    {"name": "a light tap on a card", "action": {"type": "navigate", "params": {"screenId": "mission"}, "haptic": "light"}, "disabled": false, "expect": "light"},
+    {"name": "a selection on a section switch", "action": {"type": "navigate.section", "params": {"screenId": "rewards"}, "haptic": "selection"}, "disabled": false, "expect": "selection"},
+    {"name": "next to an analytics event", "action": {"type": "redeem", "track": {"event": "reward_redeemed"}, "haptic": "success"}, "disabled": false, "expect": "success"},
+    {"name": "on «none» it is still handed", "action": {"type": "none", "haptic": "warning"}, "disabled": false, "expect": "warning"},
+    {"name": "no field — no request, a section switch too", "action": {"type": "navigate.section", "params": {"screenId": "rewards"}}, "disabled": false, "expect": null},
+    {"name": "a disabled button — no press, no request", "action": {"type": "navigate", "params": {"screenId": "mission"}, "haptic": "heavy"}, "disabled": true, "expect": null},
+    {"name": "an unknown word is no request", "action": {"type": "navigate", "params": {"screenId": "mission"}, "haptic": "buzz"}, "disabled": false, "expect": null}
+  ],
+  "hapticSchemaCases": [
+    {"name": "every word of the list", "action": {"type": "none", "haptic": "medium"}, "valid": true},
+    {"name": "an unknown word", "action": {"type": "none", "haptic": "buzz"}, "valid": false},
+    {"name": "not a string", "action": {"type": "none", "haptic": 1}, "valid": false},
+    {"name": "an empty string is not «no field»", "action": {"type": "none", "haptic": ""}, "valid": false}
   ]
 }

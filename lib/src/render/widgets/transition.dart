@@ -54,17 +54,18 @@ extension TransitionWidgets on NodeRenderer {
       data: data,
       identity: record ?? instance.join('/'),
       localeKey: '$locale|${strings.locale}',
-      builder: (context, shown, active) =>
-          _announce(drawn, active, _plain(drawn, shown == data ? this : copy(data: shown), own, slot)),
+      builder: (context, shown, active, leads) =>
+          _announce(drawn, active, _plain(drawn, shown == data ? this : copy(data: shown), own, slot, leads)),
     );
   }
 
   BindableNumber _literalPath(BindableNumber value, double literal) =>
       value is BoundNumber ? value : BoundNumber(kScaleLiteralKey, literal);
 
-  Widget _plain(ChildNode node, NodeRenderer renderer, NodeStyle? own, Slot slot) => switch (node) {
+  Widget _plain(ChildNode node, NodeRenderer renderer, NodeStyle? own, Slot slot, [TransitionLeads leads = const {}]) =>
+      switch (node) {
     TextNode() => renderer.buildText(node, own),
-    ProgressBarNode() => renderer.buildProgressBar(node),
+    ProgressBarNode() => renderer.buildProgressBar(node, leads: leads),
     CircularProgressNode() => renderer.buildCircularProgress(node, own, slot),
     _ => const SizedBox.shrink(),
   };

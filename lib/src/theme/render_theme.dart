@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../model/node_style.dart';
 import '../model/part_style.dart';
+import '../model/shadow_color.dart';
 import '../model/style_values.dart';
 import '../model/tokens.dart';
 import 'corner_gradient.dart';
@@ -479,6 +480,43 @@ class RenderTheme {
     }
   }
 
+  /// The shadow of a node's style as it is DRAWN (schema 9.25.0, `style.shadowColor`): the layers of [NodeStyle.shadow],
+  /// and with the word `background` every layer takes the hue of the node's own background and keeps its own opacity.
+  /// The hue of a solid background is its colour (its own opacity does not count); of a gradient, the colour of the
+  /// stop nearest to the middle, the earlier one on a tie. With no background, an image, or a colour that does not
+  /// resolve, the layers keep their own colour. `null` when the style has no shadow or the theme does not know it.
+  List<BoxShadow>? resolveNodeShadow(NodeStyle style) {
+    final ref = style.shadow;
+    if (ref == null) return null;
+    final layers = resolveShadow(ref);
+    if (layers == null || style.shadowColor == null || layers.isEmpty) return layers;
+    final hue = _backgroundHue(style.background);
+    if (hue == null) return layers;
+    return [
+      for (final layer in layers)
+        BoxShadow(
+          color: Color.from(alpha: layer.color.a, red: hue.r, green: hue.g, blue: hue.b),
+          offset: layer.offset,
+          blurRadius: layer.blurRadius,
+          spreadRadius: layer.spreadRadius,
+        ),
+    ];
+  }
+
+  Color? _backgroundHue(NodeBackground? background) {
+    switch (background) {
+      case ColorBackground(:final color):
+        return resolveColor(color);
+      case GradientBackground(:final gradient):
+        final stops = _progressGradientStops(gradient);
+        if (stops == null) return null;
+        final index = middleStopIndex([for (final stop in stops) stop.position]);
+        return index == null ? null : stops[index].color;
+      case ImageBackground() || null:
+        return null;
+    }
+  }
+
   /// The style of a PART without the fields this theme will not apply (an unknown token), or `null` if nothing is
   /// left (`x-style.layout.partStyle.unknownToken`: the key is skipped).
   PartStyle? applicablePartStyle(PartStyle style) {
@@ -518,6 +556,7 @@ class RenderTheme {
         _ => background,
       },
       shadow: style.shadow != null && resolveShadow(style.shadow!) != null ? style.shadow : null,
+      shadowColor: style.shadowColor,
       width: style.width,
       height: style.height,
       minWidth: style.minWidth,

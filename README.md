@@ -74,7 +74,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.25.0
+  hotlayout_flutter: ^0.26.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -168,6 +168,7 @@ What `renderDocument` does and does not do:
 | `entry` | open the document at a named entry point | [Actions](#actions-and-navigation) |
 | `onRecordAction`, `onAction` | actions the host performs | [Actions](#actions-and-navigation) |
 | `onTrack`, `onScreenShown` | analytics events and screen views | [Analytics and screen views](#analytics-and-screen-views) |
+| `onHaptic` | the haptic response a press asks for | [Haptic feedback](#haptic-feedback) |
 | `onWrite`, `autofill` | what the user typed or chose | [Forms](#forms-text-fields-switches-and-checkboxes) |
 | `scopeFor` | data of one screen | [Data of one screen](#data-of-one-screen) |
 | `now` | the clock "days left" counts from | [Sentences, numbers, money and days](#sentences-numbers-money-and-days) |
@@ -453,6 +454,35 @@ It is not fired on a rebuild, new data, another language, a re-parsed copy of th
 `onScreenChanged` (which only said *which* `ScreenEntry`) still works, is deprecated and is called at the same moment.
 
 **`carryRecord`.** A `navigate` with `carryRecord: true` opens a page with the record of the tapped node ("Choose delivery" from the details of a reward); without it a page opened from outside a list row opens without a record.
+
+### Haptic feedback
+
+An action may name a word, `haptic`, next to its `type` and `track`: `light`, `medium`, `heavy`, `selection`, `success` or `warning`. The renderer **never vibrates by itself**. It hands the word to your `onHaptic` and you decide what it means and whether to do it at all, with the settings of the user.
+
+```dart
+  return renderDocument(
+    document,
+    theme: theme,
+    data: data,
+    onHaptic: (word, nodeId, record) {
+      if (!vibrationAllowed) return;
+      switch (word) {
+        case HapticWord.light:
+          HapticFeedback.lightImpact();
+        case HapticWord.medium:
+        case HapticWord.success:
+          HapticFeedback.mediumImpact();
+        case HapticWord.heavy:
+        case HapticWord.warning:
+          HapticFeedback.heavyImpact();
+        case HapticWord.selection:
+          HapticFeedback.selectionClick();
+      }
+    },
+  );
+```
+
+`onHaptic(HapticWord word, String nodeId, Map<String, Object?>? record)` is called exactly once per press, **before** the analytics event and the action of the same press (`haptic`, `track`, the action), and also when the action is `none` or a navigation target is missing. Nothing is asked for a disabled control, the auto-repeat of a held key, a press that did not reach the node, a "swipe to confirm" button before its drag is complete (it asks when the drag completes, together with the action), an unknown word, or an action without the field (a section switch too: there are no defaults). The action your `onAction` gets does not carry the field. Haptics is not motion, so "reduce motion" does not silence it: that is for your own setting.
 
 ### One screen, many records
 
@@ -801,8 +831,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.25.0` | — |
-| Document contract (schema) | `9.24.0` | `kSupportedSchemaVersion` |
+| Package | `0.26.0` | — |
+| Document contract (schema) | `9.25.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -824,7 +854,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.24.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.25.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -883,6 +913,7 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.22.0 | a floating navigation bar, a dot on a navigation item, "swipe to confirm", a dashed border | [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block), [Swipe to confirm](#swipe-to-confirm), [Dashed border](#dashed-border) |
 | 9.23.0 | a filtered list, a comparison with another path, a gradient on the letters of a text, a compact number | [Filtered list](#filtered-list), [Gradient on text](#gradient-on-text), [Sentences, numbers, money and days](#sentences-numbers-money-and-days) |
 | 9.24.0 | a value that grows when shown, a swipe that stays busy, the motion of the dot, nodes pinned to the top | [Changing values](#changing-values-and-a-countdown), [Swipe to confirm](#swipe-to-confirm), [Bottom navigation and a pinned block](#bottom-navigation-and-a-pinned-block), [The top of the screen](#the-top-of-the-screen) |
+| 9.25.0 | steps that fill smoothly, the glow of a scale, a shadow of the colour of the background, a press that sinks, a haptic request | [Progress bar and ring](#progress-bar-and-ring), [Shadow of the colour of the background](#shadow-of-the-colour-of-the-background), [Press feedback](#press-feedback), [Haptic feedback](#haptic-feedback) |
 
 ### Behaviour that changed between package versions
 
@@ -900,6 +931,7 @@ If you update from an older version of the package, these are the places where t
 | 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.23.0 | A button with `confirm: 'swipe'` no longer runs its action on a tap or a click: the thumb has to be dragged, or Enter / Space / the screen reader's "activate" used. A `NavBar` with `float: true` lies over the body (the body area reaches the bottom of the screen and the last row scrolls clear of the bar). A `Repeater` with `where` draws only the records that pass, and `limit` counts those. |
+| 0.26.0 | Pressable nodes sink under the finger (see [Press feedback](#press-feedback)): a widget test that taps a card or a button and measures it at once sees it scaled, so advance time with `pump(Duration)` or `pumpAndSettle` first. A bar with steps fills a step smoothly while its value leads. `onHaptic` is new and optional; without it nothing changes. |
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
 | 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
@@ -1022,7 +1054,7 @@ A `Column`, `Row`, `Container` or `Stack` can carry an `action` (and a hidden `l
 - **The same action as a button's.** The card runs the action through the same path (`navigate` inside the document, everything else to `onAction` / `onRecordAction`, `track` once and before the action, the record of its list row). An action `none` without an event makes no card.
 - **The innermost control takes the press.** A button, an icon button, a list row with an action, a field, a switch, a choice option, the tab strip and the header of an accordion keep their taps. The card gets every other point of its box (without the margin) and nothing it did not take. A disabled button inside swallows the press: neither it nor the card does anything.
 - **For a screen reader the card is a button** whose name is the `label` first and then the text of its content. The controls inside stay separate nodes with their own names.
-- **Keyboard.** Enter and Space press it; a held key is one press. The keyboard focus shows a ring in the colour `primary` that follows the radius of the card. There is no pressed look: the document did not ask for one.
+- **Keyboard.** Enter and Space press it; a held key is one press. The keyboard focus shows a ring in the colour `primary` that follows the radius of the card. A card sinks a little under the finger (see [Press feedback](#press-feedback)); the keyboard gives no feedback.
 - **Depth.** The tree may be eight levels deep and a column may hold a column; the renderer checks neither. A screen whose tree goes deeper than 32 levels below its root is not drawn at all (a neutral notice, `RendererLabels.screenUnavailable`, stands in its place): half a screen would be a wrong screen.
 
 ### Write actions and choice from plain nodes
@@ -1182,6 +1214,8 @@ Without any of them the text is exactly what [the basic formats](#sentences-numb
 - **A size given by the parent does not name the diameter** (a row weight, a stack fill layer): the ring keeps its size and stands at the centre of the place.
 - **A bar fills from the logical start** (the right in a right-to-left language) and its fill has a rounded end. A limit of zero or less is an empty scale, not a full one.
 - **`cap: 'round'`** (on both) makes the ends half circles of the thickness. On a ring they stay inside the filled part: the arc starts and stops half a thickness inside its edges, a share too small for two ends is a dot of the thickness, and a full scale is the whole ring with no seam. On a bar the track, the fill and every step have a radius of half the thickness whatever the theme's `pill` is, and a non-empty fill is never shorter than the thickness. A gradient runs along the filled part as before; an end takes the colour of the gradient at its own centre. Without the field, or with another word, the ends are as they always were.
+- **`glow: 'soft' | 'strong'`** (on both) puts a blurred copy of the paint of the FILL under the scale: its colour, or its gradient along the fill, with its ends. `soft` is a Gaussian blur of 4 dp at opacity 0.55, `strong` of 8 dp at 0.9. The track does not glow; nothing filled means no glow. The glow takes no room, moves nothing and is not clipped by the box of the node (only by an ancestor that clips). In a bar with steps ONE step glows: the current one, in `currentColor`, when that colour is there, otherwise the last step with any fill, in the paint of the fill. It follows the fill frame by frame during a transition, and "reduce motion" does not touch it. Without the field, or with another word, there is no glow.
+- **Steps fill smoothly while a value leads.** At rest the steps are whole (as always). While the value runs a transition the filled steps are a number with a fraction, `U(from) + (U(to) - U(from)) * e` with `U` the whole steps at rest and `e` the curve of the transition: one step fills part-way (its track, or `currentColor` for the current one, with the fill over it, cut at its share). Both ends are pictures at rest, so nothing jumps when it ends; a change inside one step moves nothing; "reduce motion" gives whole steps at once.
 
 ### Carousel and segmented progress
 
@@ -1192,7 +1226,7 @@ A `Row` with `scrollable: true`, or a `Repeater` laid out in a row, with a `caro
 - `perView` sets how many whole cards fit, `peek` how much of the next one shows;
 - the state (which card is open) is kept by the widget while the screen is in the stack and is never written to the document.
 
-A `ProgressBar` with `segments` (2…12) is drawn as equal steps, each filled whole or not at all, with `currentColor` for the first unfilled one.
+A `ProgressBar` with `segments` (2…12) is drawn as equal steps, each filled whole or not at all, with `currentColor` for the first unfilled one. While its value leads to a new value (`animateChanges`, `animateIn`) the steps fill smoothly, see [Progress bar and ring](#progress-bar-and-ring).
 
 ### Parts of a list row
 
@@ -1377,6 +1411,26 @@ A screen with `presentation: 'modal'` is a layer over the previous screen. Witho
 
 - **The layer has no look of its own**: background, radius, shadow and padding are the `style` of the screen's root, and a root without a background is a transparent layer.
 - **The window is a modal layer in every rule**: it inherits the record of the screen beneath, and it is a "modal" in `ScreenShown`.
+
+### Press feedback
+
+A node that performs the action of a press sinks under the finger, in paint only: the layout does not change and the neighbours do not move.
+
+| Node | Pressed pose |
+|---|---|
+| a pressable container, a list row, a choice option, anything else that acts on press | scale 0.97 |
+| a `Button` that is not `ghost` | scale 0.96 |
+| an `IconButton`, a `ghost` button, a `NavItem` | opacity 0.7, no scale |
+
+- **Down 80 ms, back 160 ms.** Going down follows `(0.2, 0, 0, 1)`; coming back follows `(0.34, 1.56, 0.64, 1)`, which passes 1 once, so the node grows a little over its size and settles. A press shorter than the way down still reaches the pressed pose and then returns. The finger leaving the node, moving farther than the touch slop, lifting or a cancelled press all bring it back.
+- **Only the innermost control answers.** A card that holds a button does not sink when the button is pressed. A text field, a switch, a checkbox, the tab strip and an accordion header are controls of their own.
+- **No feedback** for a disabled button, a button that confirms by a drag, the keyboard (Enter and Space act at once), and a node with `pressFeedback: 'none'`.
+- **"Reduce motion"** (`MediaQuery.disableAnimations`) keeps only the fade: every kind goes to opacity 0.7 and none scales.
+- **In tests**, the node is back at rest a moment after the finger is lifted: advance time with `pump(Duration)` or `pumpAndSettle` before a test measures it.
+
+### Shadow of the colour of the background
+
+`style.shadowColor: 'background'` makes every layer of `style.shadow` (a token or own layers) take the hue of the node's own background and keep its own opacity; offset, blur and spread stay. The hue of a solid background is its colour (its opacity does not count); of a gradient, the colour of the stop nearest to the middle (the earlier one on a tie). With no background, an image, or a colour the theme does not know, the shadow keeps its own colour. The field does nothing without `shadow`, is not inherited and is not read in `styleScrolled`. On a `Button` or a `Badge` it goes with `shadow` to the surface of the role.
 
 ### Motion, blur and glass
 

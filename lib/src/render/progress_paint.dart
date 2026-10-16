@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import '../model/progress_cap.dart';
+import '../model/progress_glow.dart';
 import '../model/progress_rules.dart';
 
 /// Painting of the progress bar and ring (schema 9.7.0, `x-style.layout.progress`).
@@ -28,6 +29,11 @@ final class ProgressFill {
   final List<double>? positions;
 
   bool get isGradient => colors != null;
+
+  /// The same paint with the alpha of every colour multiplied by [factor] (the opacity of a glow).
+  ProgressFill dimmed(double factor) => colors == null
+      ? ProgressFill.solid(color!.withValues(alpha: color!.a * factor))
+      : ProgressFill.gradient([for (final c in colors!) c.withValues(alpha: c.a * factor)], positions!);
 
   @override
   bool operator ==(Object other) =>
@@ -61,7 +67,15 @@ class ProgressTrack extends LeafRenderObjectWidget {
     this.segmentGap = 0,
     this.currentColor,
     this.roundEnds = false,
+    this.segmentUnits,
+    this.glow,
   });
+
+  /// The steps filled while a value leads, with a fraction (schema 9.25.0); `null` is whole steps from [ratio].
+  final double? segmentUnits;
+
+  /// The glow of the scale (schema 9.25.0); `null` is none.
+  final ProgressGlow? glow;
 
   /// Round ends (schema 9.21.0, `cap: 'round'`): half circles of half the thickness on the track, the fill and
   /// every step, whatever the theme's `pill` is.
@@ -94,6 +108,8 @@ class ProgressTrack extends LeafRenderObjectWidget {
     segmentGap: segmentGap,
     currentColor: currentColor,
     roundEnds: roundEnds,
+    segmentUnits: segmentUnits,
+    glow: glow,
     textDirection: Directionality.of(context),
   );
 
@@ -109,6 +125,8 @@ class ProgressTrack extends LeafRenderObjectWidget {
       ..segmentGap = segmentGap
       ..currentColor = currentColor
       ..roundEnds = roundEnds
+      ..segmentUnits = segmentUnits
+      ..glow = glow
       ..textDirection = Directionality.of(context);
   }
 }
@@ -125,7 +143,11 @@ class RenderProgressTrack extends RenderBox {
     double segmentGap = 0,
     Color? currentColor,
     bool roundEnds = false,
+    double? segmentUnits,
+    ProgressGlow? glow,
   }) : _segments = segments,
+       _segmentUnits = segmentUnits,
+       _glow = glow,
        _roundEnds = roundEnds,
        _segmentGap = segmentGap,
        _currentColor = currentColor,
@@ -183,6 +205,20 @@ class RenderProgressTrack extends RenderBox {
     if (value == _segmentGap) return;
     _segmentGap = value;
     markNeedsLayout();
+  }
+
+  double? _segmentUnits;
+  set segmentUnits(double? value) {
+    if (value == _segmentUnits) return;
+    _segmentUnits = value;
+    markNeedsPaint();
+  }
+
+  ProgressGlow? _glow;
+  set glow(ProgressGlow? value) {
+    if (value == _glow) return;
+    _glow = value;
+    markNeedsPaint();
   }
 
   bool _roundEnds;
@@ -250,6 +286,7 @@ class RenderProgressTrack extends RenderBox {
         gap: _segmentGap,
         pill: _pillRadius,
         roundEnds: _roundEnds,
+        units: _segmentUnits,
       );
       // A step narrower than a pixel is not a step: a continuous bar (`belowMinSegment`).
       if (cut != null) {
@@ -269,70 +306,111 @@ class RenderProgressTrack extends RenderBox {
       offset & size,
       Radius.circular(geometry.trackRadius),
     );
-    canvas.drawRRect(track, Paint()..color = _trackColor);
-    if (geometry.fillInline <= 0) return;
 
     final rtl = _textDirection == TextDirection.rtl;
     final left = rtl ? offset.dx + size.width - geometry.fillInline : offset.dx;
     final fillRect = Rect.fromLTWH(left, offset.dy, geometry.fillInline, thickness);
-    final paint = Paint();
-    final colors = _fill.colors;
-    if (colors == null) {
-      paint.color = _fill.color!;
-    } else {
-      // The gradient line runs from the start of the fill to its end in the writing direction
-      // (`bar.gradientLine`); position 1 is the end of the FILL.
-      final y = fillRect.center.dy;
-      paint.shader = ui.Gradient.linear(
-        Offset(rtl ? fillRect.right : fillRect.left, y),
-        Offset(rtl ? fillRect.left : fillRect.right, y),
-        colors,
-        _fill.positions,
-      );
+    final fillRRect = RRect.fromRectAndRadius(fillRect, Radius.circular(geometry.fillRadius));
+    // The gradient line runs from the start of the fill to its end in the writing direction
+    // (`bar.gradientLine`); position 1 is the end of the FILL.
+    final y = fillRect.center.dy;
+    final from = Offset(rtl ? fillRect.right : fillRect.left, y);
+    final to = Offset(rtl ? fillRect.left : fillRect.right, y);
+
+    // The glow lies UNDER the scale: a blurred copy of the fill, with its ends, and no track (`x-progressGlow`).
+    final glow = _glow;
+    if (glow != null && geometry.fillInline > 0) {
+      canvas.drawRRect(fillRRect, _fillPaint(_fill, from, to, glow: glow));
     }
+    canvas.drawRRect(track, Paint()..color = _trackColor);
+    if (geometry.fillInline <= 0) return;
+
     canvas.save();
     canvas.clipRRect(track);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(fillRect, Radius.circular(geometry.fillRadius)),
-      paint,
-    );
+    canvas.drawRRect(fillRRect, _fillPaint(_fill, from, to));
     canvas.restore();
   }
 
   /// Steps (schema 9.11.0). There is no track UNDER the gaps: the background shows through. A
-  /// step is filled entirely or not at all; in right-to-left writing the first step is on the
-  /// right. The gradient runs along the FILLED steps as along one fill (from the start of the
-  /// first to the end of the last filled step), gaps cut out: one shader for all, each filled
+  /// step is filled entirely or not at all while the value stands still; in right-to-left writing the first step is
+  /// on the right. While a value leads (9.25.0) the step that is filling is cut at its share: its track (or
+  /// current colour) with the fill over it. The gradient runs along the FILLED steps as along one fill (from the
+  /// start of the first to the end of the last filled step), gaps cut out: one shader for all, each filled
   /// step a separate rectangle on top.
   void _paintSegments(Canvas canvas, Offset offset, SegmentGeometry cut) {
     final rtl = _textDirection == TextDirection.rtl;
     final y = offset.dy;
-    final colors = _fill.colors;
-    Paint? filledPaint;
-    if (colors == null) {
-      filledPaint = Paint()..color = _fill.color!;
-    } else if (cut.filled > 0) {
-      final startX = rtl ? offset.dx + size.width : offset.dx;
-      final endX = rtl ? offset.dx + size.width - cut.filledInline : offset.dx + cut.filledInline;
-      filledPaint = Paint()
-        ..shader = ui.Gradient.linear(Offset(startX, y), Offset(endX, y), colors, _fill.positions);
+    final startX = rtl ? offset.dx + size.width : offset.dx;
+    final endX = rtl ? offset.dx + size.width - cut.filledInline : offset.dx + cut.filledInline;
+    final from = Offset(startX, y);
+    final to = Offset(endX, y);
+    final filledPaint = cut.filledInline > 0 || _fill.colors == null ? _fillPaint(_fill, from, to) : null;
+
+    Rect stepRect(int i, double share) {
+      final width = cut.inline * share;
+      final left = rtl ? offset.dx + size.width - cut.starts[i] - width : offset.dx + cut.starts[i];
+      return Rect.fromLTWH(left, y, width, size.height);
     }
+
+    final glow = _glow;
+    if (glow != null) {
+      final glowing = glowingStepOf(cut.fills, currentPainted: _currentColor != null);
+      switch (glowing.kind) {
+        case GlowStepKind.current:
+          canvas.drawRRect(
+            _stepRRect(stepRect(glowing.index, 1), cut.radius),
+            Paint()
+              ..color = _currentColor!.withValues(alpha: _currentColor!.a * glow.opacity)
+              ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.sigma),
+          );
+        case GlowStepKind.front:
+          canvas.drawRRect(
+            _stepRRect(stepRect(glowing.index, glowing.fill), cut.radius),
+            _fillPaint(_fill, from, to, glow: glow),
+          );
+        case GlowStepKind.none:
+          break;
+      }
+    }
+
     for (var i = 0; i < cut.starts.length; i += 1) {
-      final start = cut.starts[i];
-      final left = rtl ? offset.dx + size.width - start - cut.inline : offset.dx + start;
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(left, y, cut.inline, size.height),
-        Radius.circular(cut.radius),
-      );
+      final rect = _stepRRect(stepRect(i, 1), cut.radius);
       final state = cut.states[i];
+      final fill = cut.fills[i];
+      if (fill >= 1) {
+        canvas.drawRRect(rect, filledPaint!);
+        continue;
+      }
       canvas.drawRRect(
         rect,
-        state == SegmentState.filled
-            ? filledPaint!
-            : (Paint()..color = state == SegmentState.current ? (_currentColor ?? _trackColor) : _trackColor),
+        Paint()..color = state == SegmentState.current ? (_currentColor ?? _trackColor) : _trackColor,
       );
+      if (fill <= 0) continue;
+      // The step that is filling: the fill over the step, cut at its share from the logical start.
+      canvas
+        ..save()
+        ..clipRRect(rect)
+        ..drawRect(stepRect(i, fill), filledPaint!)
+        ..restore();
     }
   }
+
+  RRect _stepRRect(Rect rect, double radius) => RRect.fromRectAndRadius(rect, Radius.circular(radius));
+}
+
+/// The paint of a fill between [from] and [to] (the gradient line); as a glow it is the same paint dimmed by the
+/// opacity of the glow and blurred by its sigma (`x-progressGlow.paint`).
+Paint _fillPaint(ProgressFill fill, Offset from, Offset to, {ProgressGlow? glow}) {
+  final source = glow == null ? fill : fill.dimmed(glow.opacity);
+  final paint = Paint();
+  final colors = source.colors;
+  if (colors == null) {
+    paint.color = source.color!;
+  } else {
+    paint.shader = ui.Gradient.linear(from, to, colors, source.positions);
+  }
+  if (glow != null) paint.maskFilter = MaskFilter.blur(BlurStyle.normal, glow.sigma);
+  return paint;
 }
 
 /// Paints the ring: the track under the WHOLE scale, the fill arc on top.
@@ -348,12 +426,16 @@ class RingPainter extends CustomPainter {
     required this.trackColor,
     required this.fill,
     this.roundEnds = false,
+    this.glow,
   });
 
   final double ratio;
 
   /// Round ends of the arc (schema 9.21.0, `cap: 'round'`): see [ringCapGeometry].
   final bool roundEnds;
+
+  /// The glow of the arc (schema 9.25.0, `glow`): a blurred copy of the fill arc under the track; `null` is none.
+  final ProgressGlow? glow;
 
   /// Thickness already clamped to half the diameter ([ringGeometry]).
   final double thickness;
@@ -367,6 +449,10 @@ class RingPainter extends CustomPainter {
     final center = size.center(Offset.zero);
     final radius = (diameter - thickness) / 2;
 
+    final arc = ringArc(ratio);
+    final sweep = arc.sweepDeg * math.pi / 180;
+    // The glow lies UNDER the ring: only the fill arc glows, the track does not (`x-progressGlow.ring`).
+    if (glow != null && arc.sweepDeg > 0) _paintFill(canvas, size, center, radius, sweep, glow);
     canvas.drawCircle(
       center,
       radius,
@@ -375,17 +461,21 @@ class RingPainter extends CustomPainter {
         ..strokeWidth = thickness
         ..color = trackColor,
     );
-    final arc = ringArc(ratio);
     if (arc.sweepDeg <= 0) return;
+    _paintFill(canvas, size, center, radius, sweep, null);
+  }
 
-    final sweep = arc.sweepDeg * math.pi / 180;
+  /// The fill arc with its ends; as a glow ([glow] not `null`) the same drawing dimmed and blurred.
+  void _paintFill(Canvas canvas, Size size, Offset center, double radius, double sweep, ProgressGlow? glow) {
+    final source = glow == null ? fill : fill.dimmed(glow.opacity);
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = thickness
       ..strokeCap = StrokeCap.butt;
-    final colors = fill.colors;
+    if (glow != null) paint.maskFilter = MaskFilter.blur(BlurStyle.normal, glow.sigma);
+    final colors = source.colors;
     if (colors == null) {
-      paint.color = fill.color!;
+      paint.color = source.color!;
     } else {
       // The gradient runs along the arc: conic from its start to its end. The seam is at the top
       // (GradientRotation by a quarter turn), positions are as in the document because the gradient
@@ -394,7 +484,7 @@ class RingPainter extends CustomPainter {
         startAngle: 0,
         endAngle: sweep,
         colors: colors,
-        stops: fill.positions,
+        stops: source.positions,
         transform: const GradientRotation(-math.pi / 2),
       ).createShader(Offset.zero & size);
     }
@@ -403,13 +493,22 @@ class RingPainter extends CustomPainter {
       canvas.drawArc(rect, -math.pi / 2, sweep, false, paint);
       return;
     }
-    _paintRoundArc(canvas, center, rect, radius, sweep, paint);
+    _paintRoundArc(canvas, center, rect, radius, sweep, paint, source, glow);
   }
 
   /// The arc with round ends (`progressCap.ring`): a square-ended arc between the centres of the two ends, and the
   /// ends as circles of the thickness. A full scale is the whole ring (no ends, no seam). A solid fill lets
   /// the stroke round its own ends; a gradient paints each end with the colour of the gradient at its centre.
-  void _paintRoundArc(Canvas canvas, Offset center, Rect rect, double radius, double sweep, Paint paint) {
+  void _paintRoundArc(
+    Canvas canvas,
+    Offset center,
+    Rect rect,
+    double radius,
+    double sweep,
+    Paint paint,
+    ProgressFill source,
+    ProgressGlow? glow,
+  ) {
     final diameter = radius * 2 + thickness;
     final cap = ringCapGeometry(ratio, diameter, thickness);
     switch (cap.kind) {
@@ -418,16 +517,16 @@ class RingPainter extends CustomPainter {
       case RingCapKind.full:
         canvas.drawCircle(center, radius, paint);
       case RingCapKind.dot:
-        canvas.drawCircle(_onRing(center, radius, cap.capAngle), thickness / 2, _endPaint(sweep, cap.capAngle));
+        canvas.drawCircle(_onRing(center, radius, cap.capAngle), thickness / 2, _endPaint(source, glow, sweep, cap.capAngle));
       case RingCapKind.arc:
         final end = sweep - cap.capAngle;
-        if (fill.colors == null) {
+        if (source.colors == null) {
           canvas.drawArc(rect, -math.pi / 2 + cap.capAngle, end - cap.capAngle, false, paint..strokeCap = StrokeCap.round);
         } else {
           canvas.drawArc(rect, -math.pi / 2 + cap.capAngle, end - cap.capAngle, false, paint);
           canvas
-            ..drawCircle(_onRing(center, radius, cap.capAngle), thickness / 2, _endPaint(sweep, cap.capAngle))
-            ..drawCircle(_onRing(center, radius, end), thickness / 2, _endPaint(sweep, end));
+            ..drawCircle(_onRing(center, radius, cap.capAngle), thickness / 2, _endPaint(source, glow, sweep, cap.capAngle))
+            ..drawCircle(_onRing(center, radius, end), thickness / 2, _endPaint(source, glow, sweep, end));
         }
     }
   }
@@ -437,11 +536,13 @@ class RingPainter extends CustomPainter {
       center + Offset(math.sin(angle), -math.cos(angle)) * radius;
 
   /// The paint of an end or a dot centred at [angle] of an arc of [sweep] radians: the fill colour, or the
-  /// gradient colour at that share of the filled part.
-  Paint _endPaint(double sweep, double angle) {
-    final colors = fill.colors;
-    return Paint()
-      ..color = colors == null ? fill.color! : gradientColorAt(colors, fill.positions!, (angle / sweep).clamp(0.0, 1.0));
+  /// gradient colour at that share of the filled part. [source] is already dimmed when it is a glow.
+  Paint _endPaint(ProgressFill source, ProgressGlow? glow, double sweep, double angle) {
+    final colors = source.colors;
+    final paint = Paint()
+      ..color = colors == null ? source.color! : gradientColorAt(colors, source.positions!, (angle / sweep).clamp(0.0, 1.0));
+    if (glow != null) paint.maskFilter = MaskFilter.blur(BlurStyle.normal, glow.sigma);
+    return paint;
   }
 
   @override
@@ -450,7 +551,8 @@ class RingPainter extends CustomPainter {
       old.thickness != thickness ||
       old.trackColor != trackColor ||
       old.fill != fill ||
-      old.roundEnds != roundEnds;
+      old.roundEnds != roundEnds ||
+      old.glow != glow;
 }
 
 /// The ring stands in the CENTRE of the place it was given (`ring.placement`), and takes its

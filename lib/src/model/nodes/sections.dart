@@ -20,6 +20,7 @@ final class TabsNode extends ChildNode {
     super.pull,
     super.pin,
     super.pinTop,
+    super.pressFeedbackOff,
     required this.children,
     required this.initialTab,
   });
@@ -52,6 +53,7 @@ TabsNode _parseTabs(_RawNode node, VisibilityCondition? visibleIf) {
     pull: node.pull,
     pin: node.pin,
     pinTop: node.pinTop,
+    pressFeedbackOff: node.pressFeedbackOff,
     children: node.childNodes(),
     // A negative number and a non-integer are a number outside the list (`-1`); a number larger than the
     // last tab is too. In all three cases the first VISIBLE tab opens (`initialTabOutOfRange:
@@ -79,6 +81,7 @@ final class TabNode extends ChildNode {
     super.pull,
     super.pin,
     super.pinTop,
+    super.pressFeedbackOff,
     required this.children,
     required this.title,
   });
@@ -108,6 +111,7 @@ TabNode _parseTab(_RawNode node, VisibilityCondition? visibleIf) {
     pull: node.pull,
     pin: node.pin,
     pinTop: node.pinTop,
+    pressFeedbackOff: node.pressFeedbackOff,
     children: node.childNodes(),
     title: BindableString.parse(props['title'], key: node.key('title')),
   );
@@ -127,6 +131,7 @@ final class AccordionNode extends ChildNode {
     super.pull,
     super.pin,
     super.pinTop,
+    super.pressFeedbackOff,
     required this.children,
     required this.title,
     required this.initiallyExpanded,
@@ -160,6 +165,7 @@ AccordionNode _parseAccordion(_RawNode node, VisibilityCondition? visibleIf) {
     pull: node.pull,
     pin: node.pin,
     pinTop: node.pinTop,
+    pressFeedbackOff: node.pressFeedbackOff,
     children: node.childNodes(),
     title: BindableString.parse(props['title'], key: node.key('title')),
     initiallyExpanded: _bool(props['initiallyExpanded'], false),
@@ -189,6 +195,7 @@ final class ChoiceGroupNode extends ChildNode {
     super.pull,
     super.pin,
     super.pinTop,
+    super.pressFeedbackOff,
     required this.children,
     required this.value,
     required this.gap,
@@ -257,6 +264,7 @@ ChoiceGroupNode _parseChoiceGroup(_RawNode node, VisibilityCondition? visibleIf)
     pull: node.pull,
     pin: node.pin,
     pinTop: node.pinTop,
+    pressFeedbackOff: node.pressFeedbackOff,
     children: node.childNodes(),
     // There is deliberately no key: `value` is the NAME of the selected option, compared with the row's
     // `optionValue`, not text for a person. A translation here would break the choice. In the builder's

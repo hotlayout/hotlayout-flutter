@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.24.0';
+const String kSupportedSchemaVersion = '9.25.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -458,6 +458,14 @@ const Map<String, String> kFeatureCatalog = {
   'swipeConfirmBusy': '9.24.0',
   'navBadgeMotion': '9.24.0',
   'topZone': '9.24.0',
+  // 9.25.0: live feedback. A 9.24 reader fills the steps of a bar in whole steps during a transition, does not
+  // glow a scale, draws a shadow in its own colour, does not press a node in and does not ask the host for a haptic
+  // response (`olderReader`).
+  'segmentsTransition': '9.25.0',
+  'progressGlow': '9.25.0',
+  'shadowColor': '9.25.0',
+  'pressFeedback': '9.25.0',
+  'haptic': '9.25.0',
 };
 
 /// Whether THIS code supports a capability the document names.

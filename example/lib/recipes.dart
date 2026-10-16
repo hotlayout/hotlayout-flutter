@@ -4,7 +4,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+import 'package:flutter/services.dart' show HapticFeedback, SystemUiOverlayStyle;
 import 'package:hotlayout_flutter/hotlayout_flutter.dart';
 import 'package:http/http.dart' as http;
 
@@ -229,6 +229,36 @@ Widget drawWithAnalytics(
       'depth': '${shown.depth}',
       if (shown.entry != null) 'entry': shown.entry!,
     }),
+  );
+}
+
+/// Haptic feedback: a document asks for it (`action.haptic`), the app decides. The
+/// reader never vibrates by itself; this host does it unless the user turned it off.
+Widget drawWithHaptics(
+  UiDocument document,
+  RenderTheme theme,
+  Map<String, Object?> data, {
+  required bool vibrationAllowed,
+}) {
+  return renderDocument(
+    document,
+    theme: theme,
+    data: data,
+    onHaptic: (word, nodeId, record) {
+      if (!vibrationAllowed) return;
+      switch (word) {
+        case HapticWord.light:
+          HapticFeedback.lightImpact();
+        case HapticWord.medium:
+        case HapticWord.success:
+          HapticFeedback.mediumImpact();
+        case HapticWord.heavy:
+        case HapticWord.warning:
+          HapticFeedback.heavyImpact();
+        case HapticWord.selection:
+          HapticFeedback.selectionClick();
+      }
+    },
   );
 }
 

@@ -12,6 +12,8 @@ import '../../model/tokens.dart';
 import '../icon_box.dart';
 import '../key_repeat_guard.dart';
 import '../node_renderer.dart';
+import '../press_feedback.dart';
+import '../../model/press_feedback.dart';
 import '../render_scope.dart';
 import '../wide_nav_group.dart';
 import '../width_class_scope.dart';
@@ -127,7 +129,9 @@ extension NavBarWidgets on NodeRenderer {
         // A transparent `Material` UNDER the item: the ink splash is painted on the nearest one.
         child: Material(
           type: MaterialType.transparency,
-          child: InkWell(
+          child: PressFeedback(
+            kind: pressFeedbackKindOf(node),
+            child: InkWell(
             key: ValueKey('sdui-nav-item-${node.id}'),
             // The contract names no hover or press look for an item, and the other readers draw
             // none: Material's gray hover backdrop (web, desktop) is not a contract state. Only
@@ -164,6 +168,7 @@ extension NavBarWidgets on NodeRenderer {
                 ],
               ),
             ),
+          ),
           ),
         ),
       ),
@@ -251,7 +256,9 @@ extension NavBarWidgets on NodeRenderer {
         label: name.isEmpty ? null : name,
         onTap: () => emit(node.action, node.id),
         excludeSemantics: true,
-        child: InkWell(
+        child: PressFeedback(
+          kind: pressFeedbackKindOf(node),
+          child: InkWell(
           key: ValueKey('sdui-nav-item-${node.id}'),
           overlayColor: _navOverlay(),
           splashFactory: NoSplash.splashFactory,
@@ -277,6 +284,7 @@ extension NavBarWidgets on NodeRenderer {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

@@ -174,7 +174,7 @@ extension NodeBoxWidgets on NodeRenderer {
       gradient: background is GradientBackground ? theme.resolveGradient(background.gradient) : null,
       image: background is ImageBackground ? background : null,
       radius: radius,
-      shadow: style.shadow == null ? null : theme.resolveShadow(style.shadow!),
+      shadow: theme.resolveNodeShadow(style),
       border: border,
       blur: style.backdropBlur,
       child: result,

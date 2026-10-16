@@ -107,6 +107,8 @@ const List<String> fixtureIds = [
   'filter-gradient-compact-screens',
   // 9.24.0: a value that grows when shown, a swipe that stays busy, a dot that flashes, nodes pinned to the top; en and uk.
   'appear-swipe-dot-screens',
+  // 9.25.0: glowing scales, steps that fill smoothly, a shadow of the colour of the card, a press that sinks.
+  'glow-press-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on
@@ -188,6 +190,7 @@ Future<void> pumpDocument(
   DateTime? now,
   ValueChanged<ScreenEntry>? onScreenChanged,
   SduiTrackCallback? onTrack,
+  SduiHapticCallback? onHaptic,
   SduiScreenShownCallback? onScreenShown,
   ScreenScopeResolver? scopeFor,
   ScreenFlowController? controller,
@@ -247,6 +250,7 @@ Future<void> pumpDocument(
             // ignore: deprecated_member_use_from_same_package
             onScreenChanged: onScreenChanged,
             onTrack: onTrack,
+            onHaptic: onHaptic,
             onScreenShown: onScreenShown,
             scopeFor: scopeFor,
             onWrite: onWrite,
