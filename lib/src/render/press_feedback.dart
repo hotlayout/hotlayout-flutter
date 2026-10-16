@@ -66,6 +66,9 @@ class _PressFeedbackState extends State<PressFeedback> with SingleTickerProvider
   double get _amount => _from + (_to - _from) * (_to > _from ? _downCurve : _upCurve).transform(_controller.value);
 
   void _go(double to) {
+    // The node may be replaced under a held finger (a step completed in place, a reset): its
+    // controller is gone by the time the finger lifts.
+    if (!mounted) return;
     _from = _amount;
     _to = to;
     _controller
@@ -129,7 +132,7 @@ class _PressFeedbackState extends State<PressFeedback> with SingleTickerProvider
     _claimed.remove(pointer);
     _pointer = null;
     _downAt = null;
-    if (widget.kind == null || _to != 1) return;
+    if (!mounted || widget.kind == null || _to != 1) return;
     if (_controller.isAnimating && _controller.status == AnimationStatus.forward) {
       _releaseQueued = true;
     } else {

@@ -10,6 +10,10 @@ Reads document contract **9.27.0** (theme 4.0.1 and icon set 1.0.0 unchanged; da
 - Shared tables run by this release, every row by the rule and, where a screen can show it, through real widgets: `long-press-cases.json` (`gestureCases` 11, `keyCases` 6, `nodeCases` 9, `receiverCases` 5, `documentCases` 7, `ruleCases` 5), `repeater-group-cases.json` (`sameCases` 11, `groupCases` 7, `listCases` 6, `documentCases` 8, `ruleCases` 3), `sheet-dismiss-cases.json` (`startCases` 8, `releaseCases` 9, `entryCases` 2, `documentCases` 3, `ruleCases` 6) and the groups `entitySourceCases` (3), `liveRecordCases` (23) and `liveFlowCases` (6) of `record-scope-cases.json`. Fixtures `longpress-groups-sheet-screens` and `live-record-screens` are in the fixture catalog.
 - For widget tests: a hold of 450 ms needs `pump(Duration)` (the timer is a real `Timer`); a drag inside a sheet loses the first 18 dp to the touch slop, as under any button, because the sheet's own drag stands in the gesture arena next to the body's scroll view. `ScreenFlowController.frameRecords` (`@visibleForTesting`) lists the record of every frame of the stack.
 
+## 0.27.1
+
+- A press is released safely when its node was replaced under a held finger (a step completed in place, a reset): no animation runs on a disposed controller.
+
 ## 0.26.1
 
 Fix: a solid `style.border` on a node with a radius is drawn OVER the content, as in CSS, and the content is clipped by the inner edge of the border (the outer radius minus the border width, never below zero). Before, the border lay under the content and the content was clipped by the outer radius, so a picture or a coloured box filling the card painted over the border on the rounded corners. A node without a border, a dashed border and the shadow and glass of the box are unchanged.
