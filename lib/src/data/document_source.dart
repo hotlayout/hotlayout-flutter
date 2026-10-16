@@ -155,13 +155,12 @@ final class DocumentLoad {
 
   /// Fingerprint of the JSON text this document was parsed from.
   ///
-  /// Two loads with equal signatures carry the same document. Use it with
-  /// [reusing] to refresh without resetting the screen stack.
+  /// Two loads with equal signatures carry the same document: a refresh that
+  /// brings the same signature has nothing new to draw.
   ///
-  /// It answers exactly one question: "is this the same document that is already on screen?". A
-  /// repeated read that changed nothing (most of them, e.g. a refresh on returning from the
-  /// background) must not reset the screen stack and scroll position. The parsed documents
-  /// themselves cannot be compared: after parsing they are new objects, equal only in content.
+  /// It answers exactly one question: "is this the same document that is already on screen?".
+  /// The parsed documents themselves cannot be compared: after parsing they are new objects, equal
+  /// only in content.
   final String signature;
 
   /// The reason in words, for logs. English, not localized: do not show it to
@@ -188,9 +187,10 @@ final class DocumentLoad {
   /// Used when [signature] matched: nothing needs to change, but the result should still say
   /// that the network was asked, and when.
   ///
-  /// A new [UiDocument] object resets the screen stack of `renderDocument`. When
-  /// a refresh brings the same [signature], keep the object already on screen:
-  /// `next.reusing(previous.document)`.
+  /// A new [UiDocument] object with the same `documentId` does not reset the
+  /// screen stack of `renderDocument`, so this is an economy, not a necessity:
+  /// when a refresh brings the same [signature], `next.reusing(previous.document)`
+  /// spares a rebuild of the screen.
   DocumentLoad reusing(UiDocument document) => DocumentLoad(
     document: document,
     status: status,

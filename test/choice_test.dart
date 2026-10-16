@@ -378,13 +378,10 @@ void main() {
       expect(selectedOptions(tester), {'certificate'});
     });
 
-    testWidgets('after a write, a bound field owns its path', (tester) async {
-      // **The assertion was flipped in 8.1.0, not weakened.** Until then a bound
-      // `value` was ONLY a read, so new data under it legitimately wiped
-      // a finger choice. Now a field whose value is bound to a path writes to
-      // that path -- and while the screen stack lives, the user's explicit choice is
-      // stronger than data that arrived under it. The opposite behaviour
-      // would mean a data refresh silently cancels the choice just made.
+    testWidgets('after a write, the choice survives data that says nothing new at its path', (tester) async {
+      // A field whose value is bound to a path writes to that path, and while the screen stack
+      // lives the user's choice stays above the data under it: a refresh that brings the SAME
+      // value at the path (or touches other paths only) must not cancel the choice just made.
       final doc = docWith([
         rewardGroup(value: {'kind': 'binding', 'path': 'item.selectedId', 'fallback': ''}),
       ]);
@@ -394,8 +391,28 @@ void main() {
       await tester.pump();
       expect(selectedOptions(tester), {'speaker'});
 
-      await pumpDocument(tester, doc, data: const {'item.selectedId': 'certificate'});
+      await pumpDocument(tester, doc, data: const {'item.selectedId': 'headphones', 'user.points': 1});
       expect(selectedOptions(tester), {'speaker'});
+    });
+
+    testWidgets('after a write, NEW data at the same path wins: the host changed the value itself', (tester) async {
+      // The other half of the same rule, as in `@hotlayout/react`: the choice remembers what the
+      // data said at its path when it was made, and yields once the data says something else
+      // there (another device, the backend's own answer). Echoing the chosen value back changes
+      // nothing, since the data then says the same as the choice.
+      final doc = docWith([
+        rewardGroup(value: {'kind': 'binding', 'path': 'item.selectedId', 'fallback': ''}),
+      ]);
+
+      await pumpDocument(tester, doc, data: const {'item.selectedId': 'headphones'});
+      await tester.tap(find.text('Колонка'));
+      await tester.pump();
+
+      await pumpDocument(tester, doc, data: const {'item.selectedId': 'speaker'});
+      expect(selectedOptions(tester), {'speaker'});
+
+      await pumpDocument(tester, doc, data: const {'item.selectedId': 'certificate'});
+      expect(selectedOptions(tester), {'certificate'});
     });
 
     testWidgets('a bound choice survives a transition and a return', (tester) async {

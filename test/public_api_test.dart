@@ -313,6 +313,8 @@ void main() {
       // system "back" and the document stack
       'ScreenFlowController', 'ScreenFlowBackCallback',
       'SduiActionCallback', 'SduiRecordActionCallback', 'SduiValueWrite', 'ScreenScopeRequest', 'ScreenScopeResolver',
+      // the host's own actions, routed by type
+      'HostActions', 'HostActionCall', 'HostActionHandler', 'HostActionMiss',
       // theme
       'RenderTheme', 'ThemeContract', 'ThemeLoad', 'ThemeLoadStatus', 'kThemeFetchTimeout',
       // document source

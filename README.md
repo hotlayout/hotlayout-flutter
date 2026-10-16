@@ -20,7 +20,7 @@ return Theme(
         theme: theme,
         data: widget.data,
         locale: locale,
-        onRecordAction: _onAction,
+        onRecordAction: _actions.handle,
         onWrite: _onWrite,
         // Documents from a source you do not fully trust: no autofill hints.
         // autofill: false,
@@ -53,6 +53,7 @@ Website: [hotlayout.com](https://hotlayout.com) · Changes by version: [CHANGELO
 - [Theme](#theme)
 - [Language and right-to-left](#language-and-right-to-left)
 - [Network and the fallback](#network-and-the-fallback)
+- [Live data and new versions](#live-data-and-new-versions)
 - [Versions](#versions)
 - [Platform notes](#platform-notes)
 - [Fonts](#fonts)
@@ -73,7 +74,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.20.0
+  hotlayout_flutter: ^0.21.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -213,7 +214,7 @@ Which paths exist is defined by the project's data dictionary (`data-contract.js
 | A missing value is not an error | The binding shows the `fallback` written in the document; a missing value counts as empty in visibility conditions. |
 | Empty text | For a text, an **empty string** is a missing value too (the fallback is shown); a string of spaces is a value. |
 | List size | A list draws at most 50 records (a contract limit). |
-| New data | Pass a new map and rebuild; the screen stack is kept. |
+| New data | Pass a new map and rebuild; the screen stack, the fields and the carousels are kept (see [Live data and new versions](#live-data-and-new-versions)). |
 
 ### Sentences, numbers, money and days
 
@@ -322,25 +323,34 @@ The host gets an action through one of two callbacks. When both are given, only 
 | `onRecordAction` | the action, the id of the node and **the record of that node** |
 | `onAction` (older) | the action and the id |
 
+`HostActions` routes them by type: one handler per action your app knows, the standard actions through their check, and one `onMiss` for the rest. Pass its `handle` as `onRecordAction`:
+
 ```dart
-  // `record` is the record of the node that was tapped: the list row, or the
-  // row that opened this screen. A flat map of paths, or null.
-  void _onAction(ButtonAction action, String nodeId, Map<String, Object?>? record) {
-    switch (action.type) {
-      case ButtonAction.navigateBack:
-        // "Back" on the first screen of the document: leave the flow.
-        Navigator.of(context).maybePop();
-      case 'share':
-        _say('Your share sheet opens here');
-      case 'redeem':
-        // Which reward? The row says so. Check the id on your backend like
-        // any user input before you spend points on it.
-        _say('Redeem ${record?['item.name']} (${record?['item.id']})?');
-      default:
-        debugPrint('unhandled action ${action.type} from $nodeId');
-    }
-  }
+  // The app's own actions, one handler per type. A handler gets the action,
+  // the node and its `record`: the list row, or the row that opened this
+  // screen (a flat map of paths, or null).
+  late final _actions = HostActions(
+    handlers: {
+      // "Back" on the first screen of the document: leave the flow.
+      ButtonAction.navigateBack: (call) => Navigator.of(context).maybePop(),
+      'share': (call) => _say('Your share sheet opens here'),
+      // Which reward? The row says so. Check the id on your backend like any
+      // user input before you spend points on it.
+      'redeem': (call) => _say('Redeem ${call.record?['item.name']} (${call.valueOf('item.id')})?'),
+    },
+    onMiss: (call, reason) => debugPrint('unhandled action ${call.type} from ${call.nodeId}: ${reason.name}'),
+  );
 ```
+
+| `HostActions` | What it does |
+|---|---|
+| `handlers` | `type → handler`. A handler gets a `HostActionCall`: `type`, `params`, `nodeId`, `record`, and `valueOf(key)` — the parameter, else the record at that path, as text. It may return a `Future`. |
+| `openUrl`, `deeplinkSchemes`, `openDeeplink`, `close` | The executors of the standard actions, run through `runStandardAction` (see [Standard actions](#standard-actions)). A handler for `openUrl`, `deeplink` or `close` is refused: these run only after their check. |
+| `onMiss` | What was not performed, with a `HostActionMiss`: `noHandler`, `noExecutor`, `invalid` (a standard action that failed its check), `busy`. |
+| `exclusive` | `true` by default: while the `Future` of a handler runs, another press of the same type is `busy` and is dropped — two quick taps on "redeem" redeem once. |
+| `onError` | An error of a handler, thrown or from its `Future`. Without it the error goes to `FlutterError.reportError`; it never reaches the renderer. |
+
+What a handler answers is shown through your data: write the result where your data comes from (`redemption.status`, `redemption.code`) and pass the new data to `renderDocument` — see [Live data and new versions](#live-data-and-new-versions).
 
 An action type you do not know is not an error: log it and do nothing.
 
@@ -404,7 +414,7 @@ The document is untrusted input:
 - **The content of a `deeplink` is untrusted too.** With your scheme in `deeplinkSchemes` the action is `standard`, but the path and the query stay the document's: `myapp://open?url=javascript:…` is for your app's router to judge.
 - **`tel:`, `sms:`, `mailto:` and `market:` pass the form**; only your scheme list holds them back.
 - **The form cannot tell an internal name (`intranet.corp`) from a public one**: which domains may be opened is your list to keep.
-- **A double tap is two actions**, and a held Enter or Space is one (the auto-repeat of a key is not a press). Protecting a payment from a repeated press is the host's job.
+- **A double tap is two actions**, and a held Enter or Space is one (the auto-repeat of a key is not a press). Protecting a payment from a repeated press is the host's job; `HostActions` drops a press of a type whose asynchronous handler is still running, and your backend should still treat a redemption as idempotent.
 - **Do not build a route from `action.params['screenId']`** (`router.push('/app/$id')`): match it against your own list of routes.
 - **Older packages give no verdict.** A package older than 0.8.0 (`@hotlayout/react` older than 0.9.0) hands `openUrl` / `deeplink` as an unknown action with raw `params`. If your host already had its own `openUrl` branch, update the package before managers start using these actions.
 
@@ -652,7 +662,7 @@ const germanLabels = RendererLabels(
 
 Every request gets an extra query parameter (`_req=…`) so that a cache in between cannot serve an old publication. `HttpDocumentTransport` sends no custom headers, which keeps a web build free of CORS preflights.
 
-**Refreshing.** A new `UiDocument` object resets the screen stack, and most re-reads bring the same document. Keep the object that is on screen when the signature did not change:
+**Refreshing.** Read the source again whenever you like: a new `UiDocument` object with the same `documentId` does not reset the screen stack (see [Live data and new versions](#live-data-and-new-versions)). Two things are still worth doing — skip a refresh that brought the same `signature`, and keep the published document when a refresh fell back:
 
 ```dart
 DocumentLoad apply(DocumentLoad? previous, DocumentLoad next) {
@@ -681,13 +691,81 @@ final class AuthorizedTransport implements DocumentTransport {
 }
 ```
 
+## Live data and new versions
+
+A running app hands the renderer three things that change while the user is in the middle of a flow. None of them throws the user back to the first screen.
+
+| What changes | What the open screen does | Show event |
+|---|---|---|
+| **`data`** — a new map from your stream | Shows the new values at once. The screen stack, the record each screen was opened with, the carousels, the scroll and the fields stay. | none |
+| **A value the user wrote** (`TextField`, `Switch`, `ChoiceGroup`, `setValue`) | Stays on screen until your data says something new **at the same path**; then your data wins. Echoing the written value back changes nothing. A field that has focus keeps its text. | none |
+| **The document** — a new object, same `documentId`, every screen of the stack still in it | Every screen of the stack is drawn from the new version; "back" leads through the new version too. What the user wrote stays. | none |
+| **The document** — same `documentId`, a screen of the stack is gone | The flow starts again from the entry screen of the new version (`stackScreenGone: 'restart-from-entry'`). What the user wrote stays. | one, `entry`, depth 1 |
+| **The document** — another `documentId`, or another `entry` | A new flow: the stack and what the user wrote start over. | one, `entry` |
+| **The theme** | Repaints the open screen; nothing else changes. | none |
+
+The renderer has no dependency on a backend. The pieces below are in [`example/lib/live.dart`](example/lib/live.dart).
+
+**Data from a stream.** Rebuild `renderDocument` with every new map — with Firestore, `snapshots()` of the user's document:
+
+```dart
+  // With Firestore: `userDoc.snapshots().map((s) => s.data() ?? const {})`.
+  return StreamBuilder<Map<String, Object?>>(
+    stream: data,
+    builder: (context, snapshot) => renderDocument(
+      document,
+      theme: theme,
+      // Before the first event the screen shows the fallbacks of its texts.
+      data: snapshot.data ?? const {},
+      onRecordAction: onRecordAction,
+    ),
+  );
+```
+
+A Firestore `Timestamp` is not a date for the renderer: convert it to an ISO 8601 string with a zone (`timestamp.toDate().toUtc().toIso8601String()`) before you pass the map.
+
+**A new publication.** The builder writes the published document and theme to storage; the app reads them again — on a timer and when it returns to the foreground — and hands over what changed. `LivePublication` does both and keeps three rules: a refresh that brings the same `signature` changes nothing, a new publication replaces the document, and a refresh that fell back keeps the published document on screen:
+
+```dart
+  void _accept(DocumentLoad next) {
+    final previous = _load;
+    if (previous != null) {
+      // A failed refresh is not news: the published document stays on screen.
+      if (next.isFallback && !previous.isFallback) return;
+      if (previous.signature == next.signature) return;
+    }
+    _load = next;
+    notifyListeners();
+  }
+```
+
+```dart
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) refresh();
+  }
+```
+
+Instead of a timer you can listen to a signal your backend sends after a publication (a document your app already watches, a silent push) and call `refresh()` from it. A webhook of the builder announces every publication to your backend, not to the phone: your backend is what tells the app.
+
+**Not downloading the same file again.** `EtagTransport` sends `If-None-Match` with the `ETag` of the last answer and turns a `304 Not Modified` into the text it already has, so the source sees the same signature. Use it on mobile; in a web build the header makes the browser send a CORS preflight.
+
+```dart
+    final response = await _client.get(url, headers: {if (cached != null) 'If-None-Match': cached.etag});
+    if (response.statusCode == 304 && cached != null) {
+      return (statusCode: 200, body: cached.body);
+    }
+```
+
+What this does not cover: a document whose new version needs a newer package (another major) is not taken from the network — the source falls back, `LivePublication` keeps what is on screen, and the reason is in `DocumentLoad.detail`.
+
 ## Versions
 
 Three numbers describe what this package reads, and the package version is a fourth, separate one:
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.20.0` | — |
+| Package | `0.21.0` | — |
 | Document contract (schema) | `9.20.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
@@ -779,6 +857,7 @@ If you update from an older version of the package, these are the places where t
 | 0.14.0 | `onWrite` may give a `num` (a number field). Host code that stored every value as a string must be reviewed. |
 | 0.17.0 | On a wide screen the navigation bar goes to the top and a modal sheet becomes a window. |
 | 0.20.0 | A document that names `motion` runs a ticker for as long as the node is on screen, so `pumpAndSettle` in a widget test never settles on such a screen (use `pump` with a duration). |
+| 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
 
 ## Platform notes

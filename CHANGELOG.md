@@ -1,3 +1,14 @@
+## 0.21.0
+
+For a live app: data that changes under an open screen, a new publication picked up while the user is in the flow, and the app's own actions routed by type. Reads the same contracts as 0.20.0 (document 9.20.0, theme 4.0.1, icon set 1.0.0).
+
+- **What the user wrote yields to new data at the same path.** A value written into a bound input (and by `setValue` / `toggleValue`) used to stay above `data` for the life of the flow, so a live app whose database answered with another value kept showing the old one. Now each entry of the session remembers what `data` said at its path when it was written and is dropped for good as soon as `data` says something else there. A host that echoes the written value back changes nothing on screen. The same rule as `@hotlayout/react`.
+- **A new version of the same document keeps what the user wrote**, also when it restarts the flow from its entry because a screen of the stack is gone. Another `documentId` or another `entry` still starts over. Before, any restart forgot the session.
+- **`HostActions`**: a ready `onRecordAction`. One handler per action type (`HostActionCall` with `params`, `record`, `nodeId` and `valueOf`, which reads the parameter and then the record); the standard actions `openUrl`, `deeplink` and `close` through `runStandardAction` and never through a handler; `onMiss` with the reason (`noHandler`, `noExecutor`, `invalid`, `busy`); an asynchronous handler blocks presses of the same type until it completes (`exclusive`, on by default); errors go to `onError` or `FlutterError.reportError`.
+- Tests of what a running app does: new `data`, a re-parsed copy, a new version with and without the screens of the stack, another `documentId`, a new theme — the stack, the session, the fields and the show events (`live_update_test.dart`).
+- README: **Live data and new versions** (a stream of data, refreshing the publication on a timer and on return to the foreground, `ETag`), and `HostActions` under **Actions and navigation**. The example gained `lib/live.dart` (`drawLive`, `appActions`, `EtagTransport`, `LivePublication`, `LiveScreen`) and uses `HostActions`; a refresh that falls back no longer replaces the published document in the quickstart.
+- Corrected: the documentation of `DocumentLoad.reusing` said a new document object resets the screen stack; for the same `documentId` it does not.
+
 ## 0.20.0
 
 Reads document contract **9.20.0** (theme 4.0.1, icon set 1.0.0 and data dictionary 1.5.0 unchanged). Three optional fields, none of which changes the layout; a document without them is drawn exactly as by 0.19.1.

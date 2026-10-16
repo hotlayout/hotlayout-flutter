@@ -14,7 +14,12 @@
 ///  * the **widget** — [renderDocument], with [SduiActionCallback] for the
 ///    actions the host performs itself ([runStandardAction] performs the
 ///    checked ones, with executors the host passes in), [SduiTrackCallback]
-///    for analytics events and [SduiScreenShownCallback] for screen views.
+///    for analytics events and [SduiScreenShownCallback] for screen views;
+///    [HostActions] routes the host's own actions to one handler per type.
+///
+/// All four may change while the user is in the flow: new data, a new version
+/// of the same document and a new theme are drawn at once, and the screen
+/// stack stays (see [ScreenFlow.doc]).
 ///
 /// A complete host is in the package's `example/`.
 ///
@@ -69,6 +74,9 @@ export 'src/render/render_document.dart'
         SduiValueWrite,
         renderDocument,
         renderScreen;
+
+// A ready `onRecordAction` that routes app-specific actions to handlers by type.
+export 'src/render/host_actions.dart' show HostActionCall, HostActionHandler, HostActionMiss, HostActions;
 
 // The theme and how it is loaded.
 export 'src/theme/render_theme.dart' show RenderTheme;

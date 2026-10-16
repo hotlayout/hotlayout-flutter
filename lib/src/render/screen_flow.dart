@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 
+import '../data/screen_data.dart';
 import '../model/action.dart';
 import '../model/action_catalog.dart';
 import '../model/bottom_zone_rules.dart';
@@ -134,6 +135,13 @@ class ScreenFlow extends StatefulWidget {
   });
 
   /// The document to draw.
+  ///
+  /// A new object with the same `documentId` — a re-parsed copy, or a new
+  /// version published while the user is in the flow — keeps the screen stack
+  /// and draws every screen of it from the new object. When the new version
+  /// lacks a screen of the stack, the flow starts again from the entry screen
+  /// of the new version (one `entry` show). A different `documentId` is a
+  /// new flow: the stack and what the user wrote start over.
   final UiDocument doc;
 
   /// The public entry-point name to open; `null` opens the initial screen.
@@ -144,9 +152,17 @@ class ScreenFlow extends StatefulWidget {
   /// gone out in a push notification and will come back after the document was updated.
   final String? entry;
 
-  /// The theme to draw with.
+  /// The theme to draw with. A new theme repaints the open screen and keeps
+  /// the stack.
   final RenderTheme theme;
   /// Values for the paths the document is bound to.
+  ///
+  /// Live: pass a new map whenever your data changes (a database stream, a
+  /// reply to an action) and the open screen shows it at once. New data never
+  /// resets the screen stack, the record a screen was opened with, the
+  /// carousels or the fields, and it is not a "screen shown" event. A value the
+  /// user wrote into a bound input stays until your data says something new at
+  /// the same path; then your data wins.
   final Map<String, Object?> data;
 
   /// The language to show. Changing it does not reset the screen stack.
@@ -296,6 +312,16 @@ class _ScreenFlowState extends State<ScreenFlow> {
   /// `published.json` is what the manager made.
   Map<String, Object?> _session = const {};
 
+  /// What [ScreenFlow.data] said at each path of [_session] when the user wrote it.
+  ///
+  /// The session lies ON TOP of the host's data, so it must yield when the host itself changes the
+  /// value at the same path: a live app whose database answered with another value (another device,
+  /// a normalised entry) must show that value, not the one typed here minutes ago. An entry is
+  /// dropped for good as soon as the data at its path differs from its base — on the update, not by
+  /// comparison at build time, so a sequence "A, B, A" does not bring a dropped entry back. A host
+  /// echoing the written value back changes nothing on the screen: the data then says the same.
+  Map<String, Object?> _sessionBase = const {};
+
   /// The initial frame has no parameters: the document arrives whole, and nobody knows who
   /// opened the first screen. Empty parameters here mean there was no navigation.
   ///
@@ -363,16 +389,42 @@ class _ScreenFlowState extends State<ScreenFlow> {
       oldWidget.controller?._detach(this);
       widget.controller?._attach(this);
     }
-    final restarted = oldWidget.entry != widget.entry || !_sameFlowDocument(oldWidget.doc);
+    // The session belongs to the FLOW, i.e. to the document id and the entry, as in `@hotlayout/react`:
+    // another document or entry forgets what was written, a new version of the same document does
+    // not, even when it restarts the stack (its data paths are those of the same project).
+    final otherFlow = oldWidget.entry != widget.entry || oldWidget.doc.documentId != widget.doc.documentId;
+    if (otherFlow) {
+      _session = const {};
+      _sessionBase = const {};
+    } else if (!identical(oldWidget.data, widget.data)) {
+      _yieldSessionToData();
+    }
+    final restarted = otherFlow || !_sameFlowDocument(oldWidget.doc);
     if (restarted) {
       _stack = [_initialFrame];
-      // Records too: they are addressed by paths of the OLD document, and carrying them into the new
-      // one would show a choice it may not have.
-      _session = const {};
       _stackChanged(ScreenShownCause.entry, duringBuild: true);
     } else if (controllerChanged) {
       _notifyController(duringBuild: true);
     }
+  }
+
+  /// The value of [path] in the host's data, the way a binding reads it (flat key or nested maps).
+  Object? _dataAt(String path) => ScreenData(widget.data).lookup(path);
+
+  /// Drops every session entry whose path the host's data now answers differently (see [_sessionBase]).
+  void _yieldSessionToData() {
+    if (_session.isEmpty) return;
+    Map<String, Object?>? kept;
+    for (final path in _session.keys) {
+      if (_dataAt(path) == _sessionBase[path]) continue;
+      kept ??= {..._session};
+      kept.remove(path);
+    }
+    if (kept == null) return;
+    _session = Map<String, Object?>.unmodifiable(kept);
+    _sessionBase = Map<String, Object?>.unmodifiable({
+      for (final path in kept.keys) path: _sessionBase[path],
+    });
   }
 
   /// Whether a new document object is the same FLOW.
@@ -612,8 +664,15 @@ class _ScreenFlowState extends State<ScreenFlow> {
     // The reader's session is a data layer: dependent conditions and texts of this screen change at
     // the same moment. The host gets the same value right after it, BEFORE any action pressed after
     // the change (`inputWrite`): the action sees what was typed.
+    final base = _dataAt(path);
     if (_session[path] != value) {
-      setState(() => _session = Map<String, Object?>.unmodifiable({..._session, path: value}));
+      setState(() {
+        _session = Map<String, Object?>.unmodifiable({..._session, path: value});
+        _sessionBase = Map<String, Object?>.unmodifiable({..._sessionBase, path: base});
+      });
+    } else if (_sessionBase[path] != base) {
+      // The same value written again over new data: the entry now stands on the new base.
+      _sessionBase = Map<String, Object?>.unmodifiable({..._sessionBase, path: base});
     }
     widget.onWrite?.call(path, value);
   }

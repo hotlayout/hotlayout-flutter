@@ -105,11 +105,14 @@ class _HotLayoutScreenState extends State<HotLayoutScreen> with WidgetsBindingOb
     // A fallback is silent on screen by design, so say it in the log.
     debugPrint('document: ${next.status.name} ${next.detail ?? ''}');
 
-    // A new UiDocument object resets the screen stack. Most re-reads bring
-    // the same document: keep the object that is already on screen.
     final previous = _load;
-    final unchanged = previous != null && previous.signature == next.signature;
-    setState(() => _load = unchanged ? next.reusing(previous.document) : next);
+    // A refresh that failed keeps the published document on screen rather
+    // than going back to the bundled copy.
+    if (previous != null && next.isFallback && !previous.isFallback) return;
+    // Most re-reads bring the same document: nothing to redraw. A new version
+    // is drawn at once, and the screen stack stays while its screens exist.
+    if (previous != null && previous.signature == next.signature) return;
+    setState(() => _load = next);
   }
 
   @override
@@ -120,23 +123,20 @@ class _HotLayoutScreenState extends State<HotLayoutScreen> with WidgetsBindingOb
     }
   }
 
-  // `record` is the record of the node that was tapped: the list row, or the
-  // row that opened this screen. A flat map of paths, or null.
-  void _onAction(ButtonAction action, String nodeId, Map<String, Object?>? record) {
-    switch (action.type) {
-      case ButtonAction.navigateBack:
-        // "Back" on the first screen of the document: leave the flow.
-        Navigator.of(context).maybePop();
-      case 'share':
-        _say('Your share sheet opens here');
-      case 'redeem':
-        // Which reward? The row says so. Check the id on your backend like
-        // any user input before you spend points on it.
-        _say('Redeem ${record?['item.name']} (${record?['item.id']})?');
-      default:
-        debugPrint('unhandled action ${action.type} from $nodeId');
-    }
-  }
+  // The app's own actions, one handler per type. A handler gets the action,
+  // the node and its `record`: the list row, or the row that opened this
+  // screen (a flat map of paths, or null).
+  late final _actions = HostActions(
+    handlers: {
+      // "Back" on the first screen of the document: leave the flow.
+      ButtonAction.navigateBack: (call) => Navigator.of(context).maybePop(),
+      'share': (call) => _say('Your share sheet opens here'),
+      // Which reward? The row says so. Check the id on your backend like any
+      // user input before you spend points on it.
+      'redeem': (call) => _say('Redeem ${call.record?['item.name']} (${call.valueOf('item.id')})?'),
+    },
+    onMiss: (call, reason) => debugPrint('unhandled action ${call.type} from ${call.nodeId}: ${reason.name}'),
+  );
 
   // What the user typed or switched in a `TextField`, `Switch`, `Checkbox` or
   // `ChoiceGroup`: the data path of the field and a String, a bool or (a number
@@ -188,7 +188,7 @@ class _HotLayoutScreenState extends State<HotLayoutScreen> with WidgetsBindingOb
             theme: theme,
             data: widget.data,
             locale: locale,
-            onRecordAction: _onAction,
+            onRecordAction: _actions.handle,
             onWrite: _onWrite,
             // Documents from a source you do not fully trust: no autofill hints.
             // autofill: false,

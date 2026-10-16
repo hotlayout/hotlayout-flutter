@@ -22,7 +22,8 @@ and then give the app network access — see "Platform notes" in the package REA
 |---|---|
 | `lib/main.dart` | The whole host: theme before the first frame, bundled copy then network, drawing, actions, language. |
 | `lib/backend.dart` | The data the document is bound to: flat paths, nested maps, collections. |
-| `lib/recipes.dart` | Pieces to add when needed: data of one screen, refresh without a reset, a version check, your own HTTP client, labels, a theme picker. |
+| `lib/recipes.dart` | Pieces to add when needed: data of one screen, refresh, a version check, your own HTTP client, labels, a theme picker. |
+| `lib/live.dart` | A live app: data from a stream, a new publication picked up while the app runs (a timer, the return to the foreground, `ETag`), the app's own actions by type. |
 | `assets/hotlayout/` | The bundled copies: the `rewards-showcase` contract fixture and its theme. |
 
 Every Dart snippet of the package README is a verbatim fragment of these files; `test/public_api_test.dart` of the package fails when one of them stops matching.

@@ -652,9 +652,9 @@ class _DocumentHostState extends State<DocumentHost> with WidgetsBindingObserver
   /// shows it, although the network returned the same document as before.
   bool _apply(DocumentLoad load) {
     final previous = _load;
-    // The same document is no reason to rebuild the flow: `ScreenFlow` on a
-    // new object resets the stack, and the user standing on the second screen
-    // would end up on the first. And most refreshes change nothing.
+    // The same document is no reason to rebuild the flow, and most refreshes
+    // change nothing. A new version of the same document keeps the stack in
+    // `ScreenFlow` while its screens exist.
     final unchanged = previous != null && previous.signature == load.signature;
     setState(() {
       _error = null;
@@ -773,7 +773,7 @@ class _DocumentHostState extends State<DocumentHost> with WidgetsBindingObserver
 
   /// Document the presentation starts from: with `--dart-define=screen=<screenId>` - the same document
   /// with [kStartScreen] as its initial screen. One object per document (identity memory): a new
-  /// object each time would reset the screen stack.
+  /// object each time would rebuild every screen of the stack for nothing.
   UiDocument _startedAt(UiDocument doc) {
     if (kStartScreen.isEmpty) return doc;
     final cached = _startedCache;

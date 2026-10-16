@@ -100,7 +100,7 @@ Widget drawWithBackGuard(
 }
 
 /// Keeps the document object that is on screen when a refresh brings the
-/// same document, so that the screen stack is not reset.
+/// same document: nothing to redraw.
 DocumentLoad apply(DocumentLoad? previous, DocumentLoad next) {
   final unchanged = previous != null && previous.signature == next.signature;
   return unchanged ? next.reusing(previous.document) : next;
