@@ -232,7 +232,18 @@ extension NodeBoxWidgets on NodeRenderer {
     final dashed = border is DashedBorderSide;
     final frame = border == null || dashed ? null : Border.fromBorderSide(border);
 
+    // The content is clipped by the INNER edge of the border (the padding box, as in CSS): the inner radius is the
+    // outer one minus the border width. Without a border it is the outer edge.
     Widget content = child;
+    if (hasRadius && border != null) {
+      final inside = content;
+      content = Builder(
+        builder: (context) => ClipRRect(
+          clipper: _InnerBorderClipper(radius, border.width, Directionality.of(context)),
+          child: inside,
+        ),
+      );
+    }
     if (image != null) {
       /*
        * A background image is a LAYER under the content, not a `DecorationImage`: its source is
@@ -249,14 +260,12 @@ extension NodeBoxWidgets on NodeRenderer {
           content,
         ],
       );
-    }
-    if (hasRadius) {
+      content = hasRadius ? ClipRRect(borderRadius: radius, child: content) : ClipRect(child: content);
+    } else if (hasRadius && border == null) {
       content = ClipRRect(borderRadius: radius, child: content);
-    } else if (image != null) {
-      content = ClipRect(child: content);
     }
-    // The border goes over the image, not under it: the background layer would cover it.
-    if (frame != null && image != null) {
+    // The border goes over the content, not under it: the background layer would be covered by what lies in the corners.
+    if (frame != null) {
       content = DecoratedBox(
         position: DecorationPosition.foreground,
         decoration: BoxDecoration(border: frame, borderRadius: hasRadius ? radius : null),
@@ -268,7 +277,7 @@ extension NodeBoxWidgets on NodeRenderer {
 
     final glass = blur != null;
     // With glass the shadow is drawn outside the blur clip (below), not by the background box.
-    final plain = color == null && gradient == null && !hasShadow && (frame == null || image != null);
+    final plain = color == null && gradient == null && !hasShadow;
     final Widget surface = plain
         ? content
         : DecoratedBox(
@@ -277,7 +286,6 @@ extension NodeBoxWidgets on NodeRenderer {
               gradient: gradient,
               borderRadius: hasRadius ? radius : null,
               boxShadow: hasShadow && !glass ? shadow : null,
-              border: image == null ? frame : null,
             ),
             child: content,
           );
@@ -356,4 +364,28 @@ extension NodeBoxWidgets on NodeRenderer {
     final (lower, _) = _axisLimits(own.width, own.minWidth, own.maxWidth);
     return lower + (theme.resolveBoxSpacing(own.margin)?.horizontal ?? 0);
   }
+}
+
+/// Clips to the inner edge of a border: the box deflated by [width], corner radii reduced by it (not below zero).
+class _InnerBorderClipper extends CustomClipper<RRect> {
+  const _InnerBorderClipper(this.radius, this.width, this.direction);
+
+  final BorderRadiusGeometry radius;
+  final double width;
+  final TextDirection direction;
+
+  @override
+  RRect getClip(Size size) {
+    final r = radius.resolve(direction);
+    return RRect.fromRectAndCorners(
+      Offset.zero & size,
+      topLeft: r.topLeft,
+      topRight: r.topRight,
+      bottomLeft: r.bottomLeft,
+      bottomRight: r.bottomRight,
+    ).deflate(width);
+  }
+
+  @override
+  bool shouldReclip(_InnerBorderClipper old) => old.radius != radius || old.width != width || old.direction != direction;
 }

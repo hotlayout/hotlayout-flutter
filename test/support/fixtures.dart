@@ -676,12 +676,30 @@ EdgeInsetsGeometry nodePadding(WidgetTester tester, String label) {
 }
 
 BoxDecoration _decorationBetween(Element from, bool Function(Widget widget) stop) {
+  // One surface is two boxes: the border lies in a FOREGROUND box over the content, the rest in a background box.
+  // The nearest box is the border one when there is a border; the next one up completes it.
   BoxDecoration? found;
+  var foreground = false;
+  var merged = false;
   from.visitAncestorElements((element) {
     final widget = element.widget;
     if (stop(widget)) return false;
     if (widget is DecoratedBox && widget.decoration is BoxDecoration) {
-      found ??= widget.decoration as BoxDecoration;
+      final d = widget.decoration as BoxDecoration;
+      if (found == null) {
+        found = d;
+        foreground = widget.position == DecorationPosition.foreground;
+      } else if (foreground && !merged && widget.position == DecorationPosition.background) {
+        merged = true;
+        found = BoxDecoration(
+          color: d.color,
+          gradient: d.gradient,
+          image: d.image,
+          border: found!.border,
+          borderRadius: d.borderRadius ?? found!.borderRadius,
+          boxShadow: d.boxShadow,
+        );
+      }
     }
     return true;
   });
