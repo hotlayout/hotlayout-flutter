@@ -17,6 +17,7 @@ import 'countdown_clock.dart';
 import 'host_callbacks.dart';
 import 'inputs.dart';
 import 'labels.dart';
+import 'list_budget.dart';
 import 'node_renderer.dart';
 import 'picture_policy.dart';
 import 'screen_form.dart';
@@ -74,7 +75,17 @@ Widget screenWidget(
         session: session,
         scope: scope,
       );
+      // THE LIST BUDGET (`x-listBudget`): one plan per screen, before the first list is drawn, over the tree of this
+      // width class. One report per screen, in debug builds, without a word of the data.
+      final budget = ListBudgetPlan.of(root, screenData);
+      if (kDebugMode && budget.notDrawn > 0) {
+        debugPrint(
+          '[hotlayout] screen "${screen.screenId}": the list budget of $kListBudgetPerScreen instances was reached, '
+          '${budget.notDrawn} instances of list templates were not drawn',
+        );
+      }
       final renderer = NodeRenderer(
+        budget: budget,
         theme: theme,
         data: screenData,
         form: ScreenForm(root: root, data: screenData),

@@ -24,6 +24,7 @@ import 'choice_scope.dart';
 import 'host_callbacks.dart';
 import 'inputs.dart';
 import 'labels.dart';
+import 'list_budget.dart';
 import 'picture_policy.dart';
 import 'render_scope.dart';
 import 'screen_form.dart';
@@ -65,7 +66,11 @@ class NodeRenderer {
     this.form,
     this.listInstance,
     this.links = const [],
+    this.budget,
   });
+
+  /// The list budget of this screen (`x-listBudget`), made once before drawing; `null` draws every record.
+  final ListBudgetPlan? budget;
 
   /// The `Repeater` instances this node is drawn in, over the links of its screen's frame, outer first (9.27.0). An
   /// action carries them to the stack, which keeps them so the record of the page it opens follows the data.
@@ -175,6 +180,7 @@ class NodeRenderer {
     form: form,
     listInstance: listInstance ?? this.listInstance,
     links: links ?? this.links,
+    budget: budget,
   );
 
   /// The same renderer, but with a LIST RECORD in scope.

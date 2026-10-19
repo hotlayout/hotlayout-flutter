@@ -5,13 +5,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../model/compatibility.dart';
 import '../../model/list_marker.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/repeater_group.dart';
 import '../../model/tokens.dart';
 import '../layout/quiet_flex.dart';
+import '../list_budget.dart';
 import '../node_renderer.dart';
 import 'carousel.dart';
 import 'grid.dart';
@@ -30,16 +30,10 @@ extension RepeaterWidgets on NodeRenderer {
   Widget buildRepeater(RepeaterNode node, NodeStyle? own) {
     // The filter first, then the limit (schema 9.23.0): the records that did not pass do not exist for the layout, so
     // the grid has no holes, the carousel counts its stops by the drawn cards and the numbers follow the drawn rows.
-    final where = node.where;
-    final all = data.listOf(node.source);
-    final records = where == null
-        ? all
-        : [
-            for (final record in all)
-              if (where.passes(data.withItem(node.item, record))) record,
-          ];
-    final requested = node.limit ?? records.length;
-    final count = requested.clamp(0, math.min(records.length, kMaxRepeaterItems));
+    final records = listRecordsOf(node, data);
+    // The budget of the screen (`x-listBudget`) cuts what this list may draw of its records; a renderer without a
+    // plan draws them all.
+    final count = math.min(records.length, budget?.allowed(node.id, instance) ?? records.length);
     if (count == 0 || node.children.isEmpty) return const SizedBox.shrink();
 
     final template = node.children.first;
