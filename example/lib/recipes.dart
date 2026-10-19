@@ -296,3 +296,19 @@ class _StatusBarIconsHostState extends State<StatusBarIconsHost> {
     return AnnotatedRegion<SystemUiOverlayStyle>(value: style, child: screen);
   }
 }
+
+/// Hears what the reader skipped, replaced or did not draw, in release builds
+/// too, and hands it to the host's own logging.
+Widget drawWithReports(
+  UiDocument doc,
+  RenderTheme theme,
+  Map<String, Object?> data,
+  void Function(String kind, String message) log,
+) {
+  return renderDocument(
+    doc,
+    theme: theme,
+    data: data,
+    onReport: (report) => log(report.kind, report.message),
+  );
+}

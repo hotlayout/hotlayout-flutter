@@ -836,12 +836,12 @@ What this does not cover: a document whose new version needs a newer package (an
 A document and a theme come from a network, so the reader never trusts their shape. Whatever it cannot use is skipped, replaced by a default or not drawn, and the screen goes on. Pass `onReport` to `renderDocument` or `renderScreen` to hear about it, in release builds too:
 
 ```dart
-renderDocument(
-  doc,
-  theme: theme,
-  data: data,
-  onReport: (report) => analytics.log('hotlayout', {'kind': report.kind, 'message': report.message}),
-);
+  return renderDocument(
+    doc,
+    theme: theme,
+    data: data,
+    onReport: (report) => log(report.kind, report.message),
+  );
 ```
 
 `HotlayoutReport` is a sealed class, so a `switch` over it is exhaustive:
