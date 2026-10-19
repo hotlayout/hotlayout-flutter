@@ -1,3 +1,15 @@
+## 0.29.0
+
+Reads document contract **9.28.0** (theme 4.0.1, icon set 1.0.0 and data dictionary unchanged). The version adds no field: it states rules of the reader. A document that stays inside the limits is drawn exactly as by 0.28.0.
+
+- **A picture body is read up to 10 485 760 bytes** (10 MiB; `kDefaultMaxDownloadBytes` was 10 000 000). Redirects (at most three, each target judged again by the address policy), the 30 seconds for a picture with its redirects, and the decode of the longer side at no more than 4096 pixels with the proportion kept are as in 0.28.0.
+- **The host's decision cannot make a script a picture.** An address that `resolveImageUrl` returns and that a URL parser reads as `javascript:` or `vbscript:` (leading controls and spaces stripped, tab and line breaks removed, any case) is refused like any other refused address.
+- **A refused picture is reported** in debug builds: the address of the document up to 120 characters, for an address from your data only its scheme and host.
+- **A list budget.** A screen draws at most 2550 instances of list templates, nested lists included, counted in document order, depth first. The count follows the whole tree of the screen for its width class, not what is shown now: a hidden list, a list in an inactive tab or in a folded block counts the same. The instance that would pass the limit is not drawn, nor anything inside it or after it on the screen. A debug line says how many instances were left out. A modal sheet and the page under it have a budget each.
+- **Numbers of a theme outside the schema bounds, or not finite, no longer drop the token.** The value of the same token and field in the built-in theme of the same brightness is used for spacing, radius, font size, line height, font weight and letter spacing; every other number (a custom token, a field the built-in token lacks, a shadow layer, a gradient stop) takes the nearest bound. `RenderTheme.numberReports` lists every replacement as `<place>: built-in` or `<place>: bound`. A value that is not a number still leaves the token out.
+- **A text that paints nothing says nothing.** A text whose colour (its own or inherited) is fully transparent, or that is inside a node whose resolved opacity is exactly `0`, is out of the semantics tree, so it is not part of the name of a pressable card. A card and a control keep their own names. `0.01` is still heard.
+- **A sheet with `dismissible: false`** takes no focus trap and no Esc; the system back stays with the host. Nothing changes for a layer that can be dismissed.
+
 ## 0.28.0
 
 Hardening release: the document, the theme and the data arrive from the network, and the package now treats all three as untrusted input. The contract version is unchanged (9.27.0). New parameters are optional; the changed defaults are listed first.

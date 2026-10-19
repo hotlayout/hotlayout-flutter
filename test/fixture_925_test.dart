@@ -42,7 +42,7 @@ void main() {
 
   test('the fixture is in the catalogue, at 9.27.0, in two languages', () {
     final doc = loadFixture(_id);
-    expect(doc.schemaVersion, '9.27.0');
+    expect(doc.schemaVersion, '9.28.0');
     expect(fixtureIds, contains(_id));
     expect(doc.locales, ['en', 'uk']);
   });

@@ -74,7 +74,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.27.0
+  hotlayout_flutter: ^0.29.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -836,8 +836,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.27.0` | — |
-| Document contract (schema) | `9.27.0` | `kSupportedSchemaVersion` |
+| Package | `0.29.0` | — |
+| Document contract (schema) | `9.28.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -859,7 +859,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.27.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.28.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -921,6 +921,7 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.25.0 | steps that fill smoothly, the glow of a scale, a shadow of the colour of the background, a press that sinks, a haptic request | [Progress bar and ring](#progress-bar-and-ring), [Shadow of the colour of the background](#shadow-of-the-colour-of-the-background), [Press feedback](#press-feedback), [Haptic feedback](#haptic-feedback) |
 | 9.26.0 | a long press on a card or a row, a list grouped by a field with a header, a sheet that closes by a drag down, `dismissible: false` | [Pressable cards](#pressable-cards), [Grouped list](#grouped-list), [Windows and modal sheets](#windows-and-modal-sheets) |
 | 9.27.0 | the record of a page opened from a row follows the data | [One screen, many records](#one-screen-many-records) |
+| 9.28.0 | no new field: the rules of the reader for picture addresses, the number of list instances on a screen, the numbers of a theme, a text that paints nothing and the focus of a sheet that cannot be dismissed | [Images](#images), [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
 
 ### Behaviour that changed between package versions
 
@@ -938,7 +939,8 @@ If you update from an older version of the package, these are the places where t
 | 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.23.0 | A button with `confirm: 'swipe'` no longer runs its action on a tap or a click: the thumb has to be dragged, or Enter / Space / the screen reader's "activate" used. A `NavBar` with `float: true` lies over the body (the body area reaches the bottom of the screen and the last row scrolls clear of the bar). A `Repeater` with `where` draws only the records that pass, and `limit` counts those. |
-| 0.28.0 | Pictures are fetched only from `https` addresses with a host name (no IP address, no `localhost`, no single-word host), read up to 10 MB, decoded at the size of their box and given up after 30 seconds; pass `resolveImageUrl` if your pictures live on an internal host. A theme number outside the schema bounds drops its token. A document or theme body above 4 MiB is a `malformed` load. `writablePaths` is new and optional. |
+| 0.29.0 | A picture body is read up to 10 485 760 bytes (10 MiB; it was 10 000 000). A screen draws at most 2550 instances of list templates, nested lists included, counted in document order over the whole tree (what a hidden list, an inactive tab or a folded block would draw counts too); the instance that would pass the limit is not drawn, nor anything after it, and a debug line says how many were left out. A number of a theme outside the schema bounds (or not finite) no longer drops its token: it takes the value of the same token and field in the built-in theme of the same brightness (spacing, radius, font size, line height, font weight, letter spacing) and otherwise the nearest bound; `RenderTheme.numberReports` lists the replacements. A text whose colour is fully transparent, or that sits in a node of opacity `0`, is no longer part of the name of a pressable card or of the screen reader's text; a control keeps its own name. A host decision from `resolveImageUrl` that returns a `javascript:` or `vbscript:` address is refused. |
+| 0.28.0 | Pictures are fetched only from `https` addresses with a host name (no IP address, no `localhost`, no single-word host), read up to 10 MiB, decoded at the size of their box and given up after 30 seconds; pass `resolveImageUrl` if your pictures live on an internal host. A theme number outside the schema bounds drops its token. A document or theme body above 4 MiB is a `malformed` load. `writablePaths` is new and optional. |
 | 0.27.0 | The record of a page opened from a list row, of a sheet over it and of a page that carried it follows your `data`: when a collection holds the same record (by `<item>.id`) with other fields, the page shows them at once, and the record handed to `onRecordAction` is the refreshed one. Before, it stayed as it was when the row was pressed. A card with a `longPress` takes a hold of 450 ms as that long press and does not press on release; a modal sheet follows the finger down and closes by a drag, and a widget test that drags a body inside a sheet loses the first 18 dp of the drag to the touch slop, as under any button. |
 | 0.26.0 | Pressable nodes sink under the finger (see [Press feedback](#press-feedback)): a widget test that taps a card or a button and measures it at once sees it scaled, so advance time with `pump(Duration)` or `pumpAndSettle` first. A bar with steps fills a step smoothly while its value leads. `onHaptic` is new and optional; without it nothing changes. |
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
@@ -1221,8 +1223,8 @@ Without any of them the text is exactly what [the basic formats](#sentences-numb
 
 **Where pictures may come from, and the limits.** A picture address comes from the document or from your data, both untrusted, and the request is made by the device of the user, from inside the user's network. So:
 
-- **Address policy** (`resolveImageUrl`). The default fetches only `https` addresses whose host is a name with an alphabetic top-level label (no IP address in any notation, no single-word host such as `localhost`, no user info, no other scheme). A refused address draws the "image unavailable" placeholder and makes no request. Pass `resolveImageUrl: (url) => …` to narrow it (only your CDN) or to widen it (an internal host): return the address to fetch, or `null` to refuse. It also judges `data:` addresses (the default does not). It is called again for every redirect target.
-- **Size** (`maxDownloadBytes`, 10 000 000 by default). A larger `Content-Length` is refused before the body is read; a body without a declared length is cut at the limit. A `data:` address longer than the limit allows is refused before it is decoded.
+- **Address policy** (`resolveImageUrl`). The default fetches only `https` addresses whose host is a name with an alphabetic top-level label (no IP address in any notation, no single-word host such as `localhost`, no user info, no other scheme). A refused address draws the "image unavailable" placeholder and makes no request. Pass `resolveImageUrl: (url) => …` to narrow it (only your CDN) or to widen it (an internal host): return the address to fetch, or `null` to refuse. It also judges `data:` addresses (the default does not). It is called again for every redirect target. Whatever it answers, an address that a URL parser reads as `javascript:` or `vbscript:` is never a picture.
+- **Size** (`maxDownloadBytes`, 10 485 760 by default). A larger `Content-Length` is refused before the body is read; a body without a declared length is cut at the limit. A `data:` address longer than the limit allows is refused before it is decoded.
 - **Decode.** A picture is decoded at the size of its box times the device pixel ratio (twice that for `fit: cover`), never above 4096 pixels on a side and never enlarged.
 - **Time and redirects.** One picture request, redirects included, gives up after 30 seconds. At most three redirects are followed, by hand.
 - **Nothing of yours is sent.** The request carries no cookies, no credentials and no headers. The package opens its own `HttpClient` for it; a global `HttpOverrides` you install (a proxy, certificate pinning) applies to that client like to any other, which is usually what you want. On the web the browser makes the request and follows redirects itself, so the policy sees only the first address there.
