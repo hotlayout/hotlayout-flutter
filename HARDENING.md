@@ -260,3 +260,18 @@ Family names are used only as `fontFamily` lookups. Path-like names, URLs, NUL c
 
 - **SVG content.** `test/svg_image_test.dart` already tests that the parser ignores scripts and resolves no external references. It is not repeated here.
 - **The `openUrl` and `deeplink` form table.** `test/actions_cases_test.dart` and `test/adversarial_98_actions_test.dart` already test it row by row. This file adds only the end-to-end path: screen → host → helper.
+
+---
+
+## Resolution (0.28.0, commit 88eee5e)
+
+| # | Fix |
+|---|---|
+| 1 | `resolveImageUrl` on `renderDocument`, `renderScreen` and `ScreenFlow`; the default is the contract's `httpsUrl` form (`defaultImageUrlPolicy`). A refused address draws the placeholder. `data:` addresses are not judged by the default and are size-bounded; a host policy sees them too. |
+| 2 | Theme numbers are read with `_bounded` against the schema bounds; a token with a corrupt number is dropped (a shadow layer or a gradient stop is left out). |
+| 3 | `themeFontWeight` checks `isFinite` and 100…900; `ThemeLoad.fromJson`, `parse` and `fromNetwork` catch everything and return `malformed`. |
+| 4 | `wholeNumberIn` checks `isFinite`. Sweep: `filledSegments` (NaN), `segmentFillInline` (not finite units) and `dashedLineOf` (not finite perimeter) are guarded; every other `toInt` / `round` / `floor` / `ceil` / `truncate` of a document number was already guarded by `isFinite` or a bound. Tests: `loader_hardening_test.dart`, "sweep". |
+| 5, 6, 7 | One loader per platform (`picture_fetch_io.dart`, `picture_fetch_web.dart`): own `HttpClient`, `followRedirects = false`, at most three hops each re-checked by the policy, `Content-Length` check and a streamed cap (`maxDownloadBytes`, 10 MB), a 30 s overall timeout, cancellation of an SVG nobody waits for. Raster pictures use `NetworkPicture` inside a `ResizeImage` (`BoundedImage`: box × pixel ratio, ceiling 4096, no enlarging); `data:` pictures too. A host `HttpOverrides` still applies to the client the package creates (documented in the README). |
+| 8 | `writablePaths` (predicate or list) is checked in `ScreenFlow._write`, which every field write and write action goes through, and in `renderScreen`. |
+| 9 | The SVG failure line is debug-only and names the class of the failure; the choice and icon notices no longer print the value. |
+| 10 | `HttpDocumentTransport.fetch` uses `send`, refuses a `Content-Length` of 4 MiB or more, and stops reading at 4 MiB; `DocumentTooLargeException` becomes a `malformed` load for documents and themes. |
