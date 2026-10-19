@@ -6088,7 +6088,7 @@
   },
   "$id": "https://hotlayout.com/schema/ui-document.json",
   "title": "UiDocument",
-  "x-schemaVersion": "9.27.0",
+  "x-schemaVersion": "9.28.0",
   "x-compatibility": {
     "policy": {
       "majorMustMatch": true,
@@ -6418,7 +6418,12 @@
       "longPress": "9.26.0",
       "repeaterGroup": "9.26.0",
       "sheetDismiss": "9.26.0",
-      "liveRecord": "9.27.0"
+      "liveRecord": "9.27.0",
+      "imageSource": "9.28.0",
+      "listBudget": "9.28.0",
+      "themeNumbers": "9.28.0",
+      "silentText": "9.28.0",
+      "modalFocus": "9.28.0"
     }
   },
   "x-budget": {
@@ -11026,7 +11031,7 @@
       "name": "longPressLabel",
       "required": "when the long press does something",
       "flutter": "a custom semantics action named by «longPressLabel»",
-      "web": "the name in «aria-description»; «aria-keyshortcuts» lists the keys",
+      "web": "the name on a hidden element referenced by «aria-describedby»; «aria-keyshortcuts» lists the keys",
       "keys": [
         {
           "key": "ContextMenu"
@@ -11160,6 +11165,229 @@
     "olderReader": "keeps the record the screen was opened with until the screen leaves the stack",
     "editorPreview": "the preview refreshes the record when the data scenario or the data dictionary changes",
     "cases": "contract/fixtures/scope/record-scope-cases.json (liveRecordCases, liveFlowCases)"
+  },
+  "x-longPressOnce": {
+    "refines": [
+      "x-longPress.afterFire",
+      "x-longPress.accessibility.keysAct"
+    ],
+    "keyRepeat": {
+      "rule": "a key held down is one long press: an auto-repeated key event (KeyboardEvent.repeat, Flutter KeyRepeatEvent) does nothing",
+      "same": "x-compatibility.policy.keyAutoRepeat",
+      "keys": "x-longPress.accessibility.keys"
+    },
+    "clickAfterFire": {
+      "rule": "only the click that ends the gesture which fired is swallowed: it comes after the release of the same pointer and within the window",
+      "windowMs": 400,
+      "from": "the release (pointerup) of the gesture that fired",
+      "notSwallowed": [
+        "a click with no release of that gesture before it: a screen reader or the keyboard activated the node",
+        "a click later than the window",
+        "a click after a new pointer down"
+      ],
+      "cancelled": "a cancelled gesture (pointercancel) swallows nothing",
+      "flutter": "the tap and the long press of one gesture already exclude each other in the gesture arena; a semantics tap is always a press"
+    },
+    "olderReader": "may run the long press again on every repeat and may swallow the next activation by a screen reader",
+    "cases": "contract/fixtures/long-press/long-press-cases.json (keyRepeatCases, clickAfterFireCases)"
+  },
+  "x-modalEscape": {
+    "refines": [
+      "x-style.layout.modalLayer.dismiss.escapeKey",
+      "x-sheetDismiss.keyboard",
+      "x-sheetDismiss.dismissible.value"
+    ],
+    "listener": "the top layer of the stack only",
+    "firstKeyDown": "at most one step back: navigate.back of the top modal layer",
+    "autoRepeat": "closes nothing (KeyboardEvent.repeat, Flutter KeyRepeatEvent): a held Esc closes one layer, not the stack",
+    "perKeyDown": "one key down is at most one step back, however many layers there are",
+    "notDismissible": "a layer with «dismissible: false» does not take Esc and does not hand it to the layer below; it stays with the host",
+    "page": "a page on top: Esc is not the reader’s",
+    "same": "x-compatibility.policy.keyAutoRepeat",
+    "olderReader": "a held Esc may close every layer of the stack",
+    "cases": "contract/fixtures/sheet-dismiss/sheet-dismiss-cases.json (escapeCases)"
+  },
+  "x-imageSource": {
+    "appliesTo": "every address the reader loads as a picture: Image.source, the image of style.background, a ListTile thumbnail; from the document and from data alike",
+    "defaultRule": {
+      "form": "x-actions.forms.httpsUrl",
+      "same": "exactly the openUrl address form: a host name of two or more labels with a letter top-level label (or punycode), an optional port 1…65535, no IP literal in any notation (IPv4 in any base, IPv6 in brackets), no single-word host such as localhost, no user info, a lower-case scheme",
+      "order": [
+        "missing",
+        "too-long",
+        "not-https",
+        "malformed"
+      ],
+      "maxLength": 2048,
+      "refused": "the placeholder of the box and a report; no request is made"
+    },
+    "host": {
+      "decides": "the host may replace the default decision for every address (React: resolveImageUrl): a string answer is loaded exactly, no answer is a refusal",
+      "reason": "development hosts, intranets and image proxies need addresses the default refuses; which hosts are allowed is the host’s decision, not the document’s",
+      "neverAnImage": {
+        "schemes": [
+          "javascript",
+          "vbscript"
+        ],
+        "read": "as a URL parser reads it: leading U+0000–U+0020 stripped, tab, line feed and carriage return removed anywhere, the scheme compared case-insensitively",
+        "hostCannotOverride": true
+      }
+    },
+    "network": {
+      "maxBodyBytes": 10485760,
+      "overBody": "reading stops at the limit; the picture is the placeholder and a report (a declared length above the limit is refused before reading)",
+      "redirects": {
+        "max": 3,
+        "eachHop": "the same rule judges every redirect target (the host’s decision when the host gave one); a refused target is not followed and the picture is the placeholder",
+        "web": "the browser follows redirects of an <img> itself and the reader cannot see them; the host page Content-Security-Policy (img-src) is the web counterpart"
+      },
+      "credentials": "none: no cookies sent or stored, no authorization header, no client certificate of the app",
+      "referrer": "none: the host page address is not sent (web: referrerpolicy=\"no-referrer\" on every <img>)",
+      "deadlineSeconds": 30,
+      "deadline": "one picture, redirects included; past it the picture is the placeholder"
+    },
+    "decode": {
+      "maxDecodedSide": 4096,
+      "rule": "the longer side is decoded at no more than maxDecodedSide pixels, the ratio kept; the size is read from the header before any pixel is made; a reader may decode smaller (at the size of the box)",
+      "web": "the browser decodes; the reader has no say in it"
+    },
+    "web": {
+      "loading": "lazy",
+      "decoding": "async",
+      "preload": "none: no <link rel=\"preload\"> outside the reader root",
+      "background": "a CSS background image cannot carry a referrer policy: for it the host page Referrer-Policy applies"
+    },
+    "report": {
+      "document": "the address of the document, truncated to 120 characters, and the reason",
+      "data": "the scheme and the host at most, and the reason: never the path or the query of an address from data (it may carry a token)"
+    },
+    "olderReader": "loads any absolute https: address, the IP literals and localhost included, and may send cookies and the Referer header",
+    "cases": "contract/fixtures/image-source/image-source-cases.json"
+  },
+  "x-listBudget": {
+    "perScreen": 2550,
+    "counts": "drawn instances of Repeater templates on one screen: every list, nested lists included; a modal layer and the page under it are two screens with a budget each",
+    "order": "document order, depth first: an instance counts before the lists inside its template, then the next instance of the same list, then the next list",
+    "records": "the records a list draws after «where» and «limit» (x-listFilter): a record that did not pass costs nothing",
+    "over": "the instance that would exceed the budget is not drawn, nor anything inside it, nor any instance after it on the screen",
+    "report": "one report per screen: how many instances were not drawn",
+    "tree": "the tree of the screen for its width class (propsOn applied), not what is shown now: a list hidden by visibleIf or showOn, in an inactive tab or a folded accordion counts the same",
+    "groupHeaders": "a group header (x-repeaterGroup) is not an instance and is drawn only with the instance it stands above; the lists inside it count right after that instance, before the lists of its template",
+    "carousel": "a card of a carousel is an instance like any other",
+    "perList": "unchanged: at most x-delivery.maxCollectionItems records per list, «limit» 1…50",
+    "worstCase": "every list draws its «limit» (without it 50) and every record starts a group; nested lists multiply; the tree, not what is shown",
+    "editor": "the builder neither publishes (validator code list_budget_exceeded) nor builds (insert, paste, move and duplicate refuse) a screen whose worst case is above perScreen: every published document is drawn whole; the budget cuts only a document the builder did not make. perScreen is 50 × (1 + 50): two nested lists without a limit fit exactly",
+    "olderReader": "draws every instance of every list: 50 per list, multiplied by nesting",
+    "cases": "contract/fixtures/repeater-filter/list-budget-cases.json"
+  },
+  "x-themeNumbers": {
+    "appliesTo": "every number of a theme the reader draws with: spacing and radius tokens, the fields of a typography token, the fields of a shadow layer, the position of a gradient stop",
+    "bounds": {
+      "spacing": {
+        "min": 0,
+        "max": 128
+      },
+      "radius": {
+        "min": 0,
+        "max": 256
+      },
+      "fontSize": {
+        "min": 8,
+        "max": 96
+      },
+      "lineHeight": {
+        "min": 0.8,
+        "max": 3
+      },
+      "fontWeight": {
+        "min": 100,
+        "max": 900
+      },
+      "letterSpacing": {
+        "min": -2,
+        "max": 8
+      },
+      "shadowOffset": {
+        "min": -64,
+        "max": 64
+      },
+      "shadowBlur": {
+        "min": 0,
+        "max": 128
+      },
+      "shadowSpread": {
+        "min": -64,
+        "max": 64
+      },
+      "shadowOpacity": {
+        "min": 0,
+        "max": 1
+      },
+      "gradientPosition": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    "boundsFrom": "the schema of the theme contract artifact (its x-schema): the same numbers",
+    "outside": "a number below the minimum or above the maximum, or not finite (a JSON parser reads 1e309 as infinity; +infinity is above every maximum, −infinity below every minimum)",
+    "replacement": {
+      "order": [
+        "built-in",
+        "bound"
+      ],
+      "builtIn": "the value of the same token and field in the built-in theme of the same brightness (x-compatibility.policy.partialThemeDefaults), when it has one",
+      "builtInFor": [
+        "spacing",
+        "radius",
+        "fontSize",
+        "lineHeight",
+        "fontWeight",
+        "letterSpacing"
+      ],
+      "bound": "otherwise the nearest bound: a custom token, a field the built-in token lacks (letterSpacing), a shadow layer field, a gradient stop position",
+      "whyNotBuiltInForComposites": "a part of a shadow or a gradient borrowed from another shadow or gradient would be a third value nobody wrote"
+    },
+    "report": "every replaced number is in the theme report: its place (dictionary, token, field) and the word built-in or bound",
+    "notANumber": "unchanged: a value that is not a number (a string, null) is no entry (x-compatibility.policy.partialTheme)",
+    "integers": "unchanged: the integer and step rules of the theme schema (spacing, radius, fontWeight) are not part of this rule",
+    "themeVersion": "unchanged: the theme form and bounds are the same; this is a rule of the reader",
+    "olderReader": "may clamp to the bound, drop the token or draw the number as is",
+    "cases": "contract/fixtures/theme-numbers/theme-number-cases.json"
+  },
+  "x-silentText": {
+    "refines": "x-style.layout.composition.pressable.semantics.name",
+    "rule": "a text that paints nothing is not part of the name of a pressable card, as a text hidden by visibleIf or showOn is not",
+    "paintsNothing": {
+      "opacity": "the resolved style.opacity (with the state of styleWhen) is 0 on the text or on any node between the card and the text; the card itself is not judged",
+      "color": "the colour the text is painted in (its own or inherited by x-style.inherited) resolves with opacity 0: an own value with opacity 0, a token with opacity 0, a theme colour with alpha 00",
+      "exactly": "zero only: 0.01 is a text that is seen"
+    },
+    "reader": {
+      "web": "the element of such a node is aria-hidden: it shows nothing, so it says nothing",
+      "flutter": "ExcludeSemantics around such a node",
+      "native": "the node is not an accessibility element"
+    },
+    "motion": "the opacity of motion (x-motion, pulse) is a paint over the rest pose and is not judged",
+    "validator": "unchanged: the rule «nameRequired» of the composition block still counts such a text",
+    "olderReader": "announces the transparent text as part of the name",
+    "cases": "contract/fixtures/accessible-name/silent-text-cases.json"
+  },
+  "x-modalFocus": {
+    "refines": [
+      "x-sheetDismiss.dismissible",
+      "x-style.layout.modalLayer"
+    ],
+    "dismissible": "Tab and Shift+Tab cycle inside the layer: Esc and the scrim are the way out",
+    "notDismissible": {
+      "web": "Tab and Shift+Tab may leave the reader root at either end; the reader does not cancel them",
+      "native": "the modal semantics of the platform are allowed (iOS accessibilityViewIsModal, Android and Flutter the semantics of a dialog route); the system back belongs to the host"
+    },
+    "nothingToFocus": "Tab is not cancelled: the focus may leave the reader root",
+    "hostTrap": "a full trap only when the HOST asks (React: trapFocus): then Tab cycles inside every modal layer and is cancelled in a layer with nothing to focus",
+    "layersBelow": "unchanged: inert, out of reach of the keyboard and a screen reader while the layer is shown",
+    "focusOnShow": "unchanged: the focus moves to the layer when it appears and returns to the opener when it leaves",
+    "why": "the document is not the one who decides that a keyboard user cannot reach the host page (WCAG 2.1.2 No Keyboard Trap applies to the host page as a whole)",
+    "olderReader": "may cycle Tab inside a layer that cannot be dismissed: a keyboard trap for the host page"
   },
   "x-generatedFrom": "src/entities/component-schema — generated, do not edit by hand"
 }
