@@ -46,6 +46,7 @@ class RenderTheme {
     this.origins = const <String, String>{},
     this.bodyFont,
     this.headingFont,
+    this.numberReports = const <String>[],
   });
 
   /// One theme from `themes[<id>]` of the artifact.
@@ -122,6 +123,7 @@ class RenderTheme {
       gradients: fill(gradients, base.gradients, GradientToken.values.map((t) => t.wire)),
       badgeToneRoles: badgeToneRoles,
       buttonVariantRoles: buttonVariantRoles,
+      numberReports: numberReports,
     );
   }
 
@@ -157,6 +159,11 @@ class RenderTheme {
 
   final ThemeFontFamily? bodyFont;
   final ThemeFontFamily? headingFont;
+
+  /// The theme report: one line per number of the theme that was outside the bounds of the theme schema (or not
+  /// finite) and was replaced, `<place>: built-in` or `<place>: bound`. Empty for a theme whose numbers are all
+  /// inside the bounds.
+  final List<String> numberReports;
 
   /*
    * SIX DICTIONARIES, KEYED BY NAME RATHER THAN BY ENUM.

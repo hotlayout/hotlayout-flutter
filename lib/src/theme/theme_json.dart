@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 
 import '../model/style_values.dart';
 import '../model/tokens.dart';
+import 'fallback_theme.dart';
 import 'render_theme.dart';
 
 RenderTheme readRenderTheme(Object? raw) {
   final json = raw is Map ? Map<String, Object?>.from(raw) : const <String, Object?>{};
+  final fit = _NumberFit(_builtInJsonOf(_brightness(json['brightness'], quiet: true)));
   final bodyFont = _font(json['fontFamilies'], 'body');
   final headingFont = _font(json['fontFamilies'], 'heading');
 
@@ -23,22 +25,78 @@ RenderTheme readRenderTheme(Object? raw) {
     origins: _stringMap(json['origins']),
     bodyFont: bodyFont,
     headingFont: headingFont,
-    colors: _byName(json['color'], 'color', _color),
+    colors: _byName(json['color'], 'color', (raw, _) => _color(raw)),
     // The "zero of a scale" (`x-tokens.zeroScale`, `zeroScaleToken: 'none-is-zero'`): `none` is
     // zero, whatever the theme says. The schema does not let such a theme through, but a reader
     // of a newer minor version or of a hand-made theme does not validate, and node defaults rely
     // on the NAME: a theme with `none = 16` would change a screen where the author asked for "no
     // spacing".
-    spacing: _zeroNone(_byName(json['spacing'], 'spacing', (raw) => _length(raw, _kMaxSpacing))),
-    radii: _zeroNone(_byName(json['radius'], 'radius', (raw) => _length(raw, _kMaxRadius))),
-    typography: _typography(json['typography'], body: bodyFont, heading: headingFont),
-    elevations: _noShadowForNone(_byName(json['elevation'], 'elevation', _shadows)),
+    spacing: _zeroNone(
+      _byName(json['spacing'], 'spacing', (raw, name) => fit.number(raw, 'spacing.$name', 0, _kMaxSpacing, ('spacing', name, null))),
+    ),
+    radii: _zeroNone(
+      _byName(json['radius'], 'radius', (raw, name) => fit.number(raw, 'radius.$name', 0, _kMaxRadius, ('radius', name, null))),
+    ),
+    typography: _typography(json['typography'], body: bodyFont, heading: headingFont, fit: fit),
+    elevations: _noShadowForNone(_byName(json['elevation'], 'elevation', (raw, name) => _shadows(raw, name, fit))),
     // The group is called `gradient`, singular, as in the theme contract, next to
     // `color`/`spacing`/`radius`.
-    gradients: _byName(json['gradient'], 'gradient', _gradient),
+    gradients: _byName(json['gradient'], 'gradient', (raw, name) => _gradient(raw, name, fit)),
     badgeToneRoles: _roleGroup(json['roles'], 'badgeTone', BadgeToneToken.values),
     buttonVariantRoles: _roleGroup(json['roles'], 'buttonVariant', ButtonVariantToken.values),
+    numberReports: fit.reports,
   );
+}
+
+Map<String, Object?>? _builtInJsonOf(Brightness brightness) {
+  for (final theme in (kFallbackThemeContractJson['themes']! as Map).values) {
+    if (theme is Map && theme['brightness'] == brightness.name) return Map<String, Object?>.from(theme);
+  }
+  return null;
+}
+
+/// The numbers of a theme read within the bounds of its schema (`x-themeNumbers`). A number outside them, or
+/// not finite, becomes the value of the same token and field in the built-in theme of the same brightness (for
+/// spacing, radius, font size, line height, font weight and letter spacing, when that theme has one) and
+/// otherwise the nearest bound. Every replacement is reported with its place and the word `built-in` or `bound`;
+/// the numbers themselves are not, they come from the network.
+final class _NumberFit {
+  _NumberFit(this._builtIn);
+
+  final Map<String, Object?>? _builtIn;
+  final List<String> reports = [];
+  bool _announced = false;
+
+  /// [number] in `[min, max]` as is; otherwise the replacement. `null` for anything that is not a number (and
+  /// for NaN, which no JSON can carry). [builtIn] names where the built-in number lives: dictionary, token and an
+  /// optional field; `null` says there is no built-in replacement for this place.
+  double? number(Object? raw, String place, double min, double max, (String, String, String?)? builtIn) {
+    if (raw is! num || raw.isNaN) return null;
+    final value = raw.toDouble();
+    if (value.isFinite && value >= min && value <= max) return value;
+    final base = builtIn == null ? null : _builtInNumber(builtIn);
+    if (base != null && base >= min && base <= max) {
+      _report(place, 'built-in');
+      return base;
+    }
+    _report(place, 'bound');
+    return value < min ? min : max;
+  }
+
+  double? _builtInNumber((String, String, String?) at) {
+    final dictionary = _builtIn?[at.$1];
+    final token = dictionary is Map ? dictionary[at.$2] : null;
+    final raw = at.$3 == null ? token : (token is Map ? token[at.$3] : null);
+    return raw is num && raw.isFinite ? raw.toDouble() : null;
+  }
+
+  void _report(String place, String how) {
+    reports.add('$place: $how');
+    if (kDebugMode && !_announced) {
+      _announced = true;
+      debugPrint('[hotlayout] theme: a number outside the schema bounds was replaced ($place: $how)');
+    }
+  }
 }
 
 Map<String, double> _zeroNone(Map<String, double> scale) {
@@ -60,7 +118,7 @@ Map<String, List<BoxShadow>> _noShadowForNone(Map<String, List<BoxShadow>> scale
 ///
 /// A corrupt value does not enter the map, and is then treated like a missing one: for the core,
 /// the resolver default; for a custom name, an "unknown token".
-Map<String, V> _byName<V>(Object? raw, String group, V? Function(Object? raw) parse) {
+Map<String, V> _byName<V>(Object? raw, String group, V? Function(Object? raw, String name) parse) {
   final result = <String, V>{};
   if (raw is! Map) return result;
   for (final entry in raw.entries) {
@@ -73,7 +131,7 @@ Map<String, V> _byName<V>(Object? raw, String group, V? Function(Object? raw) pa
       if (kDebugMode) debugPrint('[hotlayout] theme: name "$group.$name" is forbidden → no token');
       continue;
     }
-    final value = parse(entry.value);
+    final value = parse(entry.value, name);
     if (value == null) {
       if (kDebugMode) {
         debugPrint('[hotlayout] theme: value of "$group.$name" is malformed → no token');
@@ -94,11 +152,11 @@ T? _tokenByWire<T extends WireToken>(List<T> values, String wire) {
 
 /// `'light' | 'dark'` to [Brightness]. An unknown value is the same case as an unknown token: the
 /// default and a log line, not an exception.
-Brightness _brightness(Object? raw) => switch (raw) {
+Brightness _brightness(Object? raw, {bool quiet = false}) => switch (raw) {
   'light' => Brightness.light,
   'dark' => Brightness.dark,
   _ => () {
-    if (kDebugMode && raw != null) {
+    if (kDebugMode && raw != null && !quiet) {
       debugPrint('[hotlayout] theme: unknown brightness "$raw" → light');
     }
     return Brightness.light;
@@ -162,16 +220,6 @@ double? _number(Object? raw) => raw is num ? raw.toDouble() : null;
 const double _kMaxSpacing = 128;
 const double _kMaxRadius = 256;
 
-/// A number inside `[min, max]`, or `null` for anything else: not a number, NaN, infinity, out of the bounds.
-double? _bounded(Object? raw, double min, double max) {
-  final value = _number(raw);
-  return value == null || !value.isFinite || value < min || value > max ? null : value;
-}
-
-/// A scale length (spacing, radius), 0…[max]. A negative one is a corrupt value: the schema does not allow
-/// it, and `Padding` in Flutter fails on it.
-double? _length(Object? raw, double max) => _bounded(raw, 0, max);
-
 /// `#rrggbb` or `#rrggbbaa` to a colour. The format is strict, as it is in `x-schema`.
 ///
 /// ALPHA IS LAST IN THE CONTRACT (`colorAlpha: 'rrggbbaa-alpha-last'`), as in CSS, while Flutter's
@@ -228,18 +276,22 @@ Map<String, TextStyle> _typography(
   Object? raw, {
   required ThemeFontFamily? body,
   required ThemeFontFamily? heading,
+  required _NumberFit fit,
 }) =>
-    _byName<TextStyle>(raw, 'typography', (item) {
+    _byName<TextStyle>(raw, 'typography', (item, name) {
       if (item is! Map) return null;
-      final fontSize = _bounded(item['fontSize'], 8, 96);
+      double? field(String key, double min, double max) =>
+          fit.number(item[key], 'typography.$name.$key', min, max, ('typography', name, key));
+      final fontSize = field('fontSize', 8, 96);
       if (fontSize == null) return null;
-      // An optional number that is present but out of its bounds makes the whole style corrupt: the token is
+      // An optional field that is present but is not a number makes the whole style corrupt: the token is
       // dropped and the built-in value applies, rather than a style the theme never described.
-      final lineHeight = item['lineHeight'] == null ? null : _bounded(item['lineHeight'], 0.8, 3);
+      final lineHeight = item['lineHeight'] == null ? null : field('lineHeight', 0.8, 3);
       if (item['lineHeight'] != null && lineHeight == null) return null;
-      final letterSpacing = item['letterSpacing'] == null ? 0.0 : _bounded(item['letterSpacing'], -2, 8);
+      final letterSpacing = item['letterSpacing'] == null ? 0.0 : field('letterSpacing', -2, 8);
       if (letterSpacing == null) return null;
-      final fontWeight = item['fontWeight'] == null ? null : themeFontWeight(item['fontWeight']);
+      final weight = item['fontWeight'] == null ? null : field('fontWeight', 100, 900);
+      final fontWeight = weight == null ? null : themeFontWeight(weight);
       if (item['fontWeight'] != null && fontWeight == null) return null;
       final family = item['role'] == 'heading' ? heading : body;
       return TextStyle(
@@ -291,7 +343,7 @@ FontWeight? themeFontWeight(Object? raw) {
 /// duplicate the validator but because Skia draws unordered stops unpredictably, and a silently
 /// wrong gradient is worse than a missing one. An unusable gradient yields `null` and follows the
 /// same path as an unknown token: it is not drawn.
-LinearGradient? _gradient(Object? raw) {
+LinearGradient? _gradient(Object? raw, String name, _NumberFit fit) {
   if (raw is! Map) return null;
   final angle = _number(raw['angle']);
   final rawStops = raw['stops'];
@@ -299,10 +351,10 @@ LinearGradient? _gradient(Object? raw) {
 
   final colors = <Color>[];
   final stops = <double>[];
-  for (final item in rawStops) {
+  for (final (index, item) in rawStops.indexed) {
     if (item is! Map) continue;
     final color = _color(item['color']);
-    final position = _bounded(item['position'], 0, 1);
+    final position = fit.number(item['position'], 'gradient.$name.stops[$index].position', 0, 1, null);
     if (color == null || position == null) continue;
     // The contract guarantees ascending positions; if the guarantee is broken there is no
     // gradient at all, not "a gradient, but a different one". Equal positions are ORDERED
@@ -349,17 +401,19 @@ LinearGradient themeLinearGradient(
 
 /// A contract shadow to a [BoxShadow]. Colour and opacity are separate in the contract (as in
 /// Figma); Flutter has a single alpha channel.
-List<BoxShadow>? _shadows(Object? raw) {
+List<BoxShadow>? _shadows(Object? raw, String name, _NumberFit fit) {
   if (raw is! List) return null;
   final shadows = <BoxShadow>[];
-  for (final item in raw) {
+  for (final (index, item) in raw.indexed) {
     if (item is! Map) continue;
+    double? field(String key, double min, double max) =>
+        item[key] == null ? 0.0 : fit.number(item[key], 'elevation.$name[$index].$key', min, max, null);
     final color = _opaqueColor(item['color']);
-    final opacity = _bounded(item['opacity'], 0, 1);
-    final offsetX = item['offsetX'] == null ? 0.0 : _bounded(item['offsetX'], -64, 64);
-    final offsetY = item['offsetY'] == null ? 0.0 : _bounded(item['offsetY'], -64, 64);
-    final blur = item['blur'] == null ? 0.0 : _bounded(item['blur'], 0, 128);
-    final spread = item['spread'] == null ? 0.0 : _bounded(item['spread'], -64, 64);
+    final opacity = fit.number(item['opacity'], 'elevation.$name[$index].opacity', 0, 1, null);
+    final offsetX = field('offsetX', -64, 64);
+    final offsetY = field('offsetY', -64, 64);
+    final blur = field('blur', 0, 128);
+    final spread = field('spread', -64, 64);
     // A layer with a corrupt number is left out whole.
     if (color == null || opacity == null || offsetX == null || offsetY == null || blur == null || spread == null) continue;
     shadows.add(
