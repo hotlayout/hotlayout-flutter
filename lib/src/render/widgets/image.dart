@@ -14,6 +14,7 @@ import '../image_frame.dart';
 import '../layout/quiet_flex.dart';
 import '../node_renderer.dart';
 import '../picture_image.dart';
+import '../picture_policy.dart' show pictureReportAddress;
 import '../svg_image.dart';
 
 extension ImageWidgets on NodeRenderer {
@@ -52,15 +53,18 @@ extension ImageWidgets on NodeRenderer {
     ImageFitToken fit = ImageFitToken.cover,
   }) => switch (source.resolve(data)) {
     ImageAsset(:final asset) => _assetPlaceholder(asset, compact: compact),
-    ImageUrl(:final url) => _pictureFrom(url, fit: fit, compact: compact),
+    ImageUrl(:final url) => _pictureFrom(url, fit: fit, compact: compact, fromData: source is! UrlImageSource),
   };
 
   /// A network or `data:` picture, after the host's address policy. A refused address draws the broken-image
   /// placeholder and makes no request.
-  Widget _pictureFrom(String url, {required ImageFitToken fit, required bool compact}) {
+  Widget _pictureFrom(String url, {required ImageFitToken fit, required bool compact, required bool fromData}) {
     final isData = _isDataImage(url);
     final approved = pictures.approve(url, isData: isData);
-    if (approved == null) return _brokenImage(url, compact: compact);
+    if (approved == null) {
+      if (kDebugMode) debugPrint('[hotlayout] picture refused: ${pictureReportAddress(url, fromData: fromData)}');
+      return _brokenImage(url, compact: compact);
+    }
     // SVG is the same image with the same states, only drawn by a different decoder: the
     // framework's raster codec does not read vectors at all.
     if (!isData && isSvgUrl(approved)) {

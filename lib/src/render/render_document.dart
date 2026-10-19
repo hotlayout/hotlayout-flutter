@@ -76,7 +76,7 @@ export 'screen_transitions.dart' show HotlayoutTransitions;
 ///    host name only (no IP literal in any notation, no single-word host such as `localhost`, no user info, no
 ///    other scheme), the host form of the contract's `openUrl`. Redirects are followed by hand, at most three,
 ///    and each target passes the policy again.
-///  * [maxDownloadBytes] — the most bytes of one picture body that is read (10 MB by default). A larger
+///  * [maxDownloadBytes] — the most bytes of one picture body that is read (10 MiB (10 485 760 bytes) by default). A larger
 ///    `Content-Length` is refused before the body is read. A picture is also decoded at the size of its box
 ///    (never above 4096 pixels on a side) and a request gives up after 30 seconds.
 ///  * [writablePaths] — the data paths the document may write, as a `bool Function(String path)` or an

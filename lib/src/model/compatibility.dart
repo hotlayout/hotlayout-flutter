@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.27.0';
+const String kSupportedSchemaVersion = '9.28.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -475,6 +475,14 @@ const Map<String, String> kFeatureCatalog = {
   // 9.27.0: the record of a page opened from a row follows the data. A 9.26 reader keeps the record the screen was
   // opened with until the screen leaves the stack (`olderReader`).
   'liveRecord': '9.27.0',
+  // 9.28.0: the rules of the reader: the picture address and its limits, the list budget of a screen, the numbers
+  // of a theme, a text that paints nothing out of the name of a card, the focus of a layer that cannot be dismissed.
+  // An older reader draws what the document says without these limits (`olderReader` of each block).
+  'imageSource': '9.28.0',
+  'listBudget': '9.28.0',
+  'themeNumbers': '9.28.0',
+  'silentText': '9.28.0',
+  'modalFocus': '9.28.0',
 };
 
 /// Whether THIS code supports a capability the document names.

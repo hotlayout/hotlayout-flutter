@@ -248,7 +248,7 @@ class ScreenFlow extends StatefulWidget {
   /// to refuse it. `null` (the default) keeps [defaultImageUrlPolicy]: `https` with a host name only.
   final ImageUrlResolver? resolveImageUrl;
 
-  /// The most bytes of one picture body that is read; 10 MB by default.
+  /// The most bytes of one picture body that is read; 10 MiB (10 485 760 bytes) by default.
   final int maxDownloadBytes;
 
   /// The data paths the document may write: a `bool Function(String path)` or an `Iterable<String>` of paths.

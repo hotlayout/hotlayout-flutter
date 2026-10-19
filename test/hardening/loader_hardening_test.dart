@@ -278,7 +278,7 @@ void main() {
       expect(decodeSide(double.nan, 3, 1), kMaxDecodedSide);
       expect(decodeSide(0, 3, 1), 1);
       expect(kMaxDecodedSide, 4096);
-      expect(kDefaultMaxDownloadBytes, 10 * 1000 * 1000);
+      expect(kDefaultMaxDownloadBytes, 10485760);
       expect(kPictureTimeout, const Duration(seconds: 30));
       expect(kMaxPictureRedirects, 3);
     });
@@ -488,13 +488,14 @@ void main() {
       'gradient': ?gradient,
     };
 
-    test('spacing 0..128 and radius 0..256; outside is no token', () {
+    test('spacing 0..128 and radius 0..256; outside is the nearest bound (a custom token has no built-in value)', () {
       final read = readRenderTheme(theme({}));
-      expect(read.spacing.containsKey('sm'), isTrue);
-      expect(read.spacing.containsKey('huge'), isFalse);
-      expect(read.spacing.containsKey('negative'), isFalse);
-      expect(read.radii.containsKey('sm'), isTrue);
-      expect(read.radii.containsKey('huge'), isFalse);
+      expect(read.spacing['sm'], 8);
+      expect(read.spacing['huge'], 128);
+      expect(read.spacing['negative'], 0);
+      expect(read.radii['sm'], 4);
+      expect(read.radii['huge'], 256);
+      expect(read.numberReports, containsAll(['spacing.huge: bound', 'spacing.negative: bound', 'radius.huge: bound']));
     });
 
     Map<String, Object?> style(Object? size, {Object? lineHeight, Object? letterSpacing, Object? weight}) => {
@@ -516,18 +517,36 @@ void main() {
         'lightWeight': style(16, weight: 99),
         'heavyWeight': style(16, weight: 901),
       }));
-      expect(read.typography.keys, ['ok']);
+      expect(read.numberReports.where((r) => r.startsWith('typography')), hasLength(8), reason: 'the style inside the bounds reports nothing');
+      expect(read.typography['ok']!.fontSize, 16);
+      expect(read.typography['bigSize']!.fontSize, 96);
+      expect(read.typography['smallSize']!.fontSize, 8);
+      expect(read.typography['tallLine']!.height, 3);
+      expect(read.typography['flatLine']!.height, 0.8);
+      expect(read.typography['wideTrack']!.letterSpacing, 8);
+      expect(read.typography['tightTrack']!.letterSpacing, -2);
+      expect(read.typography['lightWeight']!.fontWeight, FontWeight.w100);
+      expect(read.typography['heavyWeight']!.fontWeight, FontWeight.w900);
     });
 
-    test('the edges of every range are accepted', () {
+    test('the edges of every range are accepted and report nothing', () {
       final read = readRenderTheme(theme({
         'low': style(8, lineHeight: 0.8, letterSpacing: -2, weight: 100),
         'high': style(96, lineHeight: 3, letterSpacing: 8, weight: 900),
       }));
       expect(read.typography.keys, ['low', 'high']);
+      expect(read.numberReports.where((r) => r.startsWith('typography')), isEmpty);
     });
 
-    test('shadow bounds: a layer with a number out of range is left out', () {
+    test('a field that is not a number is still a corrupt style: the token is left out', () {
+      final read = readRenderTheme(theme({
+        'text': style('16'),
+        'badLine': style(16, lineHeight: 'tall'),
+      }));
+      expect(read.typography, isEmpty);
+    });
+
+    test('shadow bounds: a number out of range takes the nearest bound, never a layer of another shadow', () {
       Map<String, Object?> layer({Object? x = 0, Object? y = 4, Object? blur = 8, Object? spread = 0, Object? opacity = 0.2}) => {
         'color': '#000000',
         'opacity': opacity,
@@ -546,12 +565,15 @@ void main() {
         'opacity': [layer(opacity: 1.5)],
       }));
       expect(read.elevations['ok'], hasLength(1));
-      for (final name in ['x', 'y', 'blur', 'negBlur', 'spread', 'opacity']) {
-        expect(read.elevations[name], anyOf(isNull, isEmpty), reason: name);
-      }
+      expect(read.elevations['x']!.single.offset.dx, 64);
+      expect(read.elevations['y']!.single.offset.dy, -64);
+      expect(read.elevations['blur']!.single.blurRadius, 128);
+      expect(read.elevations['negBlur']!.single.blurRadius, 0);
+      expect(read.elevations['spread']!.single.spreadRadius, 64);
+      expect(read.elevations['opacity']!.single.color.a, 1);
     });
 
-    test('a gradient stop outside 0..1 is left out', () {
+    test('a gradient stop outside 0..1 takes the nearest bound', () {
       final read = readRenderTheme(theme({}, gradient: {
         'g': {
           'angle': 90,
@@ -561,7 +583,7 @@ void main() {
           ],
         },
       }));
-      expect(read.gradients.containsKey('g'), isFalse);
+      expect(read.gradients['g']!.stops, [0, 1]);
     });
   });
 
