@@ -9,6 +9,7 @@ import '../../model/list_marker.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/shown_text.dart';
+import '../../model/silent_text.dart';
 import '../../model/text_emphasis.dart';
 import '../../model/text_spans.dart';
 import '../layout/marker_column_end.dart';
@@ -87,7 +88,10 @@ extension TextWidgets on NodeRenderer {
       );
     }
     final marker = drawnMarkerOf(node.marker);
-    return marker == null ? body : _listItem(node, marker, body, base);
+    final drawn = marker == null ? body : _listItem(node, marker, body, base);
+    // A TEXT THAT PAINTS NOTHING SAYS NOTHING (`x-silentText`): the colour it is drawn in, its own or inherited,
+    // is fully transparent, so it is not part of the name of a card or of the screen. Exactly zero: 0.01 is seen.
+    return textPaintsNothing(opacities: const [], colorOpacity: foreground.color.a) ? ExcludeSemantics(child: drawn) : drawn;
   }
 
   /// A text with a gradient on its glyphs: the glyphs are drawn white and replaced by the gradient (the mask layer);

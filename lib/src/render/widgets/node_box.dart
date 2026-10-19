@@ -10,6 +10,7 @@ import '../../model/bindable.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
 import '../../model/scrolled_bar.dart';
+import '../../model/silent_text.dart';
 import '../../model/style_values.dart';
 import '../../model/tokens.dart';
 import '../dashed_border.dart';
@@ -107,8 +108,14 @@ extension NodeBoxWidgets on NodeRenderer {
       stretchAlign: stretchAlign,
       around: _withMotion(node, around ?? renderer.pressWrapperOf(node, own)),
       extraTop: extraTop,
+      keepSemantics: _isControl(node),
     );
   }
+
+  /// Whether the node is a control (a card with an action, a button): it keeps its own name even when it paints
+  /// nothing (`x-silentText`: only what is not a control goes silent with its opacity).
+  static bool _isControl(ChildNode node) =>
+      node.press != null || node is ButtonNode || node is IconButtonNode || node is ListTileNode || node is NavItemNode;
 
   /// [around] with the node's endless motion (9.20.0) on the outside of the box: the shift, scale and opacity are
   /// painted over the box the node has at rest, inside its margin. A node this reader does not understand is not
@@ -150,6 +157,7 @@ extension NodeBoxWidgets on NodeRenderer {
     AlignToken? stretchAlign,
     Widget Function(Widget box)? around,
     double extraTop = 0,
+    bool keepSemantics = false,
   }) {
     if (style == null) {
       final room = extraTop > 0 ? Padding(padding: EdgeInsetsDirectional.only(top: extraTop), child: child) : child;
@@ -183,9 +191,13 @@ extension NodeBoxWidgets on NodeRenderer {
     if (limits != null) result = StyledSize(limits: limits, stretchAlign: stretchAlign, child: result);
 
     // Opacity applies to the WHOLE box, shadow and border included, as in CSS. Zero is legal: the
-    // node is invisible but still takes its space.
+    // node is invisible but still takes its space. It says nothing either (`x-silentText`): `Opacity` leaves a child
+    // of opacity 0 out of the semantics tree, except for a control, which keeps its name.
     final opacity = style.opacity;
-    if (opacity != null && opacity < 1) result = Opacity(opacity: opacity, child: result);
+    if (opacity != null && opacity < 1) {
+      result = Opacity(opacity: opacity, alwaysIncludeSemantics: keepSemantics, child: result);
+      if (!keepSemantics && textPaintsNothing(opacities: [opacity], colorOpacity: null)) result = ExcludeSemantics(child: result);
+    }
 
     if (around != null) result = around(result);
 
