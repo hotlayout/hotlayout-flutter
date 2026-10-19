@@ -1,7 +1,7 @@
 /// Builds the widget of one screen of a document.
 library;
 
-import 'package:flutter/foundation.dart';
+import '../report/report_hub.dart';
 import 'package:flutter/material.dart';
 
 import '../data/screen_data.dart';
@@ -47,7 +47,7 @@ Widget screenWidget(
   // A tree deeper than the reader's parse limit is a screen the reader does not draw (`depth.readerAboveParseLimit`):
   // a neutral notice stands in its place, the host's app goes on.
   if (screen.tooDeep) {
-    if (kDebugMode) debugPrint('[hotlayout] screen "${screen.screenId}" is deeper than $kReaderParseLimit levels: not drawn');
+    ReportHub.ignored('screen "${screen.screenId}"', 'deeper than $kReaderParseLimit levels: not drawn');
     return UnavailableNotice(theme: theme, text: labels.screenUnavailable, icon: IconToken.parse('info'));
   }
   // WIDTH CLASS: the box this screen is painted in is measured (the root with its insets), not
@@ -78,10 +78,10 @@ Widget screenWidget(
       // THE LIST BUDGET (`x-listBudget`): one plan per screen, before the first list is drawn, over the tree of this
       // width class. One report per screen, in debug builds, without a word of the data.
       final budget = ListBudgetPlan.of(root, screenData);
-      if (kDebugMode && budget.notDrawn > 0) {
-        debugPrint(
-          '[hotlayout] screen "${screen.screenId}": the list budget of $kListBudgetPerScreen instances was reached, '
-          '${budget.notDrawn} instances of list templates were not drawn',
+      if (budget.notDrawn > 0) {
+        ReportHub.ignored(
+          'screen "${screen.screenId}"',
+          'the list budget of $kListBudgetPerScreen instances was reached: ${budget.notDrawn} instances of list templates were not drawn',
         );
       }
       final renderer = NodeRenderer(

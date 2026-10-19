@@ -1,3 +1,4 @@
+import '../report/report_hub.dart';
 import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart';
@@ -626,9 +627,7 @@ sealed class NodeBackground {
   /// here and cannot be one: contract 9.0.0 has no hidden look defaults (`x-style.hiddenDefaults: 'none'`).
   static NodeBackground? tryParse(Object? raw) {
     if (raw is! Map) {
-      if (kDebugMode && raw != null) {
-        debugPrint('[hotlayout] background "$raw" is not a union object, ignored');
-      }
+      if (raw != null) ReportHub.ignored('style.background', 'not an object of a known kind: ignored');
       return null;
     }
     switch (raw['kind']) {
@@ -642,7 +641,7 @@ sealed class NodeBackground {
         if (raw['source'] is! Map) return null;
         return ImageBackground(ImageSource.parse(raw['source']), fit: ImageFitToken.parse(raw['fit']));
       default:
-        if (kDebugMode) debugPrint('[hotlayout] unknown background.kind "${raw['kind']}", ignored');
+        ReportHub.ignored('style.background', 'unknown kind "${raw['kind']}": ignored');
         return null;
     }
   }

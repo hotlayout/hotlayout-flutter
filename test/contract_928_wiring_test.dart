@@ -113,7 +113,7 @@ void main() {
           data: const {'item.image': 'https://127.0.0.1/private/token-123.png'},
         );
       });
-      final reports = lines.where((line) => line.contains('picture refused')).toList();
+      final reports = lines.where((line) => line.contains('address refused')).toList();
       expect(reports, isNotEmpty);
       expect(reports.join(), contains('https://127.0.0.1'));
       expect(reports.join(), isNot(contains('token-123')));

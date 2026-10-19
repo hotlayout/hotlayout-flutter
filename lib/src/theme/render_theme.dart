@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../model/node_style.dart';
@@ -6,6 +5,8 @@ import '../model/part_style.dart';
 import '../model/shadow_color.dart';
 import '../model/style_values.dart';
 import '../model/tokens.dart';
+import '../report/hotlayout_report.dart';
+import '../report/report_hub.dart';
 import 'corner_gradient.dart';
 import 'fallback_theme.dart';
 import 'theme_contract.dart';
@@ -47,6 +48,7 @@ class RenderTheme {
     this.bodyFont,
     this.headingFont,
     this.numberReports = const <String>[],
+    this.reports = const <HotlayoutReport>[],
   });
 
   /// One theme from `themes[<id>]` of the artifact.
@@ -124,6 +126,7 @@ class RenderTheme {
       badgeToneRoles: badgeToneRoles,
       buttonVariantRoles: buttonVariantRoles,
       numberReports: numberReports,
+      reports: reports,
     );
   }
 
@@ -164,6 +167,35 @@ class RenderTheme {
   /// finite) and was replaced, `<place>: built-in` or `<place>: bound`. Empty for a theme whose numbers are all
   /// inside the bounds.
   final List<String> numberReports;
+
+  /// What the reader ignored or replaced while reading this theme (`invalid-theme-values`) and why this
+  /// theme is the one in use (`theme-fallback`, `unknown-theme-id`). `renderDocument` and `renderScreen` hand
+  /// them to `onReport`.
+  final List<HotlayoutReport> reports;
+
+  /// The same theme with [more] reports added.
+  RenderTheme withReports(List<HotlayoutReport> more) => more.isEmpty
+      ? this
+      : RenderTheme(
+          id: id,
+          name: name,
+          source: source,
+          brightness: brightness,
+          provisional: provisional,
+          origins: origins,
+          bodyFont: bodyFont,
+          headingFont: headingFont,
+          colors: colors,
+          spacing: spacing,
+          radii: radii,
+          typography: typography,
+          elevations: elevations,
+          gradients: gradients,
+          badgeToneRoles: badgeToneRoles,
+          buttonVariantRoles: buttonVariantRoles,
+          numberReports: numberReports,
+          reports: [...reports, ...more],
+        );
 
   /*
    * SIX DICTIONARIES, KEYED BY NAME RATHER THAN BY ENUM.
@@ -223,14 +255,14 @@ class RenderTheme {
   /// role stays: one broken slot is no reason to discard two sound ones.
   RoleColors _resolveRole(ThemeRole? role, String path) {
     if (role == null) {
-      if (kDebugMode) debugPrint('[hotlayout] theme "$id" has no role "$path" → neutral look');
+      ReportHub.ignored('theme "$id"', 'has no role "$path": a neutral look is drawn');
       return RoleColors(foreground: color(ColorToken.onSurface));
     }
     Color? slot(String? name, String label) {
       if (name == null) return null;
       final resolved = colorNamed(name);
-      if (resolved == null && kDebugMode) {
-        debugPrint('[hotlayout] theme "$id": role "$path" names color "$name" ($label), which the theme does not have');
+      if (resolved == null) {
+        ReportHub.ignored('theme "$id"', 'role "$path" names color "$name" ($label), which the theme does not have');
       }
       return resolved;
     }
@@ -297,9 +329,7 @@ class RenderTheme {
   Color fieldColor(FieldColor field) {
     final resolved = resolveColor(field.ref);
     if (resolved != null) return resolved;
-    if (kDebugMode) {
-      debugPrint('[hotlayout] theme "$id" has no color ${field.ref} → ${field.fieldDefault.wire}');
-    }
+    ReportHub.ignored('theme "$id"', 'has no color ${field.ref}: ${field.fieldDefault.wire} is used');
     return color(field.fieldDefault);
   }
 
@@ -385,9 +415,7 @@ class RenderTheme {
     switch (ref) {
       case TokenGradientRef(:final token):
         final value = gradients[token];
-        if (value == null && kDebugMode) {
-          debugPrint('[hotlayout] theme "$id" has no gradient "$token" → no background drawn');
-        }
+        if (value == null) ReportHub.ignored('theme "$id"', 'has no gradient "$token": no background is drawn');
         return value;
       case CustomGradientRef(:final angle, :final stops):
         final direction = gradientDirection(angle);

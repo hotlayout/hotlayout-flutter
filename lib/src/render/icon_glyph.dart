@@ -23,6 +23,7 @@
 /// [Path] is immutable and shared by all instances.
 library;
 
+import '../report/report_hub.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
@@ -91,10 +92,7 @@ IconDrawing? iconDrawingOf(IconToken icon) {
       // ANY parse error, not just `FormatException`: a document may bring an icon from another
       // set, and a `RangeError` or `StateError` from Skia must not take down the host's screen; an
       // empty box is painted instead.
-      assert(() {
-        debugPrint('[hotlayout] icon "$name" has a body this renderer cannot read: $error');
-        return true;
-      }());
+      ReportHub.ignored('icon "$name"', 'has a body this renderer cannot read ($error): an empty box is drawn');
     }
   }
   return _drawings[name] = drawing;

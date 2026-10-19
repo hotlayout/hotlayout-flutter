@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import '../report/report_hub.dart';
 
 import '../data/screen_data.dart';
 
@@ -99,7 +99,7 @@ sealed class VisibilityCondition {
   };
 
   static VisibilityCondition _broken(String reason) {
-    if (kDebugMode) debugPrint('[hotlayout] $reason: the node stays visible');
+    ReportHub.ignored('visibleIf', '$reason: the node stays visible');
     return const AlwaysVisibleCondition();
   }
 

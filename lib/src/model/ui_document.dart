@@ -1,6 +1,7 @@
+import '../report/hotlayout_report.dart';
+import '../report/report_hub.dart';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 
 import 'compatibility.dart';
 import 'composition_rules.dart' show exceedsParseLimit;
@@ -170,7 +171,12 @@ final class UiDocument {
     required this.screens,
     this.entryPoints = const {},
     this.localization,
+    this.reports = const [],
   });
+
+  /// What the reader ignored or replaced while parsing this document: a node of an unknown type, a
+  /// field of the wrong shape, a screen without a root. `renderDocument` hands them to `onReport`.
+  final List<HotlayoutReport> reports;
 
   /// The document contract version this renderer understands.
   ///
@@ -273,9 +279,7 @@ final class UiDocument {
 
     final target = screenByEntry(entry);
     if (target != null) return target;
-    if (kDebugMode) {
-      debugPrint('[hotlayout] the document has no entry point "$entry": opening the initial screen');
-    }
+    ReportHub.emit(UnknownEntryReport(entry: entry));
     return initialScreen;
   }
 
@@ -286,12 +290,10 @@ final class UiDocument {
   ScreenEntry get initialScreen {
     final target = screenById(initialScreenId);
     if (target != null) return target;
-    if (kDebugMode) {
-      debugPrint(
-        '[hotlayout] initialScreenId "$initialScreenId" matches no screen: '
-        'opening the first one ("${screens.first.screenId}")',
-      );
-    }
+    ReportHub.ignored(
+      'initialScreenId "$initialScreenId"',
+      'matches no screen: opening the first one ("${screens.first.screenId}")',
+    );
     return screens.first;
   }
 
@@ -310,6 +312,22 @@ final class UiDocument {
     if (raw is! Map) {
       throw const FormatException('The document is not a JSON object');
     }
+    final (document, reports) = ReportHub.collect(() => _fromJson(raw));
+    return document._withReports(reports);
+  }
+
+  UiDocument _withReports(List<HotlayoutReport> found) => UiDocument(
+    schemaVersion: schemaVersion,
+    documentId: documentId,
+    name: name,
+    initialScreenId: initialScreenId,
+    entryPoints: entryPoints,
+    screens: screens,
+    localization: localization,
+    reports: List.unmodifiable(found),
+  );
+
+  static UiDocument _fromJson(Map raw) {
     final json = Map<String, Object?>.from(raw);
     final rawScreens = json['screens'];
     final screens = <ScreenEntry>[];
@@ -362,7 +380,10 @@ final class UiDocument {
 
   static ScreenEntry? _parseScreen(Object? raw, {required bool localized}) {
     if (raw is! Map || raw['root'] is! Map) {
-      if (kDebugMode) debugPrint('[hotlayout] a screen without a root, skipped');
+      ReportHub.ignored(
+        'screen "${raw is Map ? raw['screenId'] : '<not an object>'}"',
+        'it has no root node: skipped',
+      );
       return null;
     }
     final json = Map<String, Object?>.from(raw);

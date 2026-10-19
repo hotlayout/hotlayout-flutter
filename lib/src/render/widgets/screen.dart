@@ -2,9 +2,9 @@
 /// scrolls.
 library;
 
+import '../../report/report_hub.dart';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../model/bottom_zone_rules.dart';
@@ -148,13 +148,8 @@ extension ScreenWidgets on NodeRenderer {
     final NavBarNode? navBottom = navPlace == NavBarPlace.bottom ? nav : null;
     final NavBarNode? navInBar = navPlace == NavBarPlace.appBar ? nav : null;
     final NavBarNode? navOnTop = navPlace == NavBarPlace.top ? nav : null;
-    if (kDebugMode) {
-      for (final stray in body.whereType<AppBarNode>()) {
-        debugPrint(
-          '[hotlayout] `AppBar` (id=${stray.id}) is not the first child of `Screen`: '
-          'drawn in place, but it does not become the top bar of the screen',
-        );
-      }
+    for (final stray in body.whereType<AppBarNode>()) {
+      ReportHub.ignored('node "${stray.id}"', 'an `AppBar` that is not the first child of `Screen` is drawn in place and does not become the top bar');
     }
     // THE BODY FROM THE TOP EDGE (schema 9.19.0, `Screen.props.bodyTop`): the field acts always, except
     // where the zone is taken by the navigation bar's own strip, which the content never goes under.

@@ -1,3 +1,4 @@
+import '../report/report_hub.dart';
 import 'dart:collection';
 import 'dart:convert';
 
@@ -140,11 +141,7 @@ class _NetworkSvgState extends State<NetworkSvg> {
             // The class of the failure only: the address may carry a token or a user id, and the text of
             // the error repeats it. Nothing is logged in a release build.
             if (_waitingFor == url) _waitingFor = null;
-            if (kDebugMode) {
-              debugPrint(
-                '[hotlayout] SVG not drawn: ${error is PictureFetchException ? error.reason : 'parse error'}',
-              );
-            }
+            ReportHub.ignored('picture', 'SVG not drawn: ${error is PictureFetchException ? error.reason : 'parse error'}');
             if (!mounted || widget.url != url) return;
             setState(() => _failed = true);
           },

@@ -14,7 +14,8 @@
 ///  * the **widget** — [renderDocument], with [SduiActionCallback] for the
 ///    actions the host performs itself ([runStandardAction] performs the
 ///    checked ones, with executors the host passes in), [SduiTrackCallback], [SduiHapticCallback]
-///    for analytics events and [SduiScreenShownCallback] for screen views;
+///    for analytics events, [SduiScreenShownCallback] for screen views and [HotlayoutReportCallback]
+///    for what the reader ignored or replaced on its own;
 ///    [HostActions] routes the host's own actions to one handler per type.
 ///
 /// All four may change while the user is in the flow: new data, a new version
@@ -59,6 +60,19 @@ export 'src/model/icon_set.dart' show kIconSetVersion;
 export 'src/model/locale_resolve.dart' show LocaleResolution;
 export 'src/model/localization.dart' show DocumentLocalization, LocalizedStrings;
 export 'src/render/direction.dart' show directionOfLocale, isRtlLocale;
+
+// What the reader ignored, replaced or refused on its own, for the host (`onReport`).
+export 'src/report/hotlayout_report.dart'
+    show
+        HotlayoutReport,
+        HotlayoutReportCallback,
+        IgnoredInputReport,
+        IncompatibleDocumentReport,
+        InvalidThemeValuesReport,
+        NewerMinorDocumentReport,
+        ThemeFallbackReport,
+        UnknownEntryReport,
+        UnknownThemeIdReport;
 
 // Drawing: the entry functions, the screen flow and the host callbacks.
 export 'src/render/labels.dart' show RendererLabels;

@@ -22,7 +22,7 @@ sealed class ListTileLeading {
         return LeadingIcon(IconToken.parse(raw['icon']), color: ColorRef.tryParse(raw['color']), tile: leadingTileOf(raw));
       }
       if (kind == 'image') return LeadingImage(ImageSource.parse(raw['source']));
-      if (kDebugMode) debugPrint('[hotlayout] unknown ListTile.leading.kind "$kind": drawn without it');
+      ReportHub.ignored('ListTile.leading', 'unknown kind "$kind": drawn without it');
     }
     return const LeadingNone();
   }
@@ -96,10 +96,10 @@ sealed class ListTileTrailing {
         if (optionValue is String && optionValue.isNotEmpty) {
           return TrailingRadio(optionValue);
         }
-        if (kDebugMode) debugPrint('[hotlayout] ListTile.trailing.radio without optionValue: drawn without the slot');
+        ReportHub.ignored('ListTile.trailing', 'a radio without optionValue: drawn without the slot');
         return const TrailingNone();
       }
-      if (kDebugMode) debugPrint('[hotlayout] unknown ListTile.trailing.kind "$kind": drawn without it');
+      ReportHub.ignored('ListTile.trailing', 'unknown kind "$kind": drawn without it');
     }
     return const TrailingNone();
   }

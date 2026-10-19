@@ -32,7 +32,7 @@
 ///     not depend on the next version of a third-party package.
 library;
 
-import 'package:flutter/foundation.dart';
+import '../report/report_hub.dart';
 import 'package:intl/intl.dart';
 
 import 'binding_format.dart';
@@ -227,7 +227,7 @@ String pluralCategoryOf(num value, String? locale) {
   } catch (error) {
     // A document from the network must not be able to crash the screen: a number the rules
     // cannot handle agrees as `other`.
-    if (kDebugMode) debugPrint('[hotlayout] plural category failed for "$locale": $error');
+    ReportHub.ignored('plural form', 'the category failed for locale "$locale" ($error): "other" is used');
     return kPluralOther;
   }
 }

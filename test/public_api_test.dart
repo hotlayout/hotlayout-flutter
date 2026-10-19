@@ -304,6 +304,10 @@ void main() {
       'runStandardAction', 'StandardAction', 'OpenUrlAction', 'DeeplinkAction', 'CloseAction',
       'InvalidActionParam', 'ActionParamProblem', 'TrackEvent', 'ScreenShown', 'ScreenShownCause',
       'SduiTrackCallback', 'SduiHapticCallback', 'HapticWord', 'SduiScreenShownCallback',
+      // what the reader ignored or replaced on its own, for the host
+      'HotlayoutReport', 'HotlayoutReportCallback', 'IgnoredInputReport', 'IncompatibleDocumentReport',
+      'InvalidThemeValuesReport', 'NewerMinorDocumentReport', 'ThemeFallbackReport', 'UnknownEntryReport',
+      'UnknownThemeIdReport',
       // versions
       'VersionVerdict', 'kSupportedSchemaVersion', 'kSupportedThemeContractVersion', 'kIconSetVersion',
       // locales

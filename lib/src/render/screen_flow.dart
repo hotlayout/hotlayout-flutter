@@ -2,7 +2,7 @@
 /// an action and the events of a shown screen.
 library;
 
-import 'package:flutter/foundation.dart';
+import '../report/report_hub.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 
@@ -722,12 +722,10 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
         _stackChanged(ScreenShownCause.forward);
         return null;
       }
-      if (kDebugMode) {
-        debugPrint(
-          '[hotlayout] cannot navigate to screen "${target ?? '<no screenId>'}": '
-          'document "${widget.doc.documentId}" has no such screen',
-        );
-      }
+      ReportHub.ignored(
+        'navigate to screen "${target ?? '<no screenId>'}"',
+        'document "${widget.doc.documentId}" has no such screen: the action goes to the host',
+      );
       // The host may know more than the document (for example, how to open this screen with another
       // document), so the action goes on instead of disappearing.
       return _toHost(action, nodeId, origin);
@@ -755,12 +753,10 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
         _stackChanged(ScreenShownCause.switchSection);
         return null;
       }
-      if (kDebugMode) {
-        debugPrint(
-          '[hotlayout] cannot switch to section "${target ?? '<no screenId>'}": '
-          'document "${widget.doc.documentId}" has no such screen',
-        );
-      }
+      ReportHub.ignored(
+        'switch to section "${target ?? '<no screenId>'}"',
+        'document "${widget.doc.documentId}" has no such screen: the action goes to the host',
+      );
       // An unknown section is a host action, like `navigate` to an unknown screen.
       return _toHost(action, nodeId, origin);
     }

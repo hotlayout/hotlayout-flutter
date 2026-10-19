@@ -1,3 +1,4 @@
+import '../report/report_hub.dart';
 import 'dart:ui' show Locale;
 
 import 'package:flutter/foundation.dart';
@@ -55,14 +56,14 @@ final class DocumentLocalization {
   static DocumentLocalization? parse(Object? raw) {
     if (raw == null) return null;
     if (raw is! Map) {
-      if (kDebugMode) debugPrint('[hotlayout] localization is not an object: drawing the literals');
+      ReportHub.ignored('localization', 'not an object: the literals are drawn');
       return null;
     }
     final defaultLocale = raw['defaultLocale'];
     if (defaultLocale is! String || defaultLocale.isEmpty) {
       // Without a default language the table is meaningless: it is unknown what the translations differ
       // from and what to fall back to when a key is missing.
-      if (kDebugMode) debugPrint('[hotlayout] localization has no defaultLocale: drawing the literals');
+      ReportHub.ignored('localization', 'no defaultLocale: the literals are drawn');
       return null;
     }
 
@@ -112,8 +113,8 @@ final class DocumentLocalization {
     if (shown == null || shown == defaultLocale) {
       // `fall-back-to-default-locale`: the document has no such language, so the literals are drawn, i.e.
       // the default language; not "the nearest one in the list".
-      if (kDebugMode && !resolution.matched) {
-        debugPrint('[hotlayout] the document has no language for "$locale" → source language');
+      if (!resolution.matched) {
+        ReportHub.ignored('locale "$locale"', 'the document has no such language: the source language is shown');
       }
       // The table is empty, but the SOURCE language is named: the plural of a template agrees by its
       // rules (9.4.0).

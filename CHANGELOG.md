@@ -1,3 +1,12 @@
+## 0.30.0
+
+The contract version is unchanged (9.28.0). One new optional parameter; nothing else changes for a host that does not pass it.
+
+- **`onReport`** on `renderDocument` and `renderScreen`: what the reader ignored, replaced or refused on its own now reaches the host in release builds too, not only the debug log. `HotlayoutReport` is a sealed class with the kinds the other readers of the contract share: `IgnoredInputReport` (`where`, `reason`: an unknown widget or token, a refused picture address, a write path the document had no right to name, a list cut by the budget, a screen deeper than the parse limit, a node of the wrong shape), `IncompatibleDocumentReport`, `NewerMinorDocumentReport`, `UnknownEntryReport`, `InvalidThemeValuesReport` (`paths`), `ThemeFallbackReport` and `UnknownThemeIdReport`. Each has `kind` and `message`.
+- **Once per cause.** A report is delivered once for the life of the widget: a rebuild, new data or another locale does not repeat it. The list budget used to print on every build; it is now one report per screen. At most 50 distinct reports are delivered per widget. No report carries a value from your data.
+- **Findings made before the widget exists** (parsing a document, reading a theme) travel with the parsed object: `UiDocument.reports` and `RenderTheme.reports`. `renderDocument` delivers both; `renderScreen` delivers the theme's, so a host that draws single screens reads `UiDocument.reports` itself. `ThemeContract.themeById` for an unknown id and a `ThemeLoad` that fell back return themes that carry the matching report.
+- The debug log lines are kept, printed once per distinct message.
+
 ## 0.29.0
 
 Reads document contract **9.28.0** (theme 4.0.1, icon set 1.0.0 and data dictionary unchanged). The version adds no field: it states rules of the reader. A document that stays inside the limits is drawn exactly as by 0.28.0.

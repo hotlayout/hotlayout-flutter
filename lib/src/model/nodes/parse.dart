@@ -167,8 +167,8 @@ final class _RawNode {
   /// The identifier of a leaf. Schema 4.0.0 gives leaves no `children` field at all, so a child in a
   /// `Text` is a structural error; in debug it shows in the log, and in release it is just ignored.
   String leafId() {
-    if (kDebugMode && _rawChildren != null && _rawChildren.isNotEmpty) {
-      debugPrint('[hotlayout] leaf node "$type" (id=$id) has children, ignored');
+    if (_rawChildren != null && _rawChildren.isNotEmpty) {
+      ReportHub.ignored('node "$id"', 'a "$type" has children: ignored');
     }
     return id;
   }

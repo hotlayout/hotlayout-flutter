@@ -1,10 +1,10 @@
 // What is shown instead of a document this renderer cannot read.
 library;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../model/compatibility.dart';
+import '../report/hotlayout_report.dart';
 import '../model/tokens.dart';
 import '../model/ui_document.dart';
 import '../theme/render_theme.dart';
@@ -31,27 +31,9 @@ class VersionNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Versions and the REASON go to the developer, in the log: contract numbers mean nothing to
-    // the person holding the phone, and the host supplies their text in its own language
-    // ([RendererLabels]). The reason matters more than the numbers: "update the app" and
-    // "republish the document" are different actions for different people.
-    if (kDebugMode) {
-      const reader = UiDocument.supportedSchemaVersion;
-      debugPrint(switch (verdict) {
-        VersionVerdict.newerMajor =>
-          '[hotlayout] document schema $documentVersion is a newer major than this renderer '
-              'reads ($reader): update the hotlayout_flutter package → "update the app" notice '
-              'instead of the screen',
-        VersionVerdict.olderMajor =>
-          '[hotlayout] document schema $documentVersion is an older major than this renderer '
-              'reads ($reader): updating the app will not help, the document has to be '
-              'republished from the builder → neutral notice instead of the screen',
-        _ =>
-          '[hotlayout] document schema "$documentVersion" is not a version (expected '
-              'major.minor.patch; this renderer reads $reader) → neutral notice instead of the '
-              'screen',
-      });
-    }
+    // Versions and the REASON go to the developer, through `onReport` and the debug log
+    // (`versionReports`): contract numbers mean nothing to the person holding the phone, and the host
+    // supplies their text in its own language ([RendererLabels]).
     // "Update" is said only where updating helps. An older major version and an unreadable
     // version get neutral text and a neutral icon.
     final updatable = verdict == VersionVerdict.newerMajor;
@@ -92,4 +74,43 @@ class UnavailableNotice extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// What the reader says about the version of [document]: nothing for a readable one of the same
+/// minor, `newer-minor-document` for a newer minor, `incompatible-document` for a major it cannot read.
+List<HotlayoutReport> versionReports(UiDocument document, VersionVerdict verdict) {
+  const reader = UiDocument.supportedSchemaVersion;
+  final version = document.schemaVersion;
+  return switch (verdict) {
+    VersionVerdict.ok => const [],
+    VersionVerdict.newerMinor => [NewerMinorDocumentReport(documentVersion: version)],
+    VersionVerdict.newerMajor => [
+      IncompatibleDocumentReport(
+        documentVersion: version,
+        readerVersion: reader,
+        documentIsOlder: false,
+        reason:
+            'the schema is a newer major than this renderer reads: update the hotlayout_flutter package '
+            '("update the app" notice instead of the screen)',
+      ),
+    ],
+    VersionVerdict.olderMajor => [
+      IncompatibleDocumentReport(
+        documentVersion: version,
+        readerVersion: reader,
+        documentIsOlder: true,
+        reason:
+            'the schema is an older major than this renderer reads: updating the app will not help, the document '
+            'has to be republished from the builder (neutral notice instead of the screen)',
+      ),
+    ],
+    VersionVerdict.unparsable => [
+      IncompatibleDocumentReport(
+        documentVersion: version,
+        readerVersion: reader,
+        documentIsOlder: false,
+        reason: 'the schema is not a version (expected major.minor.patch): neutral notice instead of the screen',
+      ),
+    ],
+  };
 }

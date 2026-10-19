@@ -36,6 +36,7 @@
 /// `fixtures/template/template-cases.json`.
 library;
 
+import '../report/report_hub.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
@@ -76,9 +77,7 @@ enum BindingFormat {
     for (final format in values) {
       if (format.wire == raw) return format;
     }
-    if (kDebugMode) {
-      debugPrint('[hotlayout] unknown binding format "$raw": the value is shown as is');
-    }
+    ReportHub.ignored('binding format "$raw"', 'unknown format: the value is shown as is');
     return null;
   }
 }
@@ -486,7 +485,7 @@ List<AmountPiece>? formatBoundPieces(
     // document); it throws `ArgumentError`, which is an `Error` and not an
     // `Exception`, so everything is caught. The format does not apply and the
     // value is shown as is.
-    if (kDebugMode) debugPrint('[hotlayout] format ${format.wire} failed for locale "$locale": $error');
+    ReportHub.ignored('binding format ${format.wire}', 'failed for locale "$locale" ($error): the value is shown as is');
     return null;
   }
 }
@@ -501,7 +500,7 @@ String? _formatMoment(Object? value, BindingFormat format, String? locale, DateP
   if (!blank && tag == null) {
     // For a language `intl` has no data for, the format does not apply (the
     // "show as is" policy), rather than falling back to the device language.
-    if (kDebugMode) debugPrint('[hotlayout] format ${format.wire}: no date data for locale "$locale"');
+    ReportHub.ignored('binding format ${format.wire}', 'no date data for locale "$locale": the value is shown as is');
     return null;
   }
   final local = moment.toLocal();

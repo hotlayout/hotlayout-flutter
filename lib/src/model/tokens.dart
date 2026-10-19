@@ -1,3 +1,4 @@
+import '../report/report_hub.dart';
 import 'package:flutter/foundation.dart';
 
 import 'icon_set.dart';
@@ -21,9 +22,7 @@ T resolveToken<T extends WireToken>(List<T> values, Object? raw, T fallback) {
     for (final value in values) {
       if (value.wire == raw) return value;
     }
-    if (kDebugMode) {
-      debugPrint('[hotlayout] unknown token "$raw" → ${fallback.wire}');
-    }
+    ReportHub.ignored('token "$raw"', 'unknown name: ${fallback.wire} is used');
   }
   return fallback;
 }
@@ -235,14 +234,13 @@ final class IconToken implements WireToken {
   static IconToken parse(Object? raw) {
     final known = raw is String ? _byName[raw] : null;
     if (known != null) return known;
-    if (kDebugMode) {
-      debugPrint(
-        raw is String
-            // The name may come from the host's data (`iconPath`), so it is not logged.
-            ? '[hotlayout] an icon name this reader does not know: empty box of the same size'
-            : '[hotlayout] icon value is not a name (${raw.runtimeType}): empty box of the same size',
-      );
-    }
+    // The name may come from the host's data (`iconPath`), so it is not reported.
+    ReportHub.ignored(
+      'icon name',
+      raw is String
+          ? 'a name this reader does not know: empty box of the same size'
+          : 'value is not a name (${raw.runtimeType}): empty box of the same size',
+    );
     return unknown;
   }
 

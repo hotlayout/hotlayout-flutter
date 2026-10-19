@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import '../report/report_hub.dart';
 
 import '../data/screen_data.dart';
 import 'action.dart';
@@ -154,9 +154,7 @@ sealed class UiNode {
       // In 4.0.0 a `Screen` cannot be a child. This is not an "unknown type from the future" but an error
       // in the document, so it gets a separate log message, but degrades as softly as for a foreign type.
       'Screen' => () {
-        if (kDebugMode) {
-          debugPrint('[hotlayout] `Screen` cannot be a child (id=$id): rendered as an unknown widget');
-        }
+        ReportHub.ignored('node "$id"', '`Screen` cannot be a child: drawn as an unknown widget');
         return UnknownNode(
           id: id,
           type: 'Screen',
@@ -179,9 +177,7 @@ sealed class UiNode {
       // admin tool and backend are updated faster than a mobile release rolls out. The raw data is kept so
       // the renderer can degrade softly (see the unknown-node handling in the renderer).
       _ => () {
-        if (kDebugMode) {
-          debugPrint('[hotlayout] unknown widget type "${node.type}" (id=$id)');
-        }
+        ReportHub.ignored('node "$id"', 'unknown widget type "${node.type}": drawn as an unknown widget');
         return UnknownNode(
           id: id,
           type: node.type,

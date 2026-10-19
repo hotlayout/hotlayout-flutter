@@ -1,7 +1,7 @@
 /// The list row: leading slot, texts and trailing slot.
 library;
 
-import 'package:flutter/foundation.dart';
+import '../../report/report_hub.dart';
 import 'package:flutter/material.dart';
 
 import '../../model/layout_rules.dart' show isSilentAccessibleName;
@@ -52,11 +52,8 @@ extension ListTileWidgets on NodeRenderer {
     final selectable = option != null && scope != null;
     final selected = selectable && scope.selected == option;
 
-    if (kDebugMode && option != null && node.action != null) {
-      debugPrint(
-        '[hotlayout] ListTile "${node.id}" is a choice option, so its `action` '
-        '(${node.action}) is not run: the tap belongs to the choice',
-      );
+    if (option != null && node.action != null) {
+      ReportHub.ignored('node "${node.id}"', 'a ListTile that is a choice option does not run its `action`: the tap belongs to the choice');
     }
 
     // There is no vertical padding around the row here: since schema 9.0.0 it is the registry's

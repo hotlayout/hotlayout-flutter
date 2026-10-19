@@ -4,6 +4,8 @@ import '../model/localization.dart';
 import '../model/ui_document.dart';
 import '../model/write_action.dart' show isWritablePath;
 import '../theme/render_theme.dart';
+import '../report/hotlayout_report.dart';
+import '../report/report_hub.dart';
 import 'host_callbacks.dart';
 import 'labels.dart';
 import 'picture_policy.dart';
@@ -89,6 +91,8 @@ export 'screen_transitions.dart' show HotlayoutTransitions;
 ///    [HotlayoutTransitions.none] for none (see [HotlayoutTransitions]).
 ///  * [controller], [onSystemBack], [handleSystemBack] — the system back
 ///    button and the document's stack; see [ScreenFlow].
+///  * [onReport] — what the reader ignored, replaced or refused on its own (see [HotlayoutReport]): once per
+///    cause for the life of the widget, also in release builds.
 ///
 /// The widget keeps its own stack of screens and does not use `Navigator`. It
 /// draws only the document: no `Scaffold`, no safe-area padding. The system
@@ -122,14 +126,26 @@ Widget renderDocument(
   ScreenFlowBackCallback? onSystemBack,
   bool handleSystemBack = true,
   HotlayoutTransitions transitions = HotlayoutTransitions.platform,
+  HotlayoutReportCallback? onReport,
 }) {
   final verdict = doc.versionVerdict;
+  final version = versionReports(doc, verdict);
+  final found = [...version, ...doc.reports, ...theme.reports];
   // A different major version cannot be read. Silently drawing nothing is the worst option: the
   // user sees a broken app and does not know why.
   if (!verdict.canRender) {
-    return VersionNotice(theme: theme, verdict: verdict, documentVersion: doc.schemaVersion, labels: labels);
+    return ReportListener(
+      onReport: onReport,
+      initial: found,
+      announced: version,
+      child: VersionNotice(theme: theme, verdict: verdict, documentVersion: doc.schemaVersion, labels: labels),
+    );
   }
-  return ScreenFlow(
+  return ReportListener(
+    onReport: onReport,
+    initial: found,
+    announced: version,
+    child: ScreenFlow(
     doc: doc,
     theme: theme,
     data: data,
@@ -153,6 +169,7 @@ Widget renderDocument(
     onSystemBack: onSystemBack,
     handleSystemBack: handleSystemBack,
     transitions: transitions,
+    ),
   );
 }
 
@@ -198,7 +215,11 @@ Widget renderScreen(
   int maxDownloadBytes = kDefaultMaxDownloadBytes,
   Object? writablePaths,
   RendererLabels labels = const RendererLabels(),
-}) => screenWidget(
+  HotlayoutReportCallback? onReport,
+}) => ReportListener(
+  onReport: onReport,
+  initial: theme.reports,
+  child: screenWidget(
   screen,
   theme: theme,
   data: data,
@@ -224,4 +245,5 @@ Widget renderScreen(
   autofill: autofill,
   pictures: PicturePolicy(resolveImageUrl: resolveImageUrl, maxDownloadBytes: maxDownloadBytes),
   labels: labels,
+  ),
 );

@@ -1,6 +1,7 @@
 /// Images and icons: the box, loading and broken states, alternative text.
 library;
 
+import '../../report/report_hub.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -62,7 +63,7 @@ extension ImageWidgets on NodeRenderer {
     final isData = _isDataImage(url);
     final approved = pictures.approve(url, isData: isData);
     if (approved == null) {
-      if (kDebugMode) debugPrint('[hotlayout] picture refused: ${pictureReportAddress(url, fromData: fromData)}');
+      ReportHub.ignored('picture', 'address refused: ${pictureReportAddress(url, fromData: fromData)}');
       return _brokenImage(url, compact: compact);
     }
     // SVG is the same image with the same states, only drawn by a different decoder: the

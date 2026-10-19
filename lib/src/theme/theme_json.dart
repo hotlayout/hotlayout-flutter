@@ -2,15 +2,21 @@
 /// leaves its token out and never throws.
 library;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../model/style_values.dart';
 import '../model/tokens.dart';
+import '../report/hotlayout_report.dart';
+import '../report/report_hub.dart';
 import 'fallback_theme.dart';
 import 'render_theme.dart';
 
 RenderTheme readRenderTheme(Object? raw) {
+  final (theme, found) = ReportHub.collect(() => _readRenderTheme(raw));
+  return theme.withReports(found);
+}
+
+RenderTheme _readRenderTheme(Object? raw) {
   final json = raw is Map ? Map<String, Object?>.from(raw) : const <String, Object?>{};
   final fit = _NumberFit(_builtInJsonOf(_brightness(json['brightness'], quiet: true)));
   final bodyFont = _font(json['fontFamilies'], 'body');
@@ -65,7 +71,6 @@ final class _NumberFit {
 
   final Map<String, Object?>? _builtIn;
   final List<String> reports = [];
-  bool _announced = false;
 
   /// [number] in `[min, max]` as is; otherwise the replacement. `null` for anything that is not a number (and
   /// for NaN, which no JSON can carry). [builtIn] names where the built-in number lives: dictionary, token and an
@@ -92,10 +97,7 @@ final class _NumberFit {
 
   void _report(String place, String how) {
     reports.add('$place: $how');
-    if (kDebugMode && !_announced) {
-      _announced = true;
-      debugPrint('[hotlayout] theme: a number outside the schema bounds was replaced ($place: $how)');
-    }
+    ReportHub.emit(InvalidThemeValuesReport(paths: ['$place ($how)']));
   }
 }
 
@@ -128,14 +130,12 @@ Map<String, V> _byName<V>(Object? raw, String group, V? Function(Object? raw, St
     // it would be an ordinary map key, so the reader would silently accept what the validator
     // rejects.
     if (isForbiddenKey(name)) {
-      if (kDebugMode) debugPrint('[hotlayout] theme: name "$group.$name" is forbidden → no token');
+      ReportHub.emit(InvalidThemeValuesReport(paths: ['$group.$name (forbidden name)']));
       continue;
     }
     final value = parse(entry.value, name);
     if (value == null) {
-      if (kDebugMode) {
-        debugPrint('[hotlayout] theme: value of "$group.$name" is malformed → no token');
-      }
+      ReportHub.emit(InvalidThemeValuesReport(paths: ['$group.$name (malformed)']));
       continue;
     }
     result[name] = value;
@@ -156,9 +156,7 @@ Brightness _brightness(Object? raw, {bool quiet = false}) => switch (raw) {
   'light' => Brightness.light,
   'dark' => Brightness.dark,
   _ => () {
-    if (kDebugMode && raw != null && !quiet) {
-      debugPrint('[hotlayout] theme: unknown brightness "$raw" → light');
-    }
+    if (raw != null && !quiet) ReportHub.emit(InvalidThemeValuesReport(paths: ['brightness (unknown "$raw")']));
     return Brightness.light;
   }(),
 };
@@ -184,7 +182,7 @@ Map<T, ThemeRole> _roleGroup<T extends WireToken>(
     final token = _tokenByWire(values, key);
     final role = _role(entry.value);
     if (token == null || role == null) {
-      if (kDebugMode) debugPrint('[hotlayout] theme: role "roles.$group.$key" is unusable, skipped');
+      ReportHub.emit(InvalidThemeValuesReport(paths: ['roles.$group.$key (unusable)']));
       continue;
     }
     result[token] = role;
@@ -360,9 +358,7 @@ LinearGradient? _gradient(Object? raw, String name, _NumberFit fit) {
     // gradient at all, not "a gradient, but a different one". Equal positions are ORDERED
     // (`gradientStopOrder: 'non-descending'`): that is a hard colour edge, not a violation.
     if (stops.isNotEmpty && position < stops.last) {
-      if (kDebugMode) {
-        debugPrint('[hotlayout] theme: gradient stops do not ascend ($position) → no gradient');
-      }
+      ReportHub.emit(InvalidThemeValuesReport(paths: ['gradient.$name (stops do not ascend)']));
       return null;
     }
     colors.add(color);
@@ -374,9 +370,7 @@ LinearGradient? _gradient(Object? raw, String name, _NumberFit fit) {
 
   final direction = RenderTheme.gradientDirection(angle);
   if (direction == null) {
-    if (kDebugMode) {
-      debugPrint('[hotlayout] theme: gradient angle $angle° is not one of the eight allowed → no gradient');
-    }
+    ReportHub.emit(InvalidThemeValuesReport(paths: ['gradient.$name (angle is not one of the eight allowed)']));
     return null;
   }
 

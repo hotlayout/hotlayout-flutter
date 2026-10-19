@@ -54,6 +54,7 @@ Website: [hotlayout.com](https://hotlayout.com) · Changes by version: [CHANGELO
 - [Language and right-to-left](#language-and-right-to-left)
 - [Network and the fallback](#network-and-the-fallback)
 - [Live data and new versions](#live-data-and-new-versions)
+- [What the reader reports](#what-the-reader-reports)
 - [Versions](#versions)
 - [Platform notes](#platform-notes)
 - [Fonts](#fonts)
@@ -830,6 +831,35 @@ Instead of a timer you can listen to a signal your backend sends after a publica
 
 What this does not cover: a document whose new version needs a newer package (another major) is not taken from the network — the source falls back, `LivePublication` keeps what is on screen, and the reason is in `DocumentLoad.detail`.
 
+## What the reader reports
+
+A document and a theme come from a network, so the reader never trusts their shape. Whatever it cannot use is skipped, replaced by a default or not drawn, and the screen goes on. Pass `onReport` to `renderDocument` or `renderScreen` to hear about it, in release builds too:
+
+```dart
+renderDocument(
+  doc,
+  theme: theme,
+  data: data,
+  onReport: (report) => analytics.log('hotlayout', {'kind': report.kind, 'message': report.message}),
+);
+```
+
+`HotlayoutReport` is a sealed class, so a `switch` over it is exhaustive:
+
+| Report | When |
+|---|---|
+| `IgnoredInputReport(where, reason)` | A part of the document, of your data or of a request was ignored: an unknown widget type or token, a `Screen` used as a child, a node with children it cannot have, a picture address your `resolveImageUrl` or the default policy refused, a write path or write action the document had no right to use, a `ChoiceGroup` value no row carries, a list cut by the budget of 2550 instances, a screen deeper than the parse limit, a navigation to a screen the document does not have |
+| `IncompatibleDocumentReport` | The document was not drawn: its schema major differs from the reader's, or the version is not a version. `documentIsOlder` tells whether the layout must be republished from the builder |
+| `NewerMinorDocumentReport` | The document comes from a newer minor: it is drawn, unknown parts are skipped |
+| `UnknownEntryReport(entry)` | `entry` names an entry point the document does not have; the initial screen is shown |
+| `InvalidThemeValuesReport(paths)` | Values of the theme outside the theme schema were left out or replaced |
+| `ThemeFallbackReport(reason)` | The theme could not be read and the built-in theme is used |
+| `UnknownThemeIdReport(themeId, used)` | `ThemeContract.themeById` was asked for an id the set does not have |
+
+A report is delivered **once per cause for the life of the widget**: a rebuild, new data or another locale does not repeat it, and at most 50 distinct reports are delivered. No report carries a value from your data (an address from data is cut to its scheme and host). Without `onReport` nothing is delivered and debug builds print the same words to the log.
+
+What was found while the document or the theme was parsed, before any widget existed, is on the object: `UiDocument.reports` and `RenderTheme.reports`. `renderDocument` delivers both. `renderScreen` delivers the theme's, so a host that draws single screens reads `UiDocument.reports` itself.
+
 ## Versions
 
 Three numbers describe what this package reads, and the package version is a fourth, separate one:
@@ -939,6 +969,7 @@ If you update from an older version of the package, these are the places where t
 | 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.23.0 | A button with `confirm: 'swipe'` no longer runs its action on a tap or a click: the thumb has to be dragged, or Enter / Space / the screen reader's "activate" used. A `NavBar` with `float: true` lies over the body (the body area reaches the bottom of the screen and the last row scrolls clear of the bar). A `Repeater` with `where` draws only the records that pass, and `limit` counts those. |
+| 0.30.0 | `onReport` on `renderDocument` and `renderScreen` hands the host what the reader ignored, replaced or refused (`HotlayoutReport`), once per cause, in release builds too. The list budget is reported once per screen instead of on every build. |
 | 0.29.0 | A picture body is read up to 10 485 760 bytes (10 MiB; it was 10 000 000). A screen draws at most 2550 instances of list templates, nested lists included, counted in document order over the whole tree (what a hidden list, an inactive tab or a folded block would draw counts too); the instance that would pass the limit is not drawn, nor anything after it, and a debug line says how many were left out. A number of a theme outside the schema bounds (or not finite) no longer drops its token: it takes the value of the same token and field in the built-in theme of the same brightness (spacing, radius, font size, line height, font weight, letter spacing) and otherwise the nearest bound; `RenderTheme.numberReports` lists the replacements. A text whose colour is fully transparent, or that sits in a node of opacity `0`, is no longer part of the name of a pressable card or of the screen reader's text; a control keeps its own name. A host decision from `resolveImageUrl` that returns a `javascript:` or `vbscript:` address is refused. |
 | 0.28.0 | Pictures are fetched only from `https` addresses with a host name (no IP address, no `localhost`, no single-word host), read up to 10 MiB, decoded at the size of their box and given up after 30 seconds; pass `resolveImageUrl` if your pictures live on an internal host. A theme number outside the schema bounds drops its token. A document or theme body above 4 MiB is a `malformed` load. `writablePaths` is new and optional. |
 | 0.27.0 | The record of a page opened from a list row, of a sheet over it and of a page that carried it follows your `data`: when a collection holds the same record (by `<item>.id`) with other fields, the page shows them at once, and the record handed to `onRecordAction` is the refreshed one. Before, it stayed as it was when the row was pressed. A card with a `longPress` takes a hold of 450 ms as that long press and does not press on release; a modal sheet follows the finger down and closes by a drag, and a widget test that drags a body inside a sheet loses the first 18 dp of the drag to the touch slop, as under any button. |

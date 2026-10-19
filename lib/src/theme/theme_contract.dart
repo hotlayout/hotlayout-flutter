@@ -7,6 +7,7 @@ import '../data/document_source.dart' show DocumentResponse, DocumentTooLargeExc
 
 import '../model/compatibility.dart';
 import '../model/style_values.dart' show isForbiddenKey;
+import '../report/hotlayout_report.dart';
 import 'fallback_theme.dart';
 import 'render_theme.dart';
 
@@ -195,10 +196,9 @@ final class ThemeContract {
     if (id == null) return defaultTheme;
     final theme = themes[id];
     if (theme != null) return theme;
-    if (kDebugMode) {
-      debugPrint('[hotlayout] the contract has no theme "$id" → using "$defaultThemeId"');
-    }
-    return defaultTheme;
+    final report = UnknownThemeIdReport(themeId: id, used: defaultThemeId);
+    if (kDebugMode) debugPrint('[hotlayout] ${report.message}');
+    return defaultTheme.withReports([report]);
   }
 
   /// The theme marked with this brightness, so that system dark mode needs
@@ -212,13 +212,12 @@ final class ThemeContract {
     for (final theme in themes.values) {
       if (theme.brightness == brightness) return theme;
     }
-    if (kDebugMode) {
-      debugPrint(
-        '[hotlayout] the contract has no theme with brightness=${brightness.name} '
-        '→ using "$defaultThemeId"',
-      );
-    }
-    return defaultTheme;
+    final report = IgnoredInputReport(
+      where: 'theme brightness "${brightness.name}"',
+      reason: 'the contract has no such theme: "$defaultThemeId" is used',
+    );
+    if (kDebugMode) debugPrint('[hotlayout] ${report.message}');
+    return defaultTheme.withReports([report]);
   }
 
   /// Whether the set has a theme with this id.
@@ -457,10 +456,18 @@ final class ThemeLoad {
   }
 
   static ThemeLoad _fallback(ThemeLoadStatus status, String detail) {
-    if (kDebugMode) {
-      debugPrint('[hotlayout] theme not read ($detail) → built-in fallback theme');
-    }
-    return ThemeLoad(contract: ThemeContract.fallback(), status: status, detail: detail);
+    final report = ThemeFallbackReport(reason: detail);
+    if (kDebugMode) debugPrint('[hotlayout] ${report.message}');
+    final fallback = ThemeContract.fallback();
+    return ThemeLoad(
+      contract: ThemeContract(
+        version: fallback.version,
+        defaultThemeId: fallback.defaultThemeId,
+        themes: Map.unmodifiable({for (final e in fallback.themes.entries) e.key: e.value.withReports([report])}),
+      ),
+      status: status,
+      detail: detail,
+    );
   }
 
   @override
@@ -477,10 +484,11 @@ ThemeContract? _parseContract(Map<Object?, Object?> raw, {String? version}) {
   if (rawThemes is! Map) return null;
 
   final themes = <String, RenderTheme>{};
+  final skipped = <String>[];
   for (final entry in rawThemes.entries) {
     final id = entry.key;
     if (id is! String || id.isEmpty || isForbiddenKey(id) || entry.value is! Map) {
-      if (kDebugMode) debugPrint('[hotlayout] theme "${entry.key}" is unusable, skipped');
+      skipped.add('themes.${entry.key} (unusable)');
       continue;
     }
     final theme = RenderTheme.fromJson(entry.value);
@@ -491,6 +499,14 @@ ThemeContract? _parseContract(Map<Object?, Object?> raw, {String? version}) {
     themes[id] = theme;
   }
   if (themes.isEmpty) return null;
+  if (skipped.isNotEmpty) {
+    // The set's own finding travels with every theme of it: the host picks one and passes only that.
+    final report = InvalidThemeValuesReport(paths: skipped);
+    if (kDebugMode) debugPrint('[hotlayout] ${report.message}');
+    for (final id in themes.keys.toList()) {
+      themes[id] = themes[id]!.withReports([report]);
+    }
+  }
 
   return ThemeContract(
     version: version ?? raw['themeContractVersion'] as String? ?? '',

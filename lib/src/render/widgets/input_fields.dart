@@ -1,7 +1,7 @@
 /// Inputs: text field, switch, checkbox and the choice group.
 library;
 
-import 'package:flutter/foundation.dart';
+import '../../report/report_hub.dart';
 import 'package:flutter/material.dart';
 
 import '../../model/bindable.dart';
@@ -91,15 +91,12 @@ extension InputWidgets on NodeRenderer {
     // Deliberately not translated: this is an option name compared with a row's `optionValue`,
     // not text for a person (see `node.dart`).
     final documentValue = node.value.resolve(data);
-    if (kDebugMode && documentValue.isNotEmpty && !node.optionValues.contains(documentValue)) {
+    if (documentValue.isNotEmpty && !node.optionValues.contains(documentValue)) {
       // The builder catches this at publication, but a document may arrive from the network.
       // Mark nothing and do not "fix" the selection to the first option: an invented selection
       // is worse than none, because it cannot be told from a real one.
-      debugPrint(
-        // The value comes from the host's data and is not logged: the node id names the place.
-        '[hotlayout] ChoiceGroup "${node.id}": the value is one no row carries as an option, '
-        'so nothing is selected',
-      );
+      // The value comes from the host's data and is not reported: the node id names the place.
+      ReportHub.ignored('node "${node.id}"', 'the ChoiceGroup value is one no row carries as an option: nothing is selected');
     }
 
     // Only a binding has a write path. A literal `value` has no address, and none may be
