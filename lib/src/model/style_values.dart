@@ -195,7 +195,8 @@ final class ScaleRef {
 /// A whole number in [min]..[max], or `null`: no fraction, no string, and a number out of range is not clamped (the
 /// caller falls back to its own default).
 int? wholeNumberIn(Object? raw, int min, int max) {
-  final value = raw is double && raw == raw.truncateToDouble() ? raw.toInt() : raw;
+  // `isFinite` first: infinity equals its own truncation, and `toInt()` throws on it.
+  final value = raw is double && raw.isFinite && raw == raw.truncateToDouble() ? raw.toInt() : raw;
   return value is int && value >= min && value <= max ? value : null;
 }
 

@@ -18,6 +18,7 @@ import 'host_callbacks.dart';
 import 'inputs.dart';
 import 'labels.dart';
 import 'node_renderer.dart';
+import 'picture_policy.dart';
 import 'screen_form.dart';
 import 'version_notice.dart';
 import 'width_class_scope.dart';
@@ -37,6 +38,7 @@ Widget screenWidget(
   required SduiValueWrite? onWrite,
   required RendererLabels labels,
   bool autofill = true,
+  PicturePolicy pictures = const PicturePolicy(),
   CarouselMemory? memory,
   ScreenPresentationToken? presentation,
   RecordChain links = const [],
@@ -84,6 +86,7 @@ Widget screenWidget(
         now: clock ?? now ?? DateTime.now(),
         onAction: handler,
         onWrite: onWrite,
+        pictures: pictures,
         labels: labels,
         carouselMemory: memory,
         shownScreenId: screen.screenId,

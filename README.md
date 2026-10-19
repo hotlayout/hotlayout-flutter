@@ -170,6 +170,8 @@ What `renderDocument` does and does not do:
 | `onTrack`, `onScreenShown` | analytics events and screen views | [Analytics and screen views](#analytics-and-screen-views) |
 | `onHaptic` | the haptic response a press asks for | [Haptic feedback](#haptic-feedback) |
 | `onWrite`, `autofill` | what the user typed or chose | [Forms](#forms-text-fields-switches-and-checkboxes) |
+| `writablePaths` | the data paths a document may write | [Write actions](#write-actions-and-choice-from-plain-nodes) |
+| `resolveImageUrl`, `maxDownloadBytes` | which picture addresses are fetched, and how much of a body is read | [Images](#images) |
 | `scopeFor` | data of one screen | [Data of one screen](#data-of-one-screen) |
 | `now` | the clock "days left" counts from | [Sentences, numbers, money and days](#sentences-numbers-money-and-days) |
 | `labels` | the renderer's own four texts | [Language](#language-and-right-to-left) |
@@ -727,6 +729,8 @@ const germanLabels = RendererLabels(
 
 **A fallback is silent on screen by design — log `status`.** Without that line "published but not shown" looks like a broken phone.
 
+`HttpDocumentTransport` reads at most 4 MiB of a document or theme (four times the contract's 1 MiB budget): a larger `Content-Length` is refused before the body is read, and a longer body is cut; either is a `malformed` load. A theme is held to the bounds of the theme schema when it is read, and `ThemeLoad.fromJson`, `parse` and `fromNetwork` never throw.
+
 Every request gets an extra query parameter (`_req=…`) so that a cache in between cannot serve an old publication. `HttpDocumentTransport` sends no custom headers, which keeps a web build free of CORS preflights.
 
 **Refreshing.** Read the source again whenever you like: a new `UiDocument` object with the same `documentId` does not reset the screen stack (see [Live data and new versions](#live-data-and-new-versions)). Two things are still worth doing — skip a refresh that brought the same `signature`, and keep the published document when a refresh fell back:
@@ -934,6 +938,7 @@ If you update from an older version of the package, these are the places where t
 | 0.22.0 | A screen that shows a `countdownPart` redraws itself every second (a minute when no part is seconds) while it is shown, so a countdown never needs a rebuild from you; pass `now` to pin the moment instead. A node with `animateChanges` leads its numbers over 700 ms after the data change, and a widget test needs `pump(Duration)` to step through it. |
 | 0.21.0 | A value the user wrote into an input yields when `data` changes at the same path (it used to stay above the data for the life of the flow). A new version of the same document that restarts the flow from its entry keeps what the user wrote (it used to forget it). |
 | 0.23.0 | A button with `confirm: 'swipe'` no longer runs its action on a tap or a click: the thumb has to be dragged, or Enter / Space / the screen reader's "activate" used. A `NavBar` with `float: true` lies over the body (the body area reaches the bottom of the screen and the last row scrolls clear of the bar). A `Repeater` with `where` draws only the records that pass, and `limit` counts those. |
+| 0.28.0 | Pictures are fetched only from `https` addresses with a host name (no IP address, no `localhost`, no single-word host), read up to 10 MB, decoded at the size of their box and given up after 30 seconds; pass `resolveImageUrl` if your pictures live on an internal host. A theme number outside the schema bounds drops its token. A document or theme body above 4 MiB is a `malformed` load. `writablePaths` is new and optional. |
 | 0.27.0 | The record of a page opened from a list row, of a sheet over it and of a page that carried it follows your `data`: when a collection holds the same record (by `<item>.id`) with other fields, the page shows them at once, and the record handed to `onRecordAction` is the refreshed one. Before, it stayed as it was when the row was pressed. A card with a `longPress` takes a hold of 450 ms as that long press and does not press on release; a modal sheet follows the finger down and closes by a drag, and a widget test that drags a body inside a sheet loses the first 18 dp of the drag to the touch slop, as under any button. |
 | 0.26.0 | Pressable nodes sink under the finger (see [Press feedback](#press-feedback)): a widget test that taps a card or a button and measures it at once sees it scaled, so advance time with `pump(Duration)` or `pumpAndSettle` first. A bar with steps fills a step smoothly while its value leads. `onHaptic` is new and optional; without it nothing changes. |
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
@@ -1071,7 +1076,7 @@ Two actions are performed by the renderer itself: `setValue` (puts a literal und
 - **Never through `onAction`**, valid or not. The analytics event (`track`) goes first, also when nothing is written.
 - **An unusable action writes nothing** and is named in the debug log: `missing-path`, `path-too-long`, `unknown-value-type`, `not-a-flag`, `not-a-number`.
 - **Only literals.** The path and the value come from the document, never from data (`paramBindings` and `carryRecord` are not read). A path with a prototype segment, or not of the form of a data path, is not written.
-- **No list of allowed paths in this package**: you see every write in `onWrite`.
+- **Allowed paths.** Pass `writablePaths` (a `bool Function(String path)` or an `Iterable<String>`) to `renderDocument`, `renderScreen` or `ScreenFlow`: a write to any other path, by an action or by a field, reaches neither the session nor `onWrite`. Without it every well-formed path is allowed, so a host that stores what it receives should pass it; `onWrite` still sees every write that passes, and its value is user input.
 - **The same value is not written twice** (equality by type: `"7"` is not `7`, an empty string equals an absent value); a toggle always writes the negation of what is shown.
 
 For a screen reader:
@@ -1213,6 +1218,15 @@ Without any of them the text is exactly what [the basic formats](#sentences-numb
 - **`aspectRatio`** is a word (`1:1`, `16:9`, `4:3`) or your own pair `{ width: 343, height: 120 }`. A ratio the renderer does not understand is `16:9`, and one beyond 1:8 … 8:1 is clamped.
 - **The picture** lies in the box by `fit`, centred, and the radius of the node clips it. The box has the same size while the file loads and when it fails.
 - **A circle** is equal sides plus a radius: `pill` is a number of the theme, so a 160 × 160 square with `pill` is a rounded square, not a circle.
+
+**Where pictures may come from, and the limits.** A picture address comes from the document or from your data, both untrusted, and the request is made by the device of the user, from inside the user's network. So:
+
+- **Address policy** (`resolveImageUrl`). The default fetches only `https` addresses whose host is a name with an alphabetic top-level label (no IP address in any notation, no single-word host such as `localhost`, no user info, no other scheme). A refused address draws the "image unavailable" placeholder and makes no request. Pass `resolveImageUrl: (url) => …` to narrow it (only your CDN) or to widen it (an internal host): return the address to fetch, or `null` to refuse. It also judges `data:` addresses (the default does not). It is called again for every redirect target.
+- **Size** (`maxDownloadBytes`, 10 000 000 by default). A larger `Content-Length` is refused before the body is read; a body without a declared length is cut at the limit. A `data:` address longer than the limit allows is refused before it is decoded.
+- **Decode.** A picture is decoded at the size of its box times the device pixel ratio (twice that for `fit: cover`), never above 4096 pixels on a side and never enlarged.
+- **Time and redirects.** One picture request, redirects included, gives up after 30 seconds. At most three redirects are followed, by hand.
+- **Nothing of yours is sent.** The request carries no cookies, no credentials and no headers. The package opens its own `HttpClient` for it; a global `HttpOverrides` you install (a proxy, certificate pinning) applies to that client like to any other, which is usually what you want. On the web the browser makes the request and follows redirects itself, so the policy sees only the first address there.
+- **The log.** A failed SVG logs only the class of the failure (`HTTP 404`, `timeout`, `parse error`) and only in debug builds, never the address.
 
 ### Descriptions and icons from data
 
@@ -1652,7 +1666,7 @@ Things to try:
 - **Sentences with places** (`kind: 'template'`) live in texts for people: `Text`, `Button` and `Badge` labels, titles and subtitles of `AppBar`, `ListTile`, `Tab`, `Accordion`, and the trailing text of a row.
 - **Exact characters of a formatted number** come from the `intl` package's CLDR data, which may be of another release than a browser's: the rule is the same on every platform, single characters (digits of plain `ar`, a group separator) may differ.
 - **Formats the contract does not have**: percentages, "hours left". A currency sign exists for twelve codes only (see [Money](#money-sign-symbol-and-parts-of-an-amount)).
-- **Delivery.** A document arrives whole, as one public file: no partial delivery and no authentication built in (use your own `DocumentTransport` for the latter).
+- **Delivery.** A document arrives whole, as one public file: no partial delivery and no authentication built in (use your own `DocumentTransport` for the latter). `HttpDocumentTransport` reads at most 4 MiB; a transport of your own should cap the body too.
 - **Navigation is inside one document.** Links to another document and deep links are yours to route — use `entry:`.
 - **Named image assets** `logo`, `banner` and `placeholder` are drawn as generated gradients; real images come by URL (PNG, JPEG, WebP, SVG).
 - **Icons** are the 332 names of the contract's icon set (set version `kIconSetVersion`); a document cannot bring its own. Details below.

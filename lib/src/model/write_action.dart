@@ -134,7 +134,26 @@ WriteStep? writeStepOf(ButtonAction action, Object? Function(String path) read) 
 
 /// Whether the reader writes under [path] at all (the write gate): the shape of a data path without a forbidden
 /// segment. The host sees every write in `onWrite` and may drop the ones it does not expect.
-bool isWritablePath(String path) => isSafeDataPath(path);
+///
+/// [allowed] is the host's allow-list (`writablePaths`): a `bool Function(String)` or an `Iterable<String>`; `null`
+/// allows every well-formed path. Anything else, and a predicate that throws, allows nothing.
+bool isWritablePath(String path, [Object? allowed]) {
+  if (!isSafeDataPath(path)) return false;
+  return switch (allowed) {
+    null => true,
+    final bool Function(String) check => _passes(check, path),
+    final Iterable<Object?> paths => paths.contains(path),
+    _ => false,
+  };
+}
+
+bool _passes(bool Function(String) check, String path) {
+  try {
+    return check(path);
+  } on Object {
+    return false;
+  }
+}
 
 /// The role a node with a write action has on the finished screen.
 enum WriteControlRole { option, toggle }

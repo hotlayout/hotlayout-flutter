@@ -4,22 +4,22 @@ The document, the theme and the data reach this package from the network, so the
 
 All tests are in `test/hardening/`. A test for a limit that holds passes. A test for a limit that does not hold describes the correct behaviour and **fails until the fix lands**. Run the tests with `flutter test test/hardening`.
 
-State on this branch: 902 tests pass and 120 fail. The failing tests cover the 9 limits marked "does not hold" below.
+State: every test in `test/hardening/` passes. The 10 findings that did not hold are fixed in 0.28.0 (marked FIXED below, each with the commit); `test/hardening/loader_hardening_test.dart` adds tests for the loader, the allow-lists and the extra numeric guards found by the sweep.
 
 ## Summary
 
 | # | Limit | Status | Tests |
 |---|---|---|---|
-| 1 | Pictures: default address policy | **does not hold** | `picture_hardening_test.dart` — "default policy …" (36 failing, 1 control passing) |
-| 2 | Theme numbers stay within the schema bounds | **does not hold** | `numbers_hardening_test.dart` — "theme numbers …"; `delivery_hardening_test.dart` — "ThemeLoad.parse …" |
-| 3 | `ThemeLoad.fromNetwork` never throws | **does not hold** | `delivery_hardening_test.dart` — "ThemeLoad.fromNetwork with fontWeight 1e400 completes" |
-| 4 | Document numbers never throw | **does not hold** (one function) | `numbers_hardening_test.dart` — `maxLength`, `titleMaxLines`, `subtitleMaxLines`, `size`, `fieldRadius` = ±1e400 |
-| 5 | Picture body size is capped | **does not hold** | `picture_hardening_test.dart` — "the body is bounded" |
-| 6 | Picture decode is bounded | **does not hold** | `picture_hardening_test.dart` — "the decode is bounded" |
-| 7 | Redirects do not bypass the policy | **does not hold** | `picture_hardening_test.dart` — "redirects are not followed past the policy" |
-| 8 | Writes only to paths the host allows (`writablePaths`) | **does not hold** | `actions_hardening_test.dart` — "writablePaths: …" |
-| 9 | No data value in the log | **does not hold** | `logs_hardening_test.dart` |
-| 10 | Document body size is capped | **does not hold** | `delivery_hardening_test.dart` — "body size" |
+| 1 | Pictures: default address policy | **FIXED** | `picture_hardening_test.dart` — "default policy …" (36 failing, 1 control passing) |
+| 2 | Theme numbers stay within the schema bounds | **FIXED** | `numbers_hardening_test.dart` — "theme numbers …"; `delivery_hardening_test.dart` — "ThemeLoad.parse …" |
+| 3 | `ThemeLoad.fromNetwork` never throws | **FIXED** | `delivery_hardening_test.dart` — "ThemeLoad.fromNetwork with fontWeight 1e400 completes" |
+| 4 | Document numbers never throw | **FIXED** (one function) | `numbers_hardening_test.dart` — `maxLength`, `titleMaxLines`, `subtitleMaxLines`, `size`, `fieldRadius` = ±1e400 |
+| 5 | Picture body size is capped | **FIXED** | `picture_hardening_test.dart` — "the body is bounded" |
+| 6 | Picture decode is bounded | **FIXED** | `picture_hardening_test.dart` — "the decode is bounded" |
+| 7 | Redirects do not bypass the policy | **FIXED** | `picture_hardening_test.dart` — "redirects are not followed past the policy" |
+| 8 | Writes only to paths the host allows (`writablePaths`) | **FIXED** | `actions_hardening_test.dart` — "writablePaths: …" |
+| 9 | No data value in the log | **FIXED** | `logs_hardening_test.dart` |
+| 10 | Document body size is capped | **FIXED** | `delivery_hardening_test.dart` — "body size" |
 | 11 | Data numbers never throw | holds | `numbers_hardening_test.dart` — "data numbers …" |
 | 12 | Picture requests carry nothing of the host | holds | `picture_hardening_test.dart` — "the request carries nothing of the host" |
 | 13 | Accessible name of a pressable card leaves out hidden children | holds | `accessible_name_hardening_test.dart` |
@@ -36,7 +36,7 @@ The limits that do not hold are listed in order of importance.
 
 ---
 
-## 1. Pictures: default address policy — does not hold
+## 1. Pictures: default address policy — FIXED in 0.28.0
 
 **Limit.** A picture address from the document or from the data is fetched only when it is an `https` address whose host is a name with an alphabetic top-level label. This is the host form the contract already uses for `openUrl` (`x-actions.forms.httpsUrl`). The default policy refuses all of the following:
 
@@ -59,7 +59,7 @@ The host can narrow or widen the policy.
 
 The test "the host can override the policy" calls the parameter dynamically, so it compiles before the parameter exists.
 
-## 2. Theme numbers stay within the schema bounds — does not hold
+## 2. Theme numbers stay within the schema bounds — FIXED in 0.28.0
 
 **Limit.** Every number in the theme is read against the bounds in the theme `x-schema`:
 
@@ -90,7 +90,7 @@ In release builds these become broken or empty layout instead of assertions. A p
 
 **Fix.** Read theme numbers with a helper that enforces the schema bounds. A value outside the bounds should be treated like a malformed value: the token is dropped and the fallback applies, as the code already does for a malformed colour. Clamping is the alternative if the theme compatibility policy prefers it. Either way, `isFinite` is checked first.
 
-## 3. `ThemeLoad.fromNetwork` never throws — does not hold
+## 3. `ThemeLoad.fromNetwork` never throws — FIXED in 0.28.0
 
 **Limit.** Loading a theme always completes with a `ThemeLoad` and a status. A hostile body is reported as `malformed` with the fallback theme; it never becomes an exception for the host.
 
@@ -100,7 +100,7 @@ In release builds these become broken or empty layout instead of assertions. A p
 - Check `raw.isFinite` in `themeFontWeight`. Limit 2 then covers the range.
 - Also wrap the body of `ThemeLoad.fromJson` in `on Object catch`, returning `_fallback(ThemeLoadStatus.malformed, …)`. That way a future parsing bug degrades to the fallback theme instead of escaping to the host.
 
-## 4. Document numbers never throw — does not hold (one function)
+## 4. Document numbers never throw — FIXED in 0.28.0 (one function)
 
 **Limit.** No number in the document (finite, `±1e300`, `±infinity`, or `1e-300`) makes parsing or `build` throw.
 
@@ -117,7 +117,7 @@ final value = raw is double && raw == raw.truncateToDouble() ? raw.toInt() : raw
 
 **Fix.** Add `raw.isFinite &&` before the `truncateToDouble` comparison. Consider also wrapping `UiDocument.fromJson` so that any parse error becomes a `FormatException`, which is a documented failure mode for direct callers.
 
-## 5. Picture body size is capped — does not hold
+## 5. Picture body size is capped — FIXED in 0.28.0
 
 **Limit.** A picture response is read only up to a cap; this review uses 16 MiB. A `Content-Length` above the cap is refused before the body is read.
 
@@ -136,7 +136,7 @@ Every picture on a screen multiplies the cost, so a hostile server can exhaust t
   - hand the bytes to `ImmutableBuffer` and `instantiateImageCodecWithSize` (see limit 6).
 - In `_SvgStore._fetch`, use `client.send` and read `StreamedResponse.stream` with the same cap.
 
-## 6. Picture decode is bounded — does not hold
+## 6. Picture decode is bounded — FIXED in 0.28.0
 
 **Limit.** A small file that declares huge dimensions cannot make the app allocate the full bitmap. For example, a 20 kB PNG that declares 30000 × 30000 must not become 3.6 GB of pixels.
 
@@ -148,7 +148,7 @@ Every picture on a screen multiplies the cost, so a hostile server can exhaust t
 
 Apply the same bound to the `data:` branch. If the fix checks dimensions in the header instead of resizing, update the two tests in this group to assert that check.
 
-## 7. Redirects do not bypass the policy — does not hold
+## 7. Redirects do not bypass the policy — FIXED in 0.28.0
 
 **Limit.** A redirect from an allowed host to a refused one is not followed. Either redirects are not followed at all, or each hop is re-checked by the host policy, with a small hop limit.
 
@@ -156,7 +156,7 @@ Apply the same bound to the `data:` branch. If the fix checks dimensions in the 
 
 **Fix.** In the loaders from limit 5, set `followRedirects = false` and handle 301, 302, 303, 307 and 308 by hand. Resolve `Location` against the request URL, run the result through `resolveImageUrl`, and allow at most 3 hops.
 
-## 8. Writes only to paths the host allows (`writablePaths`) — does not hold
+## 8. Writes only to paths the host allows (`writablePaths`) — FIXED in 0.28.0
 
 **Limit.** The host can restrict which data paths a document may write. A write to a refused path reaches neither the session nor `onWrite`. The web reader has this parameter, and the contract names it.
 
@@ -166,7 +166,7 @@ What does hold: unsafe shapes are refused (`__proto__`, `constructor`, empty, ov
 
 **Fix.** Add `bool Function(String path)? writablePaths` (or an `Iterable<String>` of allowed paths) to `renderDocument`, `renderScreen` and `ScreenFlow`. Check it in `runWriteStep` and in the field write path, in addition to `isSafeDataPath`. Document in the README that the default allows any well-formed path.
 
-## 9. No data value in the log — does not hold
+## 9. No data value in the log — FIXED in 0.28.0
 
 **Limit.** A log line never contains a value from the host's data. `debugPrint` is **not** removed from release builds: it writes to the device log, which crash reporters and other tools collect.
 
@@ -179,7 +179,7 @@ What does hold: unsafe shapes are refused (`__proto__`, `constructor`, empty, ov
 - `ChoiceGroup`: print the node id and "a value no row carries", without the value.
 - Unknown icon: print the node id or the data path, not the value.
 
-## 10. Document body size is capped — does not hold
+## 10. Document body size is capped — FIXED in 0.28.0
 
 **Limit.** The contract caps a document at `x-budget.maxDocumentBytes` (1 MiB, enforced by the producer). The reader still should not read an unbounded body. This review expects at most 4 × the budget to be read, and a larger `Content-Length` to be refused up front.
 

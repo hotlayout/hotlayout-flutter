@@ -69,7 +69,7 @@ DashedLine dashedLineOf(DashedBox box) {
   final sum = radii.topStart + radii.topEnd + radii.bottomEnd + radii.bottomStart;
   final perimeter = math.max(0.0, 2 * (width + height) - 2 * sum + (math.pi / 2) * sum);
   final step = (kBorderDash + kBorderGap) * border;
-  if (!(step > 0) || !(perimeter > 0)) {
+  if (!(step > 0) || !(perimeter > 0) || !step.isFinite || !perimeter.isFinite) {
     return (radii: radii, perimeter: perimeter, count: 0, dash: 0, gap: 0);
   }
   // `Math.round` of the reference is half up; the quotient is positive, so `floor(x + 0.5)`.

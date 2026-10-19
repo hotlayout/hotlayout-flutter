@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../model/localization.dart';
 import '../model/ui_document.dart';
+import '../model/write_action.dart' show isWritablePath;
 import '../theme/render_theme.dart';
 import 'host_callbacks.dart';
 import 'labels.dart';
+import 'picture_policy.dart';
 import 'screen_flow.dart';
 import 'screen_transitions.dart';
 import 'screen_widget.dart';
@@ -26,6 +28,7 @@ export 'layout/marker_column_end.dart' show MarkerColumnEnd, RenderMarkerColumnE
 export 'layout/row_layout.dart' show RenderRowLayout, RowChildWidth, RowLayout, RowLayoutParentData, RowSlot;
 export 'layout/stretch_column.dart' show FlowGap, FlowPull, RenderStretchColumn, StretchColumn;
 export 'modal_layer.dart' show kModalLayerKey;
+export 'picture_policy.dart' show ImageUrlResolver, kDefaultMaxDownloadBytes;
 export 'screen_flow.dart' show ScreenFlow, ScreenFlowBackCallback, ScreenFlowController;
 export 'screen_transitions.dart' show HotlayoutTransitions;
 
@@ -67,6 +70,18 @@ export 'screen_transitions.dart' show HotlayoutTransitions;
 ///    `Switch`, `Checkbox`, `ChoiceGroup`): the data path and a [String], a
 ///    [bool] or a [num]. Called on every change, at once. The value is user input: check
 ///    it on the backend, and throttle here if a network stands behind it.
+///  * [resolveImageUrl] — the host's decision about every picture address (the document's and the data's,
+///    `data:` addresses included): return the address to fetch, or `null` to refuse it; a refused picture draws
+///    the "image unavailable" placeholder and makes no request. The default allows `https` addresses with a
+///    host name only (no IP literal in any notation, no single-word host such as `localhost`, no user info, no
+///    other scheme), the host form of the contract's `openUrl`. Redirects are followed by hand, at most three,
+///    and each target passes the policy again.
+///  * [maxDownloadBytes] — the most bytes of one picture body that is read (10 MB by default). A larger
+///    `Content-Length` is refused before the body is read. A picture is also decoded at the size of its box
+///    (never above 4096 pixels on a side) and a request gives up after 30 seconds.
+///  * [writablePaths] — the data paths the document may write, as a `bool Function(String path)` or an
+///    `Iterable<String>`. A write to any other path reaches neither the session nor [onWrite]. The default
+///    allows every well-formed path.
 ///  * [autofill] — `false` turns every autofill hint of the text fields off.
 ///    Pass it for documents from a source you do not fully trust.
 ///  * [labels] — the renderer's own words, English by default.
@@ -99,6 +114,9 @@ Widget renderDocument(
   ScreenScopeResolver? scopeFor,
   SduiValueWrite? onWrite,
   bool autofill = true,
+  ImageUrlResolver? resolveImageUrl,
+  int maxDownloadBytes = kDefaultMaxDownloadBytes,
+  Object? writablePaths,
   RendererLabels labels = const RendererLabels(),
   ScreenFlowController? controller,
   ScreenFlowBackCallback? onSystemBack,
@@ -127,6 +145,9 @@ Widget renderDocument(
     scopeFor: scopeFor,
     onWrite: onWrite,
     autofill: autofill,
+    resolveImageUrl: resolveImageUrl,
+    maxDownloadBytes: maxDownloadBytes,
+    writablePaths: writablePaths,
     labels: labels,
     controller: controller,
     onSystemBack: onSystemBack,
@@ -155,7 +176,7 @@ Widget renderDocument(
 /// [onRecordAction] is [onAction] plus the record of the node; when both are
 /// given, only [onRecordAction] is called. [onTrack] gets the analytics event of
 /// a press (`action.track`), before the action; [onHaptic] gets the haptic request of the press (`action.haptic`),
-/// before the event.
+/// before the event. [resolveImageUrl], [maxDownloadBytes] and [writablePaths] are the same as in `renderDocument`.
 Widget renderScreen(
   ScreenEntry screen, {
   required RenderTheme theme,
@@ -173,6 +194,9 @@ Widget renderScreen(
   SduiHapticCallback? onHaptic,
   SduiValueWrite? onWrite,
   bool autofill = true,
+  ImageUrlResolver? resolveImageUrl,
+  int maxDownloadBytes = kDefaultMaxDownloadBytes,
+  Object? writablePaths,
   RendererLabels labels = const RendererLabels(),
 }) => screenWidget(
   screen,
@@ -192,7 +216,12 @@ Widget renderScreen(
     sendTrack(action, nodeId, origin, onTrack);
     return handToHost(action, nodeId, origin, onAction: onAction, onRecordAction: onRecordAction);
   },
-  onWrite: onWrite,
+  onWrite: onWrite == null
+      ? null
+      : (path, value) {
+          if (isWritablePath(path, writablePaths)) onWrite(path, value);
+        },
   autofill: autofill,
+  pictures: PicturePolicy(resolveImageUrl: resolveImageUrl, maxDownloadBytes: maxDownloadBytes),
   labels: labels,
 );

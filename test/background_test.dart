@@ -7,6 +7,7 @@ import 'package:hotlayout_flutter/src/render/svg_image.dart';
 import 'package:hotlayout_flutter/src/theme/render_theme.dart';
 
 import 'support/fixtures.dart';
+import 'support/pictures.dart';
 
 /// Node background -- a union `{kind, ...}` in `style.background`.
 ///
@@ -262,7 +263,7 @@ void main() {
           matching: find.byType(Image),
         ),
       );
-      expect((image.image as NetworkImage).url, 'https://cdn.example.com/bg.png');
+      expect(pictureUrlOf(image.image), 'https://cdn.example.com/bg.png');
       expect(image.fit, BoxFit.contain);
       // The image fills the whole node box -- with padding, not only under
       // the text.

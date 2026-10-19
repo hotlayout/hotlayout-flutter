@@ -41,7 +41,7 @@ int? segmentCurrentOf(List<double> fills) {
 /// The length of the gradient line along the drawn fill: the end of the fill of the last step with any fill,
 /// `units * step + (ceil(units) - 1) * gap`; the gaps are cut out. Zero when nothing is filled.
 double segmentFillInline(double units, {required double step, required double gap}) {
-  if (!(units > 0)) return 0;
+  if (!(units > 0) || !units.isFinite) return 0;
   return units * step + (units.ceil() - 1) * gap;
 }
 

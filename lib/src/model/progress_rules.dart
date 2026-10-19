@@ -269,6 +269,8 @@ int? readSegments(Object? raw) =>
 
 /// How many steps are filled for a scale ratio: `floor(round(ratio x N, 6))`.
 int filledSegments(double ratio, int segments) {
+  // NaN has no step (`floor` throws on it): nothing is filled.
+  if (ratio.isNaN) return 0;
   final scale = math.pow(10, kProgressSegmentPrecision).toDouble();
   final units = (ratio.clamp(0.0, 1.0) * segments * scale).roundToDouble() / scale;
   return units.floor().clamp(0, segments);

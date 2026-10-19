@@ -13,6 +13,7 @@ import '../icon_glyph.dart';
 import '../image_frame.dart';
 import '../layout/quiet_flex.dart';
 import '../node_renderer.dart';
+import '../picture_image.dart';
 import '../svg_image.dart';
 
 extension ImageWidgets on NodeRenderer {
@@ -51,32 +52,46 @@ extension ImageWidgets on NodeRenderer {
     ImageFitToken fit = ImageFitToken.cover,
   }) => switch (source.resolve(data)) {
     ImageAsset(:final asset) => _assetPlaceholder(asset, compact: compact),
+    ImageUrl(:final url) => _pictureFrom(url, fit: fit, compact: compact),
+  };
+
+  /// A network or `data:` picture, after the host's address policy. A refused address draws the broken-image
+  /// placeholder and makes no request.
+  Widget _pictureFrom(String url, {required ImageFitToken fit, required bool compact}) {
+    final isData = _isDataImage(url);
+    final approved = pictures.approve(url, isData: isData);
+    if (approved == null) return _brokenImage(url, compact: compact);
     // SVG is the same image with the same states, only drawn by a different decoder: the
     // framework's raster codec does not read vectors at all.
-    ImageUrl(:final url) when isSvgUrl(url) => NetworkSvg(
-      url: url,
-      fit: _boxFit(fit),
-      loading: _imageLoading(compact: compact),
-      error: _brokenImage(url, compact: compact),
-    ),
-    // A `data:` address (data dictionary samples carry them) is read by `Image.network` only on
-    // the web: on `dart:io` platforms `HttpClient` does not know the `data` scheme. `UriData`
+    if (!isData && isSvgUrl(approved)) {
+      return NetworkSvg(
+        url: approved,
+        fit: _boxFit(fit),
+        policy: pictures,
+        loading: _imageLoading(compact: compact),
+        error: _brokenImage(url, compact: compact),
+      );
+    }
+    // A `data:` address (data dictionary samples carry them) is not read by `HttpClient`. `UriData`
     // parses the body and hands the bytes to the same codec that draws a network image, with the
     // same "broken" states and no network request. If it cannot be parsed, it is a broken image.
-    ImageUrl(:final url) when _isDataImage(url) => _dataImage(url, fit: fit, compact: compact),
-    ImageUrl(:final url) => Image.network(
-      url,
+    if (isData) return _dataImage(approved, fit: fit, compact: compact);
+    return BoundedImage(
+      provider: NetworkPicture(approved, policy: pictures),
       fit: _boxFit(fit),
       // A broken URL must be visible: an empty space would look like "all fine" to the author.
       errorBuilder: (_, _, _) => _brokenImage(url, compact: compact),
-      loadingBuilder: (context, child, progress) =>
-          progress == null ? child : _imageLoading(compact: compact),
-    ),
-  };
+      frameBuilder: (context, child, frame, synchronous) =>
+          frame == null && !synchronous ? _imageLoading(compact: compact) : child,
+    );
+  }
 
   static bool _isDataImage(String url) => url.length > 11 && url.substring(0, 11).toLowerCase() == 'data:image/';
 
   Widget _dataImage(String url, {required ImageFitToken fit, required bool compact}) {
+    // The text is checked BEFORE it is decoded: base64 is 4/3 of the bytes it carries, and a body above the cap
+    // is not worth decoding to find that out.
+    if (url.length > pictures.maxDownloadBytes * 4 ~/ 3 + 1024) return _brokenImage(url, compact: compact);
     final Uint8List bytes;
     try {
       bytes = UriData.parse(url).contentAsBytes();
@@ -85,8 +100,9 @@ extension ImageWidgets on NodeRenderer {
     } on ArgumentError {
       return _brokenImage(url, compact: compact);
     }
-    return Image.memory(
-      bytes,
+    if (bytes.length > pictures.maxDownloadBytes) return _brokenImage(url, compact: compact);
+    return BoundedImage(
+      provider: MemoryImage(bytes),
       fit: _boxFit(fit),
       errorBuilder: (_, _, _) => _brokenImage(url, compact: compact),
     );

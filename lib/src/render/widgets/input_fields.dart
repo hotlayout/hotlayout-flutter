@@ -96,8 +96,9 @@ extension InputWidgets on NodeRenderer {
       // Mark nothing and do not "fix" the selection to the first option: an invented selection
       // is worse than none, because it cannot be told from a real one.
       debugPrint(
-        '[hotlayout] ChoiceGroup "${node.id}": the value is "$documentValue", '
-        'but no row carries that option, so nothing is selected',
+        // The value comes from the host's data and is not logged: the node id names the place.
+        '[hotlayout] ChoiceGroup "${node.id}": the value is one no row carries as an option, '
+        'so nothing is selected',
       );
     }
 

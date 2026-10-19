@@ -31,6 +31,7 @@ extension _ScreenFlowStack on _ScreenFlowState {
           handler: _handleAction,
           onWrite: _write,
           autofill: widget.autofill,
+          pictures: PicturePolicy(resolveImageUrl: widget.resolveImageUrl, maxDownloadBytes: widget.maxDownloadBytes),
           labels: widget.labels,
           memory: frame.memory,
           presentation: index == 0 ? ScreenPresentationToken.page : frame.screen.presentation,

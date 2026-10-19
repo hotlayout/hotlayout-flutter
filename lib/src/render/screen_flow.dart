@@ -23,6 +23,7 @@ import 'host_callbacks.dart';
 import 'labels.dart';
 import 'modal_layer.dart';
 import 'motion.dart';
+import 'picture_policy.dart';
 import 'screen_transitions.dart';
 import 'screen_widget.dart';
 import 'tap_target.dart';
@@ -136,6 +137,9 @@ class ScreenFlow extends StatefulWidget {
     this.scopeFor,
     this.onWrite,
     this.autofill = true,
+    this.resolveImageUrl,
+    this.maxDownloadBytes = kDefaultMaxDownloadBytes,
+    this.writablePaths,
     this.labels = const RendererLabels(),
     this.controller,
     this.onSystemBack,
@@ -239,6 +243,18 @@ class ScreenFlow extends StatefulWidget {
   /// Whether the text fields give autofill hints to the platform. `false` —
   /// none at all; for documents from a source you do not fully trust.
   final bool autofill;
+
+  /// The host's decision about every picture address, `data:` included: returns the address to fetch or `null`
+  /// to refuse it. `null` (the default) keeps [defaultImageUrlPolicy]: `https` with a host name only.
+  final ImageUrlResolver? resolveImageUrl;
+
+  /// The most bytes of one picture body that is read; 10 MB by default.
+  final int maxDownloadBytes;
+
+  /// The data paths the document may write: a `bool Function(String path)` or an `Iterable<String>` of paths.
+  /// A write to any other path reaches neither the session nor [onWrite]. `null` (the default) allows every
+  /// well-formed path.
+  final Object? writablePaths;
 
   /// The renderer's own words (back arrow, image placeholder). English by
   /// default; see [RendererLabels].
@@ -773,6 +789,8 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
   /// The comparison before `setState` is not an optimisation: a repeated tap on an already
   /// selected option would otherwise rebuild the screen with no change.
   void _write(String path, Object value) {
+    // The host's allow-list comes first: a refused path is neither kept in the session nor handed over.
+    if (!isWritablePath(path, widget.writablePaths)) return;
     // The reader's session is a data layer: dependent conditions and texts of this screen change at
     // the same moment. The host gets the same value right after it, BEFORE any action pressed after
     // the change (`inputWrite`): the action sees what was typed.

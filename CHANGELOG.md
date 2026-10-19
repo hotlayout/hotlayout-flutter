@@ -1,3 +1,28 @@
+## 0.28.0
+
+Hardening release: the document, the theme and the data arrive from the network, and the package now treats all three as untrusted input. The contract version is unchanged (9.27.0). New parameters are optional; the changed defaults are listed first.
+
+**Changed defaults**
+
+- **A picture is fetched only from an `https` address whose host is a name** (a host with an alphabetic top-level label, the host form of `openUrl`). An IP address in any notation (`127.0.0.1`, `2130706433`, `0x7f000001`, `169.254.169.254`), an IPv6 address, a single-word host such as `localhost`, an address with user info and every other scheme draw the "image unavailable" placeholder and make no request. This covers pictures from the document and from your data, raster and SVG. `data:image/…` addresses are not network requests and still draw (see the size limit below). If your pictures live on an internal host, pass `resolveImageUrl`.
+- **A picture body is read up to 10 MB** (`maxDownloadBytes`). A larger `Content-Length` is refused before the body is read, and a body that does not declare its length is cut at the limit.
+- **A picture is decoded at the size of its box**, never above 4096 pixels on a side and never enlarged, so a small file that declares a huge size cannot allocate gigabytes of pixels.
+- **A picture request gives up after 30 seconds** and sends no cookies, no credentials and no headers. Redirects are followed by hand, at most three, and every target goes through the address policy again.
+- **A document or theme body is read up to 4 MiB** (four times the contract's 1 MiB budget) by `HttpDocumentTransport`. A larger answer is a `malformed` load with the bundled copy (`DocumentLoadStatus.malformed`, `ThemeLoadStatus.malformed`).
+- **Theme numbers are read within the bounds of the theme schema** (font size 8…96, line height 0.8…3, letter spacing −2…8, font weight 100…900, spacing 0…128, radius 0…256, shadow offset and spread −64…64, shadow blur 0…128, opacity and gradient position 0…1). A token with a number outside its bounds, or one that is not finite, is left out as if it were malformed, and the built-in value applies.
+- **`ThemeLoad.fromJson`, `parse` and `fromNetwork` never throw**: a body the reader cannot handle is a `malformed` load with the built-in theme.
+- **Nothing from your data is written to the log any more**: the SVG failure line (which used to carry the address, in release builds too) now names only the class of the failure (`HTTP 404`, `timeout`, `parse error`, …) and is printed in debug builds only; the debug notices about an unknown icon name and an unmatched choice no longer print the value.
+
+**New parameters** of `renderDocument`, `renderScreen` and `ScreenFlow`
+
+- `resolveImageUrl: String? Function(String url)`: your decision about every picture address, `data:` addresses included. Return the address to fetch (it may be rewritten) or `null` to refuse it. A policy that throws refuses. It is called again for every redirect target.
+- `maxDownloadBytes: int`: the most bytes of one picture body (default 10 000 000).
+- `writablePaths`: the data paths the document may write, as a `bool Function(String path)` or an `Iterable<String>`. A write to any other path (by a field or by `setValue` / `toggleValue`) reaches neither the renderer's session nor `onWrite`. Without it every well-formed path is allowed, as before.
+
+**Fixes**
+
+- A number that is infinite (`1e400` in JSON) in `maxLength`, `titleMaxLines`, `subtitleMaxLines`, a field radius or the size of a part no longer throws: an integer field takes a number only when it is finite and whole. The same guard covers the other places where a document number becomes an integer (filled steps of a segmented bar, the fill line of a bar with steps, the dashes of a dashed border).
+
 ## 0.27.0
 
 Reads document contract **9.27.0** (theme 4.0.1 and icon set 1.0.0 unchanged; data dictionary 1.7.0). Two minors in one release: 9.26.0 (a long press, a grouped list, a sheet that closes by a drag) and 9.27.0 (the record of a page follows the data). A document without the new fields is drawn exactly as by 0.26.1, except that a modal sheet now follows the finger down (see below).

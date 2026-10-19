@@ -2,8 +2,6 @@
 /// leaves its token out and never throws.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -31,8 +29,8 @@ RenderTheme readRenderTheme(Object? raw) {
     // of a newer minor version or of a hand-made theme does not validate, and node defaults rely
     // on the NAME: a theme with `none = 16` would change a screen where the author asked for "no
     // spacing".
-    spacing: _zeroNone(_byName(json['spacing'], 'spacing', _length)),
-    radii: _zeroNone(_byName(json['radius'], 'radius', _length)),
+    spacing: _zeroNone(_byName(json['spacing'], 'spacing', (raw) => _length(raw, _kMaxSpacing))),
+    radii: _zeroNone(_byName(json['radius'], 'radius', (raw) => _length(raw, _kMaxRadius))),
     typography: _typography(json['typography'], body: bodyFont, heading: headingFont),
     elevations: _noShadowForNone(_byName(json['elevation'], 'elevation', _shadows)),
     // The group is called `gradient`, singular, as in the theme contract, next to
@@ -159,12 +157,20 @@ ThemeRole? _role(Object? raw) {
 
 double? _number(Object? raw) => raw is num ? raw.toDouble() : null;
 
-/// A scale length (spacing, radius). A negative one is a corrupt value: the schema does not allow
-/// it, and `Padding` in Flutter fails on it.
-double? _length(Object? raw) {
+// The bounds of `x-schema` for every number of a theme. A value outside them (or not finite) is a corrupt
+// value: it never reaches a `TextStyle`, a padding or a constraint, where infinity or a huge number breaks layout.
+const double _kMaxSpacing = 128;
+const double _kMaxRadius = 256;
+
+/// A number inside `[min, max]`, or `null` for anything else: not a number, NaN, infinity, out of the bounds.
+double? _bounded(Object? raw, double min, double max) {
   final value = _number(raw);
-  return value == null || value < 0 ? null : value;
+  return value == null || !value.isFinite || value < min || value > max ? null : value;
 }
+
+/// A scale length (spacing, radius), 0…[max]. A negative one is a corrupt value: the schema does not allow
+/// it, and `Padding` in Flutter fails on it.
+double? _length(Object? raw, double max) => _bounded(raw, 0, max);
 
 /// `#rrggbb` or `#rrggbbaa` to a colour. The format is strict, as it is in `x-schema`.
 ///
@@ -225,8 +231,16 @@ Map<String, TextStyle> _typography(
 }) =>
     _byName<TextStyle>(raw, 'typography', (item) {
       if (item is! Map) return null;
-      final fontSize = _number(item['fontSize']);
+      final fontSize = _bounded(item['fontSize'], 8, 96);
       if (fontSize == null) return null;
+      // An optional number that is present but out of its bounds makes the whole style corrupt: the token is
+      // dropped and the built-in value applies, rather than a style the theme never described.
+      final lineHeight = item['lineHeight'] == null ? null : _bounded(item['lineHeight'], 0.8, 3);
+      if (item['lineHeight'] != null && lineHeight == null) return null;
+      final letterSpacing = item['letterSpacing'] == null ? 0.0 : _bounded(item['letterSpacing'], -2, 8);
+      if (letterSpacing == null) return null;
+      final fontWeight = item['fontWeight'] == null ? null : themeFontWeight(item['fontWeight']);
+      if (item['fontWeight'] != null && fontWeight == null) return null;
       final family = item['role'] == 'heading' ? heading : body;
       return TextStyle(
         fontFamily: family?.primary,
@@ -235,8 +249,8 @@ Map<String, TextStyle> _typography(
         // `lineHeight` in the contract is a MULTIPLIER of `fontSize`; `TextStyle.height` in
         // Flutter is also a multiplier, so the value maps one to one. The match is lucky, not
         // guaranteed: the contract does not name the unit.
-        height: _number(item['lineHeight']),
-        fontWeight: themeFontWeight(item['fontWeight']),
+        height: lineHeight,
+        fontWeight: fontWeight,
         // The unit is LOGICAL PIXELS, so the value maps to `TextStyle.letterSpacing` one to one,
         // with no multiplication by the font size. The contract names the unit explicitly
         // (`lengthUnit: 'logical-pixels'`), unlike `lineHeight`, where the match was only lucky.
@@ -246,7 +260,7 @@ Map<String, TextStyle> _typography(
         // default Material letter spacing (0.25 dp per character in `bodyMedium`), which the
         // theme never named. A thirty-character line would be 7.5 dp wider than in the builder
         // and would wrap where the builder did not.
-        letterSpacing: _number(item['letterSpacing']) ?? 0,
+        letterSpacing: letterSpacing,
       );
     })..updateAll((token, style) {
       final features = _platformFontFeatures[token];
@@ -254,9 +268,9 @@ Map<String, TextStyle> _typography(
     });
 
 /// A numeric weight 100..900 to [FontWeight]. Intermediate values (e.g. 450 from a variable font)
-/// are rounded to the nearest hundred: Flutter's `FontWeight` is discrete.
+/// are rounded to the nearest hundred: Flutter's `FontWeight` is discrete. Not finite, or outside 100..900, is `null`.
 FontWeight? themeFontWeight(Object? raw) {
-  if (raw is! num) return null;
+  if (raw is! num || !raw.isFinite || raw < 100 || raw > 900) return null;
   final step = (raw / 100).round().clamp(1, 9);
   return FontWeight.values[step - 1];
 }
@@ -288,7 +302,7 @@ LinearGradient? _gradient(Object? raw) {
   for (final item in rawStops) {
     if (item is! Map) continue;
     final color = _color(item['color']);
-    final position = _number(item['position']);
+    final position = _bounded(item['position'], 0, 1);
     if (color == null || position == null) continue;
     // The contract guarantees ascending positions; if the guarantee is broken there is no
     // gradient at all, not "a gradient, but a different one". Equal positions are ORDERED
@@ -341,8 +355,13 @@ List<BoxShadow>? _shadows(Object? raw) {
   for (final item in raw) {
     if (item is! Map) continue;
     final color = _opaqueColor(item['color']);
-    final opacity = _number(item['opacity']);
-    if (color == null || opacity == null) continue;
+    final opacity = _bounded(item['opacity'], 0, 1);
+    final offsetX = item['offsetX'] == null ? 0.0 : _bounded(item['offsetX'], -64, 64);
+    final offsetY = item['offsetY'] == null ? 0.0 : _bounded(item['offsetY'], -64, 64);
+    final blur = item['blur'] == null ? 0.0 : _bounded(item['blur'], 0, 128);
+    final spread = item['spread'] == null ? 0.0 : _bounded(item['spread'], -64, 64);
+    // A layer with a corrupt number is left out whole.
+    if (color == null || opacity == null || offsetX == null || offsetY == null || blur == null || spread == null) continue;
     shadows.add(
       BoxShadow(
         color: Color.fromARGB(
@@ -351,10 +370,9 @@ List<BoxShadow>? _shadows(Object? raw) {
           (color.g * 255).round(),
           (color.b * 255).round(),
         ),
-        offset: Offset(_number(item['offsetX']) ?? 0, _number(item['offsetY']) ?? 0),
-        // A negative blur is an assert in Flutter; the schema does not allow it.
-        blurRadius: math.max(0, _number(item['blur']) ?? 0),
-        spreadRadius: _number(item['spread']) ?? 0,
+        offset: Offset(offsetX, offsetY),
+        blurRadius: blur,
+        spreadRadius: spread,
       ),
     );
   }

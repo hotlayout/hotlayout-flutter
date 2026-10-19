@@ -11,6 +11,7 @@ import 'package:hotlayout_flutter/src/model/ui_document.dart';
 import 'package:hotlayout_flutter/src/model/tokens.dart';
 
 import 'support/fixtures.dart';
+import 'support/pictures.dart';
 
 UiDocument _docWithImage(Map<String, Object?> source) => docWith([
   {
@@ -48,8 +49,8 @@ void main() {
       await pumpDocument(tester, _docWithImage({'kind': 'url', 'url': 'https://cdn.example.com/a.png'}));
 
       final image = tester.widget<Image>(find.byType(Image));
-      expect(image.image, isA<NetworkImage>());
-      expect((image.image as NetworkImage).url, 'https://cdn.example.com/a.png');
+      expect(image.image, isA<ResizeImage>());
+      expect(pictureUrlOf(image.image), 'https://cdn.example.com/a.png');
     });
 
     test('kind=binding parses into the third union branch', () {
@@ -74,7 +75,7 @@ void main() {
       );
 
       final image = tester.widget<Image>(find.byType(Image));
-      expect((image.image as NetworkImage).url, 'https://cdn.example.com/dji.png');
+      expect(pictureUrlOf(image.image), 'https://cdn.example.com/dji.png');
     });
 
     testWidgets('a binding without data paints the fallback placeholder', (tester) async {
@@ -117,7 +118,7 @@ void main() {
       );
 
       final image = tester.widget<Image>(find.byType(Image));
-      expect((image.image as NetworkImage).url, 'https://cdn.example.com/dji.png');
+      expect(pictureUrlOf(image.image), 'https://cdn.example.com/dji.png');
     });
 
     test('the renderer knows EXACTLY the branches that are in the artifact', () {

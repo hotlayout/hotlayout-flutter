@@ -24,6 +24,7 @@ import 'choice_scope.dart';
 import 'host_callbacks.dart';
 import 'inputs.dart';
 import 'labels.dart';
+import 'picture_policy.dart';
 import 'render_scope.dart';
 import 'screen_form.dart';
 import 'widgets/app_bar.dart';
@@ -53,6 +54,7 @@ class NodeRenderer {
     required this.now,
     this.onAction,
     this.onWrite,
+    this.pictures = const PicturePolicy(),
     this.choice,
     this.inherited,
     this.insideListItem = false,
@@ -124,6 +126,9 @@ class NodeRenderer {
   /// Where to write what the user changed in a bound field.
   final SduiValueWrite? onWrite;
 
+  /// The host's rules for pictures: the address policy and the body cap.
+  final PicturePolicy pictures;
+
   /// The selection of the group we are painting inside, or `null` for "no group".
   ///
   /// This is neither a node prop nor a document field but a render CONTEXT: a `ChoiceGroup` holds
@@ -159,6 +164,7 @@ class NodeRenderer {
     now: now,
     onAction: onAction,
     onWrite: onWrite,
+    pictures: pictures,
     choice: choice ?? this.choice,
     inherited: inherited ?? this.inherited,
     insideListItem: insideListItem ?? this.insideListItem,

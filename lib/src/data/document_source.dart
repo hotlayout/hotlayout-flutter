@@ -26,6 +26,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show AssetBundle, rootBundle;
@@ -62,6 +63,26 @@ abstract interface class DocumentTransport {
 ///
 /// Sends no custom request headers, so a web build makes a "simple" request
 /// without a CORS preflight.
+/// The budget of a document body (`x-budget.maxDocumentBytes` of the schema artifact): 1 MiB. The producer
+/// enforces it; the reader reads at most [kMaxBodyBytes] anyway.
+const int kMaxDocumentBytes = 1 << 20;
+
+/// The size the transport stops at: four times the budget. A body of that size or more is not a document,
+/// and reading it to the end would only fill the memory of the app.
+const int kMaxBodyBytes = 4 * kMaxDocumentBytes;
+
+/// A response body larger than the transport reads ([kMaxBodyBytes]). [PublishedDocumentSource] and
+/// `ThemeLoad.fromNetwork` report it as a malformed answer.
+final class DocumentTooLargeException implements Exception {
+  const DocumentTooLargeException(this.limit);
+
+  /// The cap that was exceeded, in bytes.
+  final int limit;
+
+  @override
+  String toString() => 'the body is larger than $limit bytes';
+}
+
 final class HttpDocumentTransport implements DocumentTransport {
   /// Uses [client], or a new `http.Client` when omitted.
   HttpDocumentTransport({http.Client? client}) : _client = client ?? http.Client();
@@ -82,11 +103,38 @@ final class HttpDocumentTransport implements DocumentTransport {
      * Cache bypass does not need the header: `_withCacheBuster` adds a unique query parameter to
      * the address.
      */
-    final response = await _client.get(url);
-    // `bodyBytes` + `utf8`, not `response.body`: without a charset in `Content-Type`, `http`
-    // decodes the body as latin1 and non-ASCII text in the document turns to garbage. A document
-    // is always UTF-8, as `x-budget.measure: 'utf8-bytes-of-serialized-json'` states.
-    return (statusCode: response.statusCode, body: utf8.decode(response.bodyBytes));
+    final response = await _client.send(http.Request('GET', url));
+    // A declared length above the cap is refused before a byte of the body is read; an undeclared or
+    // understated one is counted as the stream arrives and cut at the cap.
+    final declared = response.contentLength;
+    if (declared != null && declared >= kMaxBodyBytes) {
+      unawaited(response.stream.listen(null).cancel());
+      throw const DocumentTooLargeException(kMaxBodyBytes);
+    }
+    final bytes = BytesBuilder(copy: false);
+    final done = Completer<void>();
+    late final StreamSubscription<List<int>> subscription;
+    subscription = response.stream.listen(
+      (chunk) {
+        bytes.add(chunk);
+        if (bytes.length >= kMaxBodyBytes && !done.isCompleted) {
+          unawaited(subscription.cancel());
+          done.completeError(const DocumentTooLargeException(kMaxBodyBytes));
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!done.isCompleted) done.completeError(error, stack);
+      },
+      onDone: () {
+        if (!done.isCompleted) done.complete();
+      },
+      cancelOnError: true,
+    );
+    await done.future;
+    // `utf8`, not `response.body`: without a charset in `Content-Type`, `http` decodes the body as latin1 and
+    // non-ASCII text in the document turns to garbage. A document is always UTF-8, as
+    // `x-budget.measure: 'utf8-bytes-of-serialized-json'` states.
+    return (statusCode: response.statusCode, body: utf8.decode(bytes.takeBytes()));
   }
 }
 
@@ -325,6 +373,8 @@ final class PublishedDocumentSource implements DocumentSource {
       response = await transport.fetch(target).timeout(timeout);
     } on TimeoutException {
       return _fallback(DocumentLoadStatus.timedOut, 'no answer within ${_human(timeout)}');
+    } on DocumentTooLargeException catch (error) {
+      return _fallback(DocumentLoadStatus.malformed, 'the answer is not a document: $error');
     } on Object catch (error) {
       return _fallback(DocumentLoadStatus.unreachable, 'the request did not happen: $error');
     }

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 
-import '../data/document_source.dart' show DocumentResponse, DocumentTransport;
+import '../data/document_source.dart' show DocumentResponse, DocumentTooLargeException, DocumentTransport;
 
 import '../model/compatibility.dart';
 import '../model/style_values.dart' show isForbiddenKey;
@@ -371,6 +371,8 @@ final class ThemeLoad {
     DocumentResponse response;
     try {
       response = await transport.fetch(url).timeout(timeout);
+    } on DocumentTooLargeException catch (error) {
+      return _fallback(ThemeLoadStatus.malformed, '$url: the answer is not a theme: $error');
     } on Object catch (error) {
       return fallbackToBundle('$url did not answer: $error');
     }
@@ -399,12 +401,25 @@ final class ThemeLoad {
       raw = jsonDecode(source);
     } on FormatException catch (error) {
       return _fallback(ThemeLoadStatus.malformed, 'not JSON: ${error.message}');
+    } on Object catch (error) {
+      return _fallback(ThemeLoadStatus.malformed, 'the body could not be decoded: ${error.runtimeType}');
     }
     return fromJson(raw);
   }
 
   /// Reads a theme contract from decoded JSON.
+  ///
+  /// Never throws: whatever is in [raw], the result is a [ThemeLoad]. A body the reader cannot handle is
+  /// `malformed` with the built-in theme, so a hostile theme cannot become an exception in the host.
   static ThemeLoad fromJson(Object? raw) {
+    try {
+      return _read(raw);
+    } on Object catch (error) {
+      return _fallback(ThemeLoadStatus.malformed, 'the theme contract could not be read: ${error.runtimeType}');
+    }
+  }
+
+  static ThemeLoad _read(Object? raw) {
     if (raw is! Map) {
       return _fallback(ThemeLoadStatus.malformed, 'the theme contract is not a JSON object');
     }

@@ -4,8 +4,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:http/http.dart' as http;
 import 'package:vector_graphics_compiler/vector_graphics_compiler.dart' as vgc;
+
+import 'picture_fetch.dart';
+import 'picture_policy.dart';
 
 /// Whether the address points to an SVG.
 ///
@@ -59,12 +61,16 @@ class NetworkSvg extends StatefulWidget {
     super.key,
     required this.url,
     required this.fit,
+    this.policy = const PicturePolicy(),
     required this.loading,
     required this.error,
   });
 
   final String url;
   final BoxFit fit;
+
+  /// The host's rules: the body cap and the address policy that every redirect passes again.
+  final PicturePolicy policy;
 
   /// What to show while the file is on its way, and what when it did not arrive or did not
   /// parse. They come from outside because the placeholders are shared with the raster path:
@@ -89,7 +95,25 @@ class _NetworkSvgState extends State<NetworkSvg> {
   @override
   void didUpdateWidget(NetworkSvg oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) _load();
+    if (oldWidget.url != widget.url) {
+      _release();
+      _load();
+    }
+  }
+
+  /// The address this widget is waiting for, so that a request nobody waits for is stopped.
+  String? _waitingFor;
+
+  void _release() {
+    final url = _waitingFor;
+    _waitingFor = null;
+    if (url != null) _SvgStore.instance.release(url);
+  }
+
+  @override
+  void dispose() {
+    _release();
+    super.dispose();
   }
 
   void _load() {
@@ -100,10 +124,12 @@ class _NetworkSvgState extends State<NetworkSvg> {
     _failed = false;
     if (_bytes != null) return;
 
+    _waitingFor = url;
     _SvgStore.instance
-        .load(url)
+        .load(url, widget.policy)
         .then(
           (bytes) {
+            if (_waitingFor == url) _waitingFor = null;
             // The address may have changed while the file was on its way (new data under the binding).
             if (!mounted || widget.url != url) return;
             setState(() => _bytes = bytes);
@@ -111,7 +137,14 @@ class _NetworkSvgState extends State<NetworkSvg> {
           // `Object`, not `Exception`: parsing SVG also throws `StateError`, and the widget tree must
           // not fall over because of the content of someone else's file.
           onError: (Object error, StackTrace stack) {
-            debugPrint('[hotlayout] SVG not drawn ($url): $error');
+            // The class of the failure only: the address may carry a token or a user id, and the text of
+            // the error repeats it. Nothing is logged in a release build.
+            if (_waitingFor == url) _waitingFor = null;
+            if (kDebugMode) {
+              debugPrint(
+                '[hotlayout] SVG not drawn: ${error is PictureFetchException ? error.reason : 'parse error'}',
+              );
+            }
             if (!mounted || widget.url != url) return;
             setState(() => _failed = true);
           },
@@ -189,7 +222,29 @@ final class _SvgStore {
     return bytes;
   }
 
-  Future<ByteData> load(String url) => _pending[url] ??= _fetch(url)
+  final Map<String, PictureCancel> _cancels = {};
+  final Map<String, int> _waiters = {};
+
+  /// One widget stopped waiting for [url]. When the last one did, the request is stopped: nobody needs the file,
+  /// and its connection and timer would only live on.
+  void release(String url) {
+    final left = (_waiters[url] ?? 0) - 1;
+    if (left > 0) {
+      _waiters[url] = left;
+    } else {
+      _waiters.remove(url);
+      _cancels.remove(url)?.cancel();
+    }
+  }
+
+  Future<ByteData> load(String url, PicturePolicy policy) {
+    _waiters[url] = (_waiters[url] ?? 0) + 1;
+    return _pending[url] ??= _start(url, policy);
+  }
+
+  Future<ByteData> _start(String url, PicturePolicy policy) {
+    final cancel = _cancels[url] = PictureCancel();
+    return _fetch(url, policy, cancel)
       .then((bytes) {
         _loaded[url] = bytes;
         if (_loaded.length > _capacity) _loaded.remove(_loaded.keys.first);
@@ -199,33 +254,26 @@ final class _SvgStore {
       })
       .whenComplete(() {
         _pending.remove(url);
+        _cancels.remove(url);
+        _waiters.remove(url);
       });
+  }
 
   void clear() {
     _loaded.clear();
     _pending.clear();
+    _cancels.clear();
+    _waiters.clear();
   }
 
-  static Future<ByteData> _fetch(String url) async {
-    // A client per request, not a shared one: that way it honours the `HttpOverrides` in effect
-    // when the request is made, which is how tests replace the network.
-    final client = http.Client();
-    try {
-      final response = await client.get(Uri.parse(url));
-      if (response.statusCode != 200) {
-        throw http.ClientException(
-          'HTTP ${response.statusCode}',
-          Uri.parse(url),
-        );
-      }
-      // `allowMalformed`: broken bytes must reach the XML parser and become a format error there,
-      // not an encoding exception with different text.
-      final xml = utf8.decode(response.bodyBytes, allowMalformed: true);
-      final compiled = await _compile(xml);
-      return ByteData.sublistView(compiled);
-    } finally {
-      client.close();
-    }
+  static Future<ByteData> _fetch(String url, PicturePolicy policy, PictureCancel cancel) async {
+    // The picture loader: its own client, a capped body, redirects checked by the host's policy.
+    final body = await fetchPictureBytes(Uri.parse(url), approve: policy.approve, maxBytes: policy.maxDownloadBytes, cancel: cancel);
+    // `allowMalformed`: broken bytes must reach the XML parser and become a format error there,
+    // not an encoding exception with different text.
+    final xml = utf8.decode(body, allowMalformed: true);
+    final compiled = await _compile(xml);
+    return ByteData.sublistView(compiled);
   }
 
   /// Parses the SVG off the main thread where possible.

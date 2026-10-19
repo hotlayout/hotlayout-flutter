@@ -67,7 +67,7 @@ void main() {
       }
     });
 
-    test('network requests are made only by the document transport and the SVG loader', () {
+    test('network requests are made only by the document transport and the picture loader', () {
       final fetchers = <String>{};
       for (final file in _libFiles()) {
         final code = _code(file.readAsStringSync());
@@ -77,8 +77,8 @@ void main() {
       }
       expect(fetchers, {
         'lib/src/data/document_source.dart',
-        'lib/src/render/svg_image.dart',
-        'lib/src/render/widgets/image.dart',
+        'lib/src/render/picture_fetch_io.dart',
+        'lib/src/render/picture_fetch_web.dart',
       });
     });
   });

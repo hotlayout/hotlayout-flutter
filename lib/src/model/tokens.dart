@@ -238,7 +238,8 @@ final class IconToken implements WireToken {
     if (kDebugMode) {
       debugPrint(
         raw is String
-            ? '[hotlayout] unknown icon "$raw": empty box of the same size'
+            // The name may come from the host's data (`iconPath`), so it is not logged.
+            ? '[hotlayout] an icon name this reader does not know: empty box of the same size'
             : '[hotlayout] icon value is not a name (${raw.runtimeType}): empty box of the same size',
       );
     }

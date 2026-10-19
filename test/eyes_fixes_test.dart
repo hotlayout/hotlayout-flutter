@@ -383,8 +383,8 @@ void main() {
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAHnOcQAAAAABJRU5ErkJggg==';
       await pumpDocument(tester, docWith([image('data:image/png;base64,$png')]));
       final widget = tester.widget<Image>(find.byType(Image));
-      expect(widget.image, isA<MemoryImage>());
-      expect((widget.image as MemoryImage).bytes, base64.decode(png));
+      expect(widget.image, isA<ResizeImage>());
+      expect(((widget.image as ResizeImage).imageProvider as MemoryImage).bytes, base64.decode(png));
     });
 
     testWidgets('an unusable data: address is a broken image, not an exception', (tester) async {
