@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:hotlayout_flutter/src/data/document_source.dart';
 import 'collection_source.dart';
 import 'sample_data.dart';
+import 'showcase.dart';
 import 'package:hotlayout_flutter/src/data/screen_data.dart';
 import 'package:hotlayout_flutter/src/model/action.dart';
 import 'package:hotlayout_flutter/src/model/localization.dart';
@@ -135,7 +136,7 @@ const String kThemeContractAsset = 'assets/contract/theme.json';
 BundledDocumentSource fixtureSource(String id, {String? title, AssetBundle? bundle}) =>
     BundledDocumentSource(
       title: title ?? id,
-      assetPath: 'assets/contract/fixtures/$id.json',
+      assetPath: showcaseById(id)?.documentAsset ?? 'assets/contract/fixtures/$id.json',
       bundle: bundle,
     );
 
@@ -145,12 +146,18 @@ BundledDocumentSource fixtureSource(String id, {String? title, AssetBundle? bund
 /// Mirrors the builder's fixture-theme table; the files live one level
 /// below the documents, in `fixtures/themes/`.
 const Map<String, String> kFixtureThemeAssets = {
+  'obsidian': 'assets/showcase/obsidian/theme.json',
+  'sunny': 'assets/showcase/sunny/theme.json',
+  'orbit': 'assets/showcase/orbit/theme.json',
   'rewards-showcase-screens': 'assets/contract/fixtures/themes/rewards-showcase-theme.json',
 };
 
 /// Fixtures in assets. They stay after the network was added: they are the fallback
 /// source for the presentation and a set of "how does this look" examples.
-const List<({String id, String title})> kFixtures = [
+final List<({String id, String title})> kFixtures = [
+  // The three showcase apps, drawn from the same documents as the web package draws on the
+  // product site (`showcase.dart`). Obsidian is the default.
+  for (final app in kShowcaseApps) (id: app.id, title: app.title),
   (id: 'reward-catalog-screens', title: 'Reward catalog'),
   (id: 'minimal-screen', title: 'Minimal'),
   (id: 'task-progress-screen', title: 'Task progress'),
@@ -263,8 +270,14 @@ final DateTime _sampleNow = DateTime.parse(kSampleNow);
 /// what is visible at startup.
 const String kStartFixture = String.fromEnvironment(
   'fixture',
-  defaultValue: 'reward-catalog-screens',
+  defaultValue: 'obsidian',
 );
+
+/// Scenario of the Orbit sample data (`--dart-define=scenario=newMember|afterPayment`).
+const String kStartScenario = String.fromEnvironment('scenario', defaultValue: 'default');
+
+/// Tab of Orbit's missions screen (`--dart-define=tab=active|new|done`); empty keeps the data's own.
+const String kStartTab = String.fromEnvironment('tab');
 
 /// Address of the published document in the storage named by [kStorageBase].
 ///
@@ -534,6 +547,18 @@ class _DocumentHostState extends State<DocumentHost> with WidgetsBindingObserver
   /// with numbers from the document.
   CollectionCatalog _records = CollectionCatalog.empty;
 
+  /// The showcase app on screen (`showcase.dart`), or `null` for any other source. A showcase is
+  /// drawn edge to edge with the host's data for it: the reader adds the system insets itself.
+  ShowcaseApp? get _showcase => _source is BundledDocumentSource
+      ? showcaseByDocumentAsset((_source as BundledDocumentSource).assetPath)
+      : null;
+
+  final GlobalKey _scaffoldKey = GlobalKey(debugLabel: 'demo-scaffold');
+
+  /// What the host answers for [_showcase]; read before the document is put on screen.
+  ShowcaseData? _showcaseData;
+  String? _showcaseOf;
+
   /// Language chosen BY HAND in the service panel, or `null` for "as on the device".
   ///
   /// Same fork as for the theme (a manual choice beats auto), for the same
@@ -605,6 +630,15 @@ class _DocumentHostState extends State<DocumentHost> with WidgetsBindingObserver
   Future<void> _activate(DocumentSource source, {bool announce = false}) async {
     final request = ++_request;
     if (!identical(source, _source)) setState(() => _source = source);
+    final showcase = _showcase;
+    if (showcase != null && _showcaseData == null || showcase != null && _showcaseOf != showcase.id) {
+      final data = await ShowcaseData.load(showcase);
+      if (!mounted || request != _request) return;
+      setState(() {
+        _showcaseData = data;
+        _showcaseOf = showcase.id;
+      });
+    }
 
     // While the network thinks, the screen shows the bundled copy, not emptiness or an
     // indicator. Only on an empty screen: during a refresh what is shown is
@@ -715,7 +749,8 @@ class _DocumentHostState extends State<DocumentHost> with WidgetsBindingObserver
   Widget build(BuildContext context) {
     final insets = MediaQuery.paddingOf(context);
     final doc = _load?.document;
-    final scaffold = Scaffold(
+    final showcase = _showcase;
+    final scaffold = showcase != null ? _showcaseScaffold(doc) : Scaffold(
       backgroundColor: widget.theme.color(ColorToken.surface),
       body: Stack(
         children: [
@@ -767,8 +802,37 @@ class _DocumentHostState extends State<DocumentHost> with WidgetsBindingObserver
       'dark' => SystemUiOverlayStyle.dark,
       _ => null,
     };
-    if (icons == null) return scaffold;
-    return AnnotatedRegion<SystemUiOverlayStyle>(value: icons, child: scaffold);
+    // The key keeps the screen flow alive when the wrapper appears or goes: without it a screen
+    // that asks for status bar icons would remount the whole flow and send it back to the first screen.
+    final keyed = KeyedSubtree(key: _scaffoldKey, child: scaffold);
+    if (icons == null) return keyed;
+    return AnnotatedRegion<SystemUiOverlayStyle>(value: icons, child: keyed);
+  }
+
+  /// A showcase app: the document fills the window, the reader adds the status bar and
+  /// home-indicator insets itself and paints the app bar's background under the status bar.
+  Widget _showcaseScaffold(UiDocument? doc) {
+    final insets = MediaQuery.paddingOf(context);
+    return Scaffold(
+      backgroundColor: widget.theme.color(ColorToken.surface),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              key: const ValueKey('demo-screen-backdrop'),
+              decoration: _screenDecoration(doc),
+            ),
+          ),
+          Positioned.fill(child: _body(doc)),
+          _ServiceCorner(
+            height: insets.top,
+            onOpen: () => _openServicePanel(context),
+            onRefresh: () => _refresh(announce: true),
+            fallback: _load?.isFallback ?? false,
+          ),
+        ],
+      ),
+    );
   }
 
   /// Document the presentation starts from: with `--dart-define=screen=<screenId>` - the same document
@@ -810,17 +874,29 @@ class _DocumentHostState extends State<DocumentHost> with WidgetsBindingObserver
     // network never answers, which is exactly the "endless animation" a
     // presentation must not have.
     if (doc == null) return const SizedBox.expand();
+    final showcase = _showcase;
+    final answers = _showcaseData;
+    if (showcase != null && answers == null) return const SizedBox.expand();
+    final Map<String, Object?> data = answers == null
+        ? _demoData
+        : {
+            ...answers.forLocale(_locale, scenario: kStartScenario),
+            if (kStartTab.isNotEmpty) 'ui.missionsTab': kStartTab,
+          };
 
     return renderDocument(
       _startedAt(doc),
       theme: widget.theme,
-      data: _demoData,
+      data: data,
+      // A showcase draws pictures from the product site only (its own addresses, or ones relative
+      // to it); every other source keeps the package's default rule.
+      resolveImageUrl: showcase == null ? null : showcaseImageUrl,
       locale: _locale,
       // The DEMO CLOCK is the moment the samples are imagined at (`x-sampleNow`), not
       // the machine clock: the data here is sample data, and "52 days left" must
       // stay 52 today, in a month and next to the builder canvas.
       // A real app does not pass this parameter.
-      now: _sampleNow,
+      now: answers?.now ?? _sampleNow,
       // Screen entry: the renderer asks what the transition parameters mean, and the host
       // answers from the catalog. The closure is over the FIELD, not a snapshot:
       // the catalog arrives later than the first frame, and `setState` must repaint the already

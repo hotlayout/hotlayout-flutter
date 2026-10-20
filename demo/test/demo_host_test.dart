@@ -24,7 +24,7 @@ void main() {
     tester.view.padding = const FakeViewPadding(top: 177, bottom: 102);
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(HotlayoutDemoApp(themeLoad: await ThemeLoad.fromBundle(assetPath: kThemeContractAsset)));
+    await tester.pumpWidget(HotlayoutDemoApp(themeLoad: await ThemeLoad.fromBundle(assetPath: kThemeContractAsset), sources: [fixtureSource('reward-catalog-screens')]));
     await tester.pumpAndSettle();
 
     final documentTop = tester.getTopLeft(find.text('Rewards')).dy;

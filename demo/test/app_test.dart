@@ -6,8 +6,12 @@ import 'package:hotlayout_flutter/src/theme/theme_contract.dart';
 import 'package:hotlayout_flutter/src/render/icon_glyph.dart';
 
 void main() {
-  testWidgets('the demo shows exactly the document and works as in a presentation', (tester) async {
-    final themeLoad = await ThemeLoad.fromBundle(assetPath: kThemeContractAsset);
+  testWidgets('the demo shows exactly the document and works as in a presentation', (
+    tester,
+  ) async {
+    final themeLoad = await ThemeLoad.fromBundle(
+      assetPath: kThemeContractAsset,
+    );
     // The app takes its theme from the artifact, not from a hard-coded fallback: if
     // contract sync was forgotten, it shows up here and not in front of the user.
     expect(themeLoad.status, ThemeLoadStatus.ok, reason: themeLoad.detail);
@@ -17,7 +21,18 @@ void main() {
     // through the FALLBACK path - and what is visible must be exactly the same as
     // when the document arrived over the network. A network with predictable
     // responses is covered by `document_source_test.dart`.
-    await tester.pumpWidget(HotlayoutDemoApp(themeLoad: themeLoad));
+    await tester.pumpWidget(
+      HotlayoutDemoApp(
+        themeLoad: themeLoad,
+        sources: [
+          fixtureSource('reward-catalog-screens', title: 'Reward catalog'),
+          for (final fixture in kFixtures.where(
+            (fixture) => fixture.id != 'reward-catalog-screens',
+          ))
+            fixtureSource(fixture.id, title: fixture.title),
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
 
     Set<String> selected() => tester
@@ -27,8 +42,16 @@ void main() {
         .toSet();
 
     // --- there is nothing from the app on screen
-    expect(find.byType(AppBar), findsNothing, reason: 'an own app bar would duplicate the document AppBar');
-    expect(find.byType(ChoiceChip), findsNothing, reason: 'a chip strip is scaffolding, not product');
+    expect(
+      find.byType(AppBar),
+      findsNothing,
+      reason: 'an own app bar would duplicate the document AppBar',
+    );
+    expect(
+      find.byType(ChoiceChip),
+      findsNothing,
+      reason: 'a chip strip is scaffolding, not product',
+    );
     // The title is drawn by the document ITSELF, and there is exactly one.
     expect(find.text('Rewards'), findsOneWidget);
     expect(find.text('Autumn rewards'), findsOneWidget);
@@ -81,7 +104,11 @@ void main() {
     // There are more sources in the panel than fit in the sheet (network + six
     // fixtures), so one has to scroll to the bundled ones. Scrolling is a property of
     // the sheet, not of the test: it is the same on a phone.
-    await tester.scrollUntilVisible(find.text('Minimal'), 80, scrollable: find.byType(Scrollable).last);
+    await tester.scrollUntilVisible(
+      find.text('Minimal'),
+      80,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Minimal'));
     await tester.pumpAndSettle();

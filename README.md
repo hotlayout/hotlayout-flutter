@@ -977,6 +977,7 @@ If you update from an older version of the package, these are the places where t
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
 | 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
+| 0.31.0 | A shadow under a background that lets light through (a translucent colour or gradient, or glass) is painted only outside the box, as a CSS `box-shadow` is; before, it showed through the box. |
 
 ## Platform notes
 
@@ -1030,6 +1031,8 @@ flutter:
 ```
 
 The demo's files are the Inter variable fonts from the Google Fonts download (SIL OFL 1.1, copyright The Inter Project Authors); `demo/assets/fonts/OFL.txt` is the licence text that came with them.
+
+The showcase apps also bundle the Geist and Manrope variable fonts (SIL OFL 1.1; `demo/assets/fonts/OFL-Geist.txt`, `OFL-Manrope.txt`).
 
 Which family a theme asks for is in `fontFamilies.*.primary` of the theme file (the built-in themes: `Inter`). A family you did not ship falls back to the platform font, and a web build then shows a different font from the browser renderer — the first thing to check when the two do not match.
 
@@ -1658,7 +1661,15 @@ A document that relies on this on a package older than 0.17.0 shows the bar at t
 
 ## Demo
 
-[`demo/`](demo/) is an app of its own (in the repository, not part of the published package) that draws any contract fixture. Run it from `demo/`:
+[`demo/`](demo/) is an app of its own (in the repository, not part of the published package) that draws the three showcase apps — **Obsidian** (the default), **Sunny** and **Orbit**, the same documents the web package draws on the product site — and any contract fixture. Run it from `demo/`:
+
+```bash
+flutter run -d <device>                                  # Obsidian
+flutter run -d <device> --dart-define=fixture=sunny
+flutter run -d <device> --dart-define=fixture=orbit --dart-define=scenario=newMember
+```
+
+The showcase pictures are fetched from `https://hotlayout.com` (the demo host's `resolveImageUrl` allows that one site; the package default is untouched). The fonts the showcase themes name (Geist, Manrope, Inter) are bundled with the demo. Any fixture:
 
 ```bash
 # macOS (or any device): a fixture, from the bundled assets
@@ -1671,7 +1682,8 @@ python3 -m http.server -d build 8099        # → http://localhost:8099/adaptive
 
 | `--dart-define` | meaning |
 |---|---|
-| `fixture=<id>` | the fixture to draw (`assets/contract/fixtures/<id>.json`); default `reward-catalog-screens` |
+| `fixture=<id>` | the fixture to draw (`assets/contract/fixtures/<id>.json`); `obsidian`, `sunny` or `orbit` (the showcase apps, `demo/assets/showcase/`), or a contract fixture; default `obsidian` |
+| `scenario=<name>` | Orbit's sample data: `default`, `newMember`, `afterPayment` |
 | `screen=<screenId>` | the screen to start on instead of the document's initial one (unknown id → the initial screen, the log says so) |
 | `locale=<tag>` | the device locale handed to the renderer as is (`ar-EG`, `uk`); the renderer matches it to the languages of the document |
 | `theme=<id\|light\|dark>` | a theme of the set by id, or by brightness; default follows the system |

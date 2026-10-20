@@ -33,7 +33,7 @@ void main() {
 
     final themeLoad = await ThemeLoad.fromBundle(assetPath: kThemeContractAsset);
     final theme = themeLoad.contract.defaultTheme;
-    await tester.pumpWidget(HotlayoutDemoApp(themeLoad: themeLoad));
+    await tester.pumpWidget(HotlayoutDemoApp(themeLoad: themeLoad, sources: [fixtureSource('reward-catalog-screens')]));
     await tester.pumpAndSettle();
 
     // The fixture's initial screen: solid background, a bar with its own background.

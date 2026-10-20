@@ -40,6 +40,14 @@ flutter:
         - asset: assets/fonts/Inter-Variable.ttf
         - asset: assets/fonts/Inter-Italic-Variable.ttf
           style: italic
+    # The families the showcase apps' themes name (`assets/showcase/*/theme.json`). Geist and
+    # Manrope are SIL OFL 1.1 too (`OFL-Geist.txt`, `OFL-Manrope.txt`).
+    - family: Geist Variable
+      fonts:
+        - asset: assets/fonts/Geist-Variable.ttf
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Variable.ttf
 
   # The contract fixtures and the theme are assets of the DEMO, not of the package.
   # `assets/contract` here is a symbolic link to `../assets/contract` (the single
@@ -50,3 +58,6 @@ flutter:
     - assets/contract/fixtures/
     - assets/contract/fixtures/themes/
     - assets/contract/fixtures/locale/
+    - assets/showcase/obsidian/
+    - assets/showcase/sunny/
+    - assets/showcase/orbit/

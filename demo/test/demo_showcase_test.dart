@@ -15,7 +15,12 @@ void main() {
   const id = 'rewards-showcase-screens';
 
   test('the demo fixture theme map matches the test map and points to existing files', () {
-    expect(kFixtureThemeAssets, {
+    // The three showcase apps have their own themes under `assets/showcase/` (`showcase_apps_test.dart`).
+    final contractThemes = {
+      for (final entry in kFixtureThemeAssets.entries)
+        if (!entry.value.startsWith('assets/showcase/')) entry.key: entry.value,
+    };
+    expect(contractThemes, {
       for (final entry in fixtureThemeFiles.entries)
         entry.key: 'assets/contract/fixtures/${entry.value}.json',
     });
