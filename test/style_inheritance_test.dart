@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/render/widgets/outside_shadow.dart';
 import 'package:hotlayout_flutter/src/model/tokens.dart';
 import 'package:hotlayout_flutter/src/theme/render_theme.dart';
 
@@ -692,7 +693,8 @@ void main() {
       expect(decoration.color, theme.color(ColorToken.primary).withValues(alpha: 0.1));
       expect((decoration.border! as Border).top.width, 2);
       expect(decoration.borderRadius, const BorderRadiusDirectional.all(Radius.circular(4)));
-      expect(decoration.boxShadow, theme.elevation(ElevationToken.low));
+      // The background of the badge is translucent, so its shadow lies only outside the box.
+      expect(tester.widget<OutsideShadow>(find.ancestor(of: find.text('Свій'), matching: find.byType(OutsideShadow)).first).shadow, theme.elevation(ElevationToken.low));
       expect(labelColor(tester, 'Свій'), theme.color(ColorToken.primary));
       expect(styleOf(tester, 'Свій').fontSize, theme.text(TypographyToken.titleS).fontSize);
       // Padding: 2 (border) + 20 on the left, 2 on top - the own padding replaced the built-in one entirely.

@@ -21,6 +21,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/render/widgets/outside_shadow.dart';
 import 'package:hotlayout_flutter/src/model/compatibility.dart';
 import 'package:hotlayout_flutter/src/model/motion_rules.dart';
 import 'package:hotlayout_flutter/src/model/node_style.dart';
@@ -383,7 +384,7 @@ void main() {
     testWidgets('the shadow lies outside the clip of the blur; the background lies over the blur', (tester) async {
       await pumpDocument(tester, UiDocumentBuilder.bare(_scene(null, style: {...base, 'shadow': 'low', 'backdropBlur': 12})));
       final blur = find.byType(BackdropFilter);
-      final shadowBox = find.ancestor(of: blur, matching: find.byWidgetPredicate((w) => w is DecoratedBox && (w.decoration as BoxDecoration).boxShadow != null));
+      final shadowBox = find.ancestor(of: blur, matching: find.byWidgetPredicate((w) => w is OutsideShadow && w.shadow.isNotEmpty));
       expect(shadowBox, findsOneWidget);
       expect(find.ancestor(of: blur, matching: find.byType(ClipRRect)), findsOneWidget);
       // The node's own background is INSIDE the filter, painted after the backdrop was blurred.

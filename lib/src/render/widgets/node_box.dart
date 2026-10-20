@@ -19,6 +19,7 @@ import '../node_motion.dart';
 import '../node_renderer.dart';
 import '../render_scope.dart';
 import 'image.dart';
+import 'outside_shadow.dart';
 import 'pressable.dart';
 
 extension NodeBoxWidgets on NodeRenderer {
@@ -290,26 +291,27 @@ extension NodeBoxWidgets on NodeRenderer {
     final glass = blur != null;
     // With glass the shadow is drawn outside the blur clip (below), not by the background box.
     final plain = color == null && gradient == null && !hasShadow;
-    final Widget surface = plain
+    // A shadow under a background that lets light through would show inside the box; CSS never paints it there.
+    final shadowOutside = hasShadow && !glass && backgroundIsTranslucent(color: color, gradient: gradient);
+    Widget surface = plain
         ? content
         : DecoratedBox(
             decoration: BoxDecoration(
               color: color,
               gradient: gradient,
               borderRadius: hasRadius ? radius : null,
-              boxShadow: hasShadow && !glass ? shadow : null,
+              boxShadow: hasShadow && !glass && !shadowOutside ? shadow : null,
             ),
             child: content,
           );
+    if (shadowOutside) surface = OutsideShadow(shadow: shadow, radius: hasRadius ? radius : null, child: surface);
     if (!glass) return surface;
 
     final blurred = BackdropFilter(filter: ImageFilter.blur(sigmaX: blur.toDouble(), sigmaY: blur.toDouble()), child: surface);
     final clipped = hasRadius ? ClipRRect(borderRadius: radius, child: blurred) : ClipRect(child: blurred);
     if (!hasShadow) return clipped;
-    return DecoratedBox(
-      decoration: BoxDecoration(borderRadius: hasRadius ? radius : null, boxShadow: shadow),
-      child: clipped,
-    );
+    // Glass is see-through by nature: the shadow lies outside the box only, as in CSS.
+    return OutsideShadow(shadow: shadow, radius: hasRadius ? radius : null, child: clipped);
   }
 
   /// The box's size limits, or `null` if the style names no size.

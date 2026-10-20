@@ -112,12 +112,9 @@ void main() {
       await pumpDocument(tester, _startingAt('cards'), safeTop: 47, safeBottom: 34);
       await tester.pump(const Duration(seconds: 1));
       // The shadows of the five cards, in the order of the document.
-      final shadows = tester
-          .widgetList<DecoratedBox>(find.descendant(of: find.byType(Scaffold), matching: find.byType(DecoratedBox)))
-          .map((box) => box.decoration)
-          .whereType<BoxDecoration>()
-          .where((decoration) => decoration.boxShadow != null && decoration.boxShadow!.isNotEmpty && decoration.boxShadow!.first.blurRadius == 24)
-          .map((decoration) => decoration.boxShadow!.single)
+      final shadows = shadowLayersUnder(tester, find.byType(Scaffold))
+          .where((layers) => layers.first.blurRadius == 24)
+          .map((layers) => layers.single)
           .toList();
       expect(shadows, hasLength(5));
       Color hue(BoxShadow shadow) => shadow.color.withValues(alpha: 1);

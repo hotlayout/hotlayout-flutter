@@ -1,3 +1,9 @@
+## 0.31.0
+
+The contract version is unchanged (9.28.0). One rendering fix; nothing changes for a document without a shadow under a see-through background.
+
+- **A shadow is painted only outside its box.** A node with a shadow and a background that lets light through (a translucent colour, a gradient with a translucent stop, or `backdropBlur`) used to show the blurred shadow through the box, tinting the card. CSS never paints a `box-shadow` inside the border box, and the other readers do not; the reader now clips the shadow to the outside of the box (the radius included). An opaque background is drawn as before.
+
 ## 0.30.0
 
 The contract version is unchanged (9.28.0). One new optional parameter; nothing else changes for a host that does not pass it.

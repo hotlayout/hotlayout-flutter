@@ -12,6 +12,7 @@ import 'package:hotlayout_flutter/src/render/render_document.dart';
 import 'package:hotlayout_flutter/src/render/screen_zones.dart';
 import 'package:hotlayout_flutter/src/theme/render_theme.dart';
 import 'package:hotlayout_flutter/src/theme/theme_contract.dart';
+import 'package:hotlayout_flutter/src/render/widgets/outside_shadow.dart';
 
 /// ISO 8601 string for LOCAL time [local] with the machine's zone offset:
 /// `2026-10-31T21:59:59+02:00`.
@@ -709,4 +710,22 @@ BoxDecoration _decorationBetween(Element from, bool Function(Widget widget) stop
     return true;
   });
   return found ?? const BoxDecoration();
+}
+
+/// The shadows drawn under [scope]: those of a `DecoratedBox` and those of an [OutsideShadow] (a shadow under a
+/// background that lets light through), in tree order. Each entry is the layers of one box.
+List<List<BoxShadow>> shadowLayersUnder(WidgetTester tester, Finder scope) {
+  final layers = <List<BoxShadow>>[];
+  for (final element in find.descendant(of: scope, matching: find.byWidgetPredicate((_) => true)).evaluate()) {
+    final widget = element.widget;
+    if (widget is DecoratedBox) {
+      final decoration = widget.decoration;
+      if (decoration is BoxDecoration && decoration.boxShadow != null && decoration.boxShadow!.isNotEmpty) {
+        layers.add(decoration.boxShadow!);
+      }
+    } else if (widget is OutsideShadow && widget.shadow.isNotEmpty) {
+      layers.add(widget.shadow);
+    }
+  }
+  return layers;
 }

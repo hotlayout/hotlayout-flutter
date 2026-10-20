@@ -113,18 +113,13 @@ void main() {
           ]),
           theme: tableTheme,
         );
-        final boxes = tester
-            .widgetList<DecoratedBox>(find.descendant(of: find.byType(Scaffold), matching: find.byType(DecoratedBox)))
-            .map((box) => box.decoration)
-            .whereType<BoxDecoration>()
-            .where((decoration) => decoration.boxShadow != null && decoration.boxShadow!.isNotEmpty)
-            .toList();
+        final boxes = shadowLayersUnder(tester, find.byType(Scaffold));
         if (expected.isEmpty) {
           expect(boxes, isEmpty);
           return;
         }
         expect(boxes, hasLength(1));
-        expectLayers(layersOf(boxes.single.boxShadow!), expected);
+        expectLayers(layersOf(boxes.single), expected);
       });
     }
   });
@@ -180,12 +175,7 @@ void main() {
         ]),
         theme: tableTheme,
       );
-      final shadows = tester
-          .widgetList<DecoratedBox>(find.descendant(of: find.byType(FilledButton), matching: find.byType(DecoratedBox)))
-          .map((box) => box.decoration)
-          .whereType<BoxDecoration>()
-          .firstWhere((decoration) => decoration.boxShadow != null && decoration.boxShadow!.isNotEmpty)
-          .boxShadow!;
+      final shadows = shadowLayersUnder(tester, find.byType(FilledButton)).first;
       expectLayers(layersOf(shadows), [
         {'offsetX': 0, 'offsetY': 8, 'blur': 24, 'spread': -4, 'color': '#059669', 'opacity': 0.3},
         {'offsetX': 0, 'offsetY': 0, 'blur': 12, 'spread': 0, 'color': '#059669', 'opacity': 0.5},
