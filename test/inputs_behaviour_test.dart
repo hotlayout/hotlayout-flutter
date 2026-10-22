@@ -443,6 +443,31 @@ void main() {
       expect(find.text('Note 11'), findsOneWidget);
     });
 
+    testWidgets('the keyboard rises AFTER the focus (as on a device): the scroll follows the inset, the field with its note ends above the pinned block', (tester) async {
+      final fields = [
+        for (var i = 0; i < 12; i += 1) textFieldNode(id: 'f$i', path: 'form.f$i', label: 'Field $i', helper: literal('Note $i')),
+      ];
+      final harness = InputHarness([...fields, pinnedButton(), navBar()], rootStyle: const {'padding': {'top': 'lg', 'bottom': 'lg', 'start': 'lg', 'end': 'lg'}});
+      // No keyboard yet: focus a field that is far down the body, scrolled into view by hand.
+      await harness.pump(tester, safeBottom: 34, settle: true);
+      final last = find.byType(EditableText).last;
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
+      await tester.pumpAndSettle();
+      await _focus(tester, last);
+      await tester.pumpAndSettle();
+      // The keyboard slides in over several frames, the way the platform reports it.
+      for (final height in [80.0, 160.0, 240.0, 300.0]) {
+        await harness.pump(tester, keyboard: height, safeBottom: 34);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pumpAndSettle();
+      final block = tester.getRect(find.byType(InputTextField).last);
+      final pinned = tester.getRect(find.text('Save'));
+      expect(pinned.bottom, lessThanOrEqualTo(568 - 300 + 0.5), reason: 'the pinned block rides above the keyboard');
+      expect(block.bottom, lessThanOrEqualTo(pinned.top + 0.5), reason: 'the field with its note is in the body area, above the pinned block');
+      expect(block.top, greaterThanOrEqualTo(0), reason: 'and is not pushed out through the top');
+    });
+
     testWidgets('the pinned block rides ABOVE the keyboard, the bar stays under it, there is no safe inset above the keyboard', (tester) async {
       Future<(Rect, Rect, Rect)> measure(double keyboard) async {
         final harness = InputHarness([textFieldNode(), pinnedButton(), navBar()]);
