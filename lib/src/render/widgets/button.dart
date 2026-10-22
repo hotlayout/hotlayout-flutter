@@ -375,6 +375,9 @@ extension ButtonWidgets on NodeRenderer {
           visualDensity: VisualDensity.standard,
           backgroundBuilder: backgroundBuilder,
         ),
+        // The surface (with its shadow) is drawn by `backgroundBuilder`, which a Material button clips to its own
+        // shape by default; with a border that cut away the shadow under the button. The surface clips itself.
+        clipBehavior: Clip.none,
         child: child,
       );
       return dashed ? DashedBorder(side: border, radius: radius ?? fallbackRadius, child: outlined) : outlined;

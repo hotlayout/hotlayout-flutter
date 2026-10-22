@@ -1,5 +1,6 @@
 ## Unreleased
 
+- **A button with a border keeps its shadow.** A `Button` or `IconButton` whose style names a border and a shadow (a white button with a hard shadow under it) was drawn without the shadow: the Material button clipped its background layer, where the shadow is drawn, to its own outline. The shadow now shows under the button, as it does for a button without a border.
 - **A window in the middle is centred between the insets.** A screen with `modalPlacement: 'center'` laid edge to edge used to be centred in the area below the top inset only, so on a phone with a home indicator the window stood half the bottom inset too low (about 17 dp on a 393 x 852 phone with insets 59 / 34). The window now stands above the bottom inset as well, as the contract table `modalAreaCases` says; a host that already handles the inset itself (it gives the reader zero) is unaffected. A sheet from the bottom is unchanged.
 
 ## 0.31.0
