@@ -293,6 +293,12 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
     // than the area below the inset, the window is centred in it, and the scrim covers the whole area,
     // the status bar strip included.
     final safeTop = topInsetOf(context);
+    // The bottom safe inset: a window in the middle stands above it as well (the area between the inset
+    // strips). A sheet is anchored to the bottom edge and its own bottom zone adds the inset, so it is
+    // left alone. The keyboard already covers the inset, hence the larger of the two.
+    final shape0 = modalShapeOf(widget.placement.wire, MediaQuery.sizeOf(context).width);
+    final safeBottom = shape0 == ModalShape.sheet ? 0.0 : MediaQuery.viewPaddingOf(context).bottom;
+    final lower = math.max(keyboard, safeBottom);
 
     return LayoutBuilder(
       builder: (context, area) {
@@ -313,7 +319,7 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
             ? modalLayerWidthOf(widget.placement.wire, viewportWidth, widget.windowMargin)
             : null;
         final raisedHeight = viewportHeight.isFinite
-            ? math.max(0.0, viewportHeight - keyboard - safeTop)
+            ? math.max(0.0, viewportHeight - lower - safeTop)
             : viewportHeight;
         final availableHeight = !viewportHeight.isFinite
             ? double.infinity
@@ -336,12 +342,12 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
             ),
             // The layer above the keyboard has already accounted for it: the screen inside does not
             // subtract it a second time nor add a safe area inset where the keyboard covers it.
-            child: keyboard > 0 || safeTop > 0
+            child: keyboard > 0 || safeTop > 0 || safeBottom > 0
                 ? MediaQuery(
                     data: MediaQuery.of(context).copyWith(
                       viewInsets: MediaQuery.viewInsetsOf(context).copyWith(bottom: 0),
-                      viewPadding: MediaQuery.viewPaddingOf(context).copyWith(top: 0, bottom: keyboard > 0 ? 0 : null),
-                      padding: MediaQuery.paddingOf(context).copyWith(top: 0, bottom: keyboard > 0 ? 0 : null),
+                      viewPadding: MediaQuery.viewPaddingOf(context).copyWith(top: 0, bottom: safeBottom > 0 || keyboard > 0 ? 0 : null),
+                      padding: MediaQuery.paddingOf(context).copyWith(top: 0, bottom: safeBottom > 0 || keyboard > 0 ? 0 : null),
                     ),
                     child: SheetWindowScope(sheetWindow: sheetWindow, child: widget.sheet),
                   )
@@ -375,7 +381,7 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
                 ),
                 if (window)
                   Padding(
-                    padding: EdgeInsets.only(top: safeTop, bottom: keyboard),
+                    padding: EdgeInsets.only(top: safeTop, bottom: lower),
                     child: Center(
                       child: Opacity(
                         opacity: progress.value,

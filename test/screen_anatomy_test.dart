@@ -481,5 +481,59 @@ void main() {
         expect(rect.center.dy, _near(_num(expected['centerY'])));
       });
     }
+
+    for (final row in _rows('modalAreaCases')) {
+      final frame = _obj(row['frame']);
+      final insets = _obj(row['insets']);
+      final expected = _obj(row['expect']);
+      final contentHeight = _num(row['contentHeight']);
+
+      testWidgets('edge to edge, system insets: ${row['name']}', (tester) async {
+        _view(tester, _num(frame['width']), _num(frame['height']));
+        final top = _num(insets['top']);
+        final bottom = _num(insets['bottom']);
+        tester.view.viewPadding = FakeViewPadding(top: top, bottom: bottom);
+        tester.view.padding = FakeViewPadding(top: top, bottom: bottom);
+        addTearDown(tester.view.resetViewPadding);
+        addTearDown(tester.view.resetPadding);
+        final doc = _doc([
+          _screen('page', [
+            {
+              'id': 'open',
+              'type': 'Button',
+              'props': {
+                'label': _literal('Відкрити'),
+                'variant': 'primary',
+                'action': {'type': 'navigate', 'params': {'screenId': 'layer'}},
+              },
+            },
+          ]),
+          _screen(
+            'layer',
+            [
+              {
+                'id': 'content',
+                'type': 'Container',
+                'props': {'direction': 'column'},
+                'style': {'height': contentHeight},
+                'children': const <Object?>[],
+              },
+            ],
+            presentation: 'modal',
+            placement: 'center',
+          ),
+        ]);
+        // The host lays the reader over the whole glass; the reader centres the window between the insets.
+        await tester.pumpWidget(
+          MaterialApp(home: Material(child: renderDocument(doc, theme: RenderTheme.fallback(), data: const {}))),
+        );
+        await tester.tap(find.text('Відкрити'));
+        await tester.pumpAndSettle();
+        final rect = tester.getRect(find.byKey(kModalLayerKey));
+        expect(rect.top, _near(_num(expected['y'])));
+        expect(rect.height, _near(_num(expected['height'])));
+        expect(rect.center.dy, _near(_num(expected['centerY'])));
+      });
+    }
   });
 }

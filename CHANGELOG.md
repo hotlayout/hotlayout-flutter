@@ -1,3 +1,7 @@
+## Unreleased
+
+- **A window in the middle is centred between the insets.** A screen with `modalPlacement: 'center'` laid edge to edge used to be centred in the area below the top inset only, so on a phone with a home indicator the window stood half the bottom inset too low (about 17 dp on a 393 x 852 phone with insets 59 / 34). The window now stands above the bottom inset as well, as the contract table `modalAreaCases` says; a host that already handles the inset itself (it gives the reader zero) is unaffected. A sheet from the bottom is unchanged.
+
 ## 0.31.0
 
 The contract version is unchanged (9.28.0). One rendering fix; nothing changes for a document without a shadow under a see-through background.

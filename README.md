@@ -41,6 +41,7 @@ The app around this call is [`example/lib/main.dart`](example/lib/main.dart) (20
 - **The document is untrusted input.** The renderer opens no address by itself: links and deep links reach your code parsed and checked.
 - **A version policy.** A newer minor of the document is still drawn; another major falls back to the copy bundled with your app.
 - **The same document on the web.** [`@hotlayout/react`](https://www.npmjs.com/package/@hotlayout/react) draws the same JSON in React.
+- **The same document on iOS and Android.** The native readers draw the same JSON: iOS through Swift Package Manager (`https://github.com/hotlayout/hotlayout-ios`) and Android from Maven Central (`com.hotlayout:hotlayout-android`). All readers follow the open [contract](https://github.com/hotlayout/contract).
 
 Website: [hotlayout.com](https://hotlayout.com) · Changes by version: [CHANGELOG.md](CHANGELOG.md)
 
