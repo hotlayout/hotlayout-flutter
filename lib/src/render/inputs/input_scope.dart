@@ -153,3 +153,17 @@ class InputScopeData extends InheritedWidget {
   @override
   bool updateShouldNotify(InputScopeData oldWidget) => oldWidget.autofill != autofill || oldWidget.registry != registry;
 }
+
+/// How much of the body's end lies under its last child: the screen gap when a pinned block follows the
+/// body, otherwise the root's bottom padding. A focused field is revealed together with it (`rules.focus.visible`),
+/// so it does not stand flush against the pinned block or the keyboard.
+class BodyTail extends InheritedWidget {
+  const BodyTail({required this.extent, required super.child, super.key});
+
+  final double extent;
+
+  static double of(BuildContext context) => context.getInheritedWidgetOfExactType<BodyTail>()?.extent ?? 0;
+
+  @override
+  bool updateShouldNotify(BodyTail oldWidget) => oldWidget.extent != extent;
+}

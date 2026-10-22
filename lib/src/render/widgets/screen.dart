@@ -21,6 +21,7 @@ import '../node_renderer.dart';
 import '../render_scope.dart';
 import '../screen_zones.dart';
 import '../width_class_scope.dart';
+import '../inputs/input_scope.dart';
 import 'app_bar.dart';
 import 'column.dart';
 import 'nav_bar.dart';
@@ -212,7 +213,10 @@ extension ScreenWidgets on NodeRenderer {
     // counted without it.
     final floats = !shrink && navFloatsIn(navPlace, navBottom?.float ?? false);
     Widget scrollBody(ScrollController controller, ZoneTail? tail) {
-      final content = tail == null ? bodyColumn : ZoneTailPadding(tail: tail, child: bodyColumn);
+      final content = BodyTail(
+        extent: bodyPadding?.bottom ?? 0,
+        child: tail == null ? bodyColumn : ZoneTailPadding(tail: tail, child: bodyColumn),
+      );
       return distributes
           ? LayoutBuilder(
               builder: (context, constraints) => SingleChildScrollView(

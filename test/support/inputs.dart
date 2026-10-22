@@ -132,11 +132,13 @@ class InputHarness {
     this.theme,
     this.rootStyle,
     this.onAction,
+    this.gap = 'none',
   });
 
   final List<Json> children;
   final RenderTheme? theme;
   final Json? rootStyle;
+  final String gap;
   final SduiActionCallback? onAction;
   Map<String, Object?> session;
   Map<String, Object?> data;
@@ -164,7 +166,7 @@ class InputHarness {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, height);
     addTearDown(tester.view.reset);
-    final doc = inputDoc(children, rootStyle: rootStyle);
+    final doc = inputDoc(children, rootStyle: rootStyle, gap: gap);
     await tester.pumpWidget(
       MaterialApp(
         home: MediaQuery(

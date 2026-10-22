@@ -303,10 +303,15 @@ class _InputTextFieldState extends State<InputTextField> implements InputFieldHa
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final context = _block.currentContext;
       if (!mounted || context == null || !focusNode.hasFocus) return;
-      Scrollable.ensureVisible(
-        context,
+      final box = context.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      // The block is revealed together with the tail of the body (the screen gap above a pinned block, the
+      // root's bottom padding otherwise): the same space that lies under the last child at the end of the
+      // scroll. A block already visible with its tail does not move; a taller one is put at the top.
+      final tail = BodyTail.of(context);
+      box.showOnScreen(
+        rect: Rect.fromLTWH(0, 0, box.size.width, box.size.height + tail),
         duration: Duration.zero,
-        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
       );
     });
   }

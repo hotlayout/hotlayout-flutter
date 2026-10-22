@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/model/tokens.dart';
 import 'package:hotlayout_flutter/src/model/ui_document.dart';
 import 'package:hotlayout_flutter/src/render/inputs.dart';
 import 'package:hotlayout_flutter/src/render/render_document.dart';
@@ -466,6 +467,51 @@ void main() {
       expect(pinned.bottom, lessThanOrEqualTo(568 - 300 + 0.5), reason: 'the pinned block rides above the keyboard');
       expect(block.bottom, lessThanOrEqualTo(pinned.top + 0.5), reason: 'the field with its note is in the body area, above the pinned block');
       expect(block.top, greaterThanOrEqualTo(0), reason: 'and is not pushed out through the top');
+    });
+
+    // The focused block keeps the tail of the body under it (`rules.focus.visible`).
+    List<Json> formFields() => [
+      for (var i = 0; i < 12; i += 1) textFieldNode(id: 'f$i', path: 'form.f$i', label: 'Field $i', helper: literal('Note $i')),
+    ];
+
+    Future<void> focusLast(WidgetTester tester, List<Json> children, {Json? rootStyle, String gap = 'md'}) async {
+      final harness = InputHarness(children, rootStyle: rootStyle, gap: gap);
+      await harness.pump(tester, settle: true);
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
+      await tester.pumpAndSettle();
+      await _focus(tester, find.byType(EditableText).last);
+      await tester.pumpAndSettle();
+      await harness.pump(tester, keyboard: 300);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('with a pinned block: the field with its note ends one screen gap above the block', (tester) async {
+      await focusLast(tester, [...formFields(), pinnedButton()], rootStyle: const {'padding': {'top': 'lg', 'bottom': 'lg', 'start': 'lg', 'end': 'lg'}});
+      final block = tester.getRect(find.byType(InputTextField).last);
+      final zones = tester.renderObject<RenderScreenZones>(find.byType(ScreenZones).last);
+      final body = zones.firstChild!;
+      final bodyBottom = (body.localToGlobal(Offset.zero) & body.size).bottom;
+      final gap = RenderTheme.fallback().space(SpacingToken.md);
+      expect(gap, greaterThan(0));
+      expect(bodyBottom - block.bottom, closeTo(gap, 1), reason: 'the screen gap stays under the note');
+    });
+
+    testWidgets('without a pinned block: the field with its note ends one root bottom padding above the keyboard', (tester) async {
+      await focusLast(tester, formFields(), gap: 'none', rootStyle: const {'padding': {'top': 'lg', 'bottom': 'xl', 'start': 'lg', 'end': 'lg'}});
+      final block = tester.getRect(find.byType(InputTextField).last);
+      final padding = RenderTheme.fallback().space(SpacingToken.xl);
+      expect(padding, greaterThan(0));
+      expect((568 - 300) - block.bottom, closeTo(padding, 1));
+    });
+
+    testWidgets('a block already visible together with its tail does not scroll', (tester) async {
+      final harness = InputHarness([...formFields().take(3), pinnedButton()], gap: 'md');
+      await harness.pump(tester, settle: true);
+      final position = tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+      final before = position.pixels;
+      await _focus(tester, find.byType(EditableText).first);
+      await tester.pumpAndSettle();
+      expect(position.pixels, before);
     });
 
     testWidgets('the pinned block rides ABOVE the keyboard, the bar stays under it, there is no safe inset above the keyboard', (tester) async {
