@@ -254,6 +254,7 @@ artifacts, each versioned on its own. `assets/contract/` holds copies of them:
 | `theme.json` | the values of the design system: what the tokens mean |
 | `data-contract.json` | the data paths promised to a layout and their shapes |
 | `icons.json` | the drawings (SVG bodies) for every icon name |
+| `placements.json` | the placement map: which document each named place of the app shows |
 | `fixtures/` | example documents, themes and shared case tables |
 
 The schema and the theme are versioned independently: a rebrand does not add widgets and a new
@@ -287,6 +288,7 @@ cp <builder>/contract/screen-schema.json assets/contract/
 cp <builder>/contract/theme.json assets/contract/
 cp <builder>/contract/data-contract.json assets/contract/
 cp <builder>/contract/icons.json assets/contract/
+cp <builder>/contract/placements.json assets/contract/
 cp -R <builder>/contract/fixtures/. assets/contract/fixtures/
 ```
 

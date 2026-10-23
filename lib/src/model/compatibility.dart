@@ -57,11 +57,12 @@ final class SchemaVersion implements Comparable<SchemaVersion> {
     if (text == null) return null;
     final match = _pattern.firstMatch(text);
     if (match == null) return null;
-    return SchemaVersion(
-      int.parse(match.group(1)!),
-      int.parse(match.group(2)!),
-      int.parse(match.group(3)!),
-    );
+    // A number too big for an int is not a version this reader can compare: unparsable, never a throw.
+    final major = int.tryParse(match.group(1)!);
+    final minor = int.tryParse(match.group(2)!);
+    final patch = int.tryParse(match.group(3)!);
+    if (major == null || minor == null || patch == null) return null;
+    return SchemaVersion(major, minor, patch);
   }
 
   @override

@@ -84,10 +84,14 @@ final class DocumentTooLargeException implements Exception {
 }
 
 final class HttpDocumentTransport implements DocumentTransport {
-  /// Uses [client], or a new `http.Client` when omitted.
-  HttpDocumentTransport({http.Client? client}) : _client = client ?? http.Client();
+  /// Uses [client], or a new `http.Client` when omitted. With [followRedirects] `false` a redirect is
+  /// not followed: its `3xx` answer is returned as it is.
+  HttpDocumentTransport({http.Client? client, this.followRedirects = true}) : _client = client ?? http.Client();
 
   final http.Client _client;
+
+  /// Whether a redirect is followed.
+  final bool followRedirects;
 
   @override
   Future<DocumentResponse> fetch(Uri url) async {
@@ -100,42 +104,50 @@ final class HttpDocumentTransport implements DocumentTransport {
      * does not, the request never happens and looks like `Failed to fetch`, i.e. "no network";
      * every fallback would then work flawlessly and hide the problem.
      *
-     * Cache bypass does not need the header: `_withCacheBuster` adds a unique query parameter to
+     * Cache bypass does not need the header: `withCacheBuster` adds a unique query parameter to
      * the address.
      */
-    final response = await _client.send(http.Request('GET', url));
-    // A declared length above the cap is refused before a byte of the body is read; an undeclared or
-    // understated one is counted as the stream arrives and cut at the cap.
-    final declared = response.contentLength;
-    if (declared != null && declared >= kMaxBodyBytes) {
-      unawaited(response.stream.listen(null).cancel());
-      throw const DocumentTooLargeException(kMaxBodyBytes);
-    }
-    final bytes = BytesBuilder(copy: false);
-    final done = Completer<void>();
-    late final StreamSubscription<List<int>> subscription;
-    subscription = response.stream.listen(
-      (chunk) {
-        bytes.add(chunk);
-        if (bytes.length >= kMaxBodyBytes && !done.isCompleted) {
-          unawaited(subscription.cancel());
-          done.completeError(const DocumentTooLargeException(kMaxBodyBytes));
-        }
-      },
-      onError: (Object error, StackTrace stack) {
-        if (!done.isCompleted) done.completeError(error, stack);
-      },
-      onDone: () {
-        if (!done.isCompleted) done.complete();
-      },
-      cancelOnError: true,
-    );
-    await done.future;
-    // `utf8`, not `response.body`: without a charset in `Content-Type`, `http` decodes the body as latin1 and
-    // non-ASCII text in the document turns to garbage. A document is always UTF-8, as
-    // `x-budget.measure: 'utf8-bytes-of-serialized-json'` states.
-    return (statusCode: response.statusCode, body: utf8.decode(bytes.takeBytes()));
+    final request = http.Request('GET', url)..followRedirects = followRedirects;
+    final response = await _client.send(request);
+    return (statusCode: response.statusCode, body: await readCappedBody(response));
   }
+}
+
+/// Reads a response body as UTF-8 and never more than [limit] bytes.
+///
+/// A declared length above the cap is refused before a byte of the body is read; an undeclared or
+/// understated one is counted as the stream arrives and cut at the cap. Either throws
+/// [DocumentTooLargeException].
+Future<String> readCappedBody(http.StreamedResponse response, {int limit = kMaxBodyBytes}) async {
+  final declared = response.contentLength;
+  if (declared != null && declared >= limit) {
+    unawaited(response.stream.listen(null).cancel());
+    throw DocumentTooLargeException(limit);
+  }
+  final bytes = BytesBuilder(copy: false);
+  final done = Completer<void>();
+  late final StreamSubscription<List<int>> subscription;
+  subscription = response.stream.listen(
+    (chunk) {
+      bytes.add(chunk);
+      if (bytes.length >= limit && !done.isCompleted) {
+        unawaited(subscription.cancel());
+        done.completeError(DocumentTooLargeException(limit));
+      }
+    },
+    onError: (Object error, StackTrace stack) {
+      if (!done.isCompleted) done.completeError(error, stack);
+    },
+    onDone: () {
+      if (!done.isCompleted) done.complete();
+    },
+    cancelOnError: true,
+  );
+  await done.future;
+  // `utf8`, not `response.body`: without a charset in `Content-Type`, `http` decodes the body as latin1 and
+  // non-ASCII text turns to garbage. A document is always UTF-8, as
+  // `x-budget.measure: 'utf8-bytes-of-serialized-json'` states.
+  return utf8.decode(bytes.takeBytes());
 }
 
 /// Why the document that is on screen is the one on screen.
@@ -332,7 +344,7 @@ final class PublishedDocumentSource implements DocumentSource {
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
-  /// The request number within this source: the second half of the mark in [_withCacheBuster].
+  /// The request number within this source: the second half of the mark in [withCacheBuster].
   int _sequence = 0;
 
   /// The address of the published document, WITHOUT the cache buster: [load] adds that.
@@ -367,7 +379,7 @@ final class PublishedDocumentSource implements DocumentSource {
 
   @override
   Future<DocumentLoad> load() async {
-    final target = _withCacheBuster(url, _now(), ++_sequence);
+    final target = withCacheBuster(url, _now(), ++_sequence);
     DocumentResponse response;
     try {
       response = await transport.fetch(target).timeout(timeout);
@@ -463,7 +475,7 @@ const Duration kDocumentFetchTimeout = Duration(seconds: 5);
 /// The mark is the time PLUS a sequence number, not the time alone: two refreshes in a row fit
 /// into one millisecond, and the "different address" would stop being different exactly when it
 /// matters most.
-Uri _withCacheBuster(Uri url, DateTime now, int sequence) => url.replace(
+Uri withCacheBuster(Uri url, DateTime now, int sequence) => url.replace(
   queryParameters: {
     ...url.queryParameters,
     '_req': '${now.millisecondsSinceEpoch}-$sequence',
