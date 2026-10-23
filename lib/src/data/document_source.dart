@@ -84,10 +84,14 @@ final class DocumentTooLargeException implements Exception {
 }
 
 final class HttpDocumentTransport implements DocumentTransport {
-  /// Uses [client], or a new `http.Client` when omitted.
-  HttpDocumentTransport({http.Client? client}) : _client = client ?? http.Client();
+  /// Uses [client], or a new `http.Client` when omitted. With [followRedirects] `false` a redirect is
+  /// not followed: its `3xx` answer is returned as it is.
+  HttpDocumentTransport({http.Client? client, this.followRedirects = true}) : _client = client ?? http.Client();
 
   final http.Client _client;
+
+  /// Whether a redirect is followed.
+  final bool followRedirects;
 
   @override
   Future<DocumentResponse> fetch(Uri url) async {
@@ -103,7 +107,8 @@ final class HttpDocumentTransport implements DocumentTransport {
      * Cache bypass does not need the header: `withCacheBuster` adds a unique query parameter to
      * the address.
      */
-    final response = await _client.send(http.Request('GET', url));
+    final request = http.Request('GET', url)..followRedirects = followRedirects;
+    final response = await _client.send(request);
     return (statusCode: response.statusCode, body: await readCappedBody(response));
   }
 }

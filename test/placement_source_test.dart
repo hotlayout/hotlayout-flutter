@@ -5,13 +5,12 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hotlayout_flutter/hotlayout_flutter.dart';
-import 'package:hotlayout_flutter/src/data/document_source.dart'
-    show DocumentTooLargeException;
 import 'package:hotlayout_flutter/src/placements/placement_map.dart'
     show kMaxPlacements, kPlacementNameMax, kPlacementsMaxBytes;
 
 import 'support/fixtures.dart';
 import 'support/network.dart';
+import 'support/placement_bytes.dart';
 
 /// The artifact copy, the source (the network, the ETag, the fallbacks) and the widget.
 
@@ -32,17 +31,17 @@ final class _FakePlacementTransport implements PlacementTransport {
 }
 
 PlacementResponse _ok(String body, {String? etag}) =>
-    (statusCode: 200, body: body, etag: etag);
+    (statusCode: 200, body: bytesOf(body), etag: etag);
 
 final class _MemoryStore implements PlacementMapStore {
   _MemoryStore([this.text]);
   String? text;
 
   @override
-  Future<String?> read() async => text;
+  Future<String?> read(String key) async => text;
 
   @override
-  Future<void> write(String value) async => text = value;
+  Future<void> write(String key, String value) async => text = value;
 }
 
 void main() {
@@ -162,7 +161,7 @@ void main() {
     test('the second poll sends the ETag, and a 304 keeps the map', () async {
       final transport = _FakePlacementTransport(
         (_, etag) async => etag == '"v1"'
-            ? (statusCode: 304, body: '', etag: null)
+            ? (statusCode: 304, body: noBytes, etag: null)
             : _ok(published, etag: '"v1"'),
       );
       final s = source(transport);
@@ -245,7 +244,7 @@ void main() {
 
     test('404 with nothing to fall back on: every place is unknown', () async {
       final transport = _FakePlacementTransport(
-        (_, _) async => (statusCode: 404, body: '', etag: null),
+        (_, _) async => (statusCode: 404, body: noBytes, etag: null),
       );
       final load = await source(transport).refresh();
       expect(load.mapStatus, PlacementSourceStatus.notPublished);
@@ -257,7 +256,7 @@ void main() {
       'offline with nothing to fall back on: the place is unreadable',
       () async {
         final transport = _FakePlacementTransport(
-          (_, _) async => (statusCode: 503, body: '', etag: null),
+          (_, _) async => (statusCode: 503, body: noBytes, etag: null),
         );
         final load = await source(transport).refresh();
         expect(load.mapStatus, PlacementSourceStatus.offline);
@@ -267,7 +266,7 @@ void main() {
 
     test('a body larger than any map is not a map', () async {
       final transport = _FakePlacementTransport(
-        (_, _) async => throw const DocumentTooLargeException(1),
+        (_, _) async => (statusCode: 200, body: bytesOf(' ' * 262145), etag: null),
       );
       final load = await source(transport, bundled: published).refresh();
       expect(load.mapStatus, PlacementSourceStatus.corrupt);

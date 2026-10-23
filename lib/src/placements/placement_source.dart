@@ -8,6 +8,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint, immutable;
 import 'package:http/http.dart' as http;
@@ -16,12 +17,14 @@ import '../data/document_source.dart';
 import '../model/ui_document.dart';
 import 'placement_map.dart';
 
-/// What the placement code needs from an HTTP answer: the code, the body as UTF-8 and the `ETag`.
-typedef PlacementResponse = ({int statusCode, String body, String? etag});
+/// What the placement code needs from an HTTP answer: the code, the body as RAW BYTES (the reader
+/// decides whether they are UTF-8) and the `ETag`.
+typedef PlacementResponse = ({int statusCode, Uint8List body, String? etag});
 
 /// The network port of the placement map. Implement it to read the map through your own HTTP stack.
 ///
-/// Throw when the request did not happen at all; the source applies the timeout.
+/// Throw when the request did not happen at all; the source applies the deadline, which runs to the
+/// end of the body. Do not follow redirects: a `3xx` answer is returned as it is and counts as no answer.
 abstract interface class PlacementTransport {
   /// One GET of [url]. When [ifNoneMatch] is given, send it as `If-None-Match`; a `304` answer
   /// has an empty body.
@@ -31,8 +34,9 @@ abstract interface class PlacementTransport {
 /// [PlacementTransport] over `package:http`.
 ///
 /// `If-None-Match` is a custom request header: in a web build it makes the browser send a CORS
-/// preflight (and the server must expose the `ETag`). On mobile there is no such cost. The body is
-/// read up to 256 KiB; a longer body is not a map.
+/// preflight (and the server must expose the `ETag`). On mobile there is no such cost. Redirects are
+/// not followed. The body is read up to one byte more than a map may have (262 145 bytes); a longer
+/// body is not a map.
 final class HttpPlacementTransport implements PlacementTransport {
   HttpPlacementTransport({http.Client? client}) : _client = client ?? http.Client();
 
@@ -40,15 +44,69 @@ final class HttpPlacementTransport implements PlacementTransport {
 
   @override
   Future<PlacementResponse> fetch(Uri url, {String? ifNoneMatch}) async {
-    final request = http.Request('GET', url);
+    final request = http.Request('GET', url)..followRedirects = false;
     if (ifNoneMatch != null) request.headers['If-None-Match'] = ifNoneMatch;
     final response = await _client.send(request);
     if (response.statusCode != 200) {
       unawaited(response.stream.listen(null).cancel());
-      return (statusCode: response.statusCode, body: '', etag: null);
+      return (statusCode: response.statusCode, body: Uint8List(0), etag: null);
     }
-    final body = await readCappedBody(response, limit: 4 * kPlacementsMaxBytes);
-    return (statusCode: 200, body: body, etag: response.headers['etag']);
+    final body = await _readCapped(response, kPlacementsReadMaxBytes + 1);
+    return (statusCode: response.statusCode, body: body, etag: response.headers['etag']);
+  }
+}
+
+/// The first [limit] bytes of the body; the rest is not read.
+Future<Uint8List> _readCapped(http.StreamedResponse response, int limit) async {
+  final bytes = BytesBuilder(copy: false);
+  final done = Completer<void>();
+  late final StreamSubscription<List<int>> subscription;
+  subscription = response.stream.listen(
+    (chunk) {
+      bytes.add(chunk);
+      if (bytes.length >= limit && !done.isCompleted) {
+        unawaited(subscription.cancel());
+        done.complete();
+      }
+    },
+    onError: (Object error, StackTrace stack) {
+      if (!done.isCompleted) done.completeError(error, stack);
+    },
+    onDone: () {
+      if (!done.isCompleted) done.complete();
+    },
+    cancelOnError: true,
+  );
+  await done.future;
+  final all = bytes.takeBytes();
+  return all.length > limit ? Uint8List.sublistView(all, 0, limit) : all;
+}
+
+/// How an answer that came in time is sorted. `304` is `notModified` here; whether it is believed
+/// depends on having asked with an `ETag`.
+PlacementNetworkOutcome placementMapAnswer(PlacementResponse response) {
+  final status = response.statusCode;
+  if (status >= 300 && status <= 399 && status != 304) return const PlacementNetworkOffline();
+  if (status == 304) return const PlacementNetworkNotModified();
+  if (status == 404) return const PlacementNetworkNotFound();
+  if (status < 200 || status > 299) return const PlacementNetworkOffline();
+  final text = decodePlacementBody(response.body);
+  return text == null ? const PlacementNetworkCorrupt() : PlacementNetworkMap(text);
+}
+
+/// One request for the map, judged by the rules of the network: the whole request, to the end of
+/// the body, must fit in [timeout]; a request that did not happen is no answer.
+Future<({PlacementNetworkOutcome outcome, String? etag})> fetchPlacementMap(
+  PlacementTransport transport,
+  Uri url, {
+  String? ifNoneMatch,
+  Duration timeout = kPlacementFetchTimeout,
+}) async {
+  try {
+    final response = await transport.fetch(url, ifNoneMatch: ifNoneMatch).timeout(timeout);
+    return (outcome: placementMapAnswer(response), etag: response.etag);
+  } on Object {
+    return (outcome: const PlacementNetworkOffline(), etag: null);
   }
 }
 
@@ -56,12 +114,15 @@ final class HttpPlacementTransport implements PlacementTransport {
 ///
 /// The package stores nothing by itself; without a store the last known map lives in memory for
 /// the life of the [PlacementSource].
+///
+/// Every call names the address of the map as [key]: keep the texts of different addresses apart, or
+/// the map of one project would be served for another.
 abstract interface class PlacementMapStore {
-  /// The text saved last, or `null`.
-  Future<String?> read();
+  /// The text saved last under [key], or `null`.
+  Future<String?> read(String key);
 
-  /// Saves the text of a fresh map.
-  Future<void> write(String text);
+  /// Saves the text of a fresh map under [key].
+  Future<void> write(String key, String text);
 }
 
 /// The address of [relativePath] inside [projectBase].
@@ -109,9 +170,9 @@ final class PlacementDocumentSource implements DocumentSource {
     required this.url,
     required this.documentId,
     DocumentTransport? transport,
-    this.timeout = kDocumentFetchTimeout,
+    this.timeout = kPlacementFetchTimeout,
     DateTime Function()? now,
-  }) : transport = transport ?? HttpDocumentTransport(),
+  }) : transport = transport ?? HttpDocumentTransport(followRedirects: false),
        _now = now ?? DateTime.now;
 
   /// The address of `published.json` of the document, without the cache buster.
@@ -148,7 +209,7 @@ final class PlacementDocumentSource implements DocumentSource {
     if (response.statusCode == 404) {
       throw const PlacementDocumentException(missing: true, detail: 'nothing is published at this address (404)');
     }
-    if (response.statusCode != 200) {
+    if (response.statusCode < 200 || response.statusCode > 299) {
       throw PlacementDocumentException(missing: false, detail: 'the server answered ${response.statusCode}');
     }
     final UiDocument document;
@@ -223,7 +284,7 @@ final class PlacementSource {
     DocumentTransport? documentTransport,
     this.bundledMap,
     this.store,
-    this.timeout = kDocumentFetchTimeout,
+    this.timeout = kPlacementFetchTimeout,
     DateTime Function()? now,
   }) : _transport = transport ?? HttpPlacementTransport(),
        _documentTransport = documentTransport,
@@ -251,6 +312,8 @@ final class PlacementSource {
   bool _storeRead = false;
   int _sequence = 0;
 
+  String get _mapKey => mapUrl.toString();
+
   /// Where the map is read from.
   Uri get mapUrl => placementFileUrl(projectBase, 'placements/published.json');
 
@@ -262,37 +325,25 @@ final class PlacementSource {
     if (!_storeRead) {
       _storeRead = true;
       try {
-        _lastKnown ??= await store?.read();
+        _lastKnown ??= await store?.read(_mapKey);
       } on Object catch (error) {
         debugPrint('[hotlayout] the stored placement map could not be read ($error)');
       }
     }
     final lastReadable = _lastKnown != null && readPlacementMapText(_lastKnown!) is PlacementMapOk;
     final conditional = lastReadable ? _etag : null;
-    String? freshEtag;
-    PlacementNetworkOutcome outcome;
-    try {
-      final target = withCacheBuster(mapUrl, _now(), ++_sequence);
-      final response = await _transport.fetch(target, ifNoneMatch: conditional).timeout(timeout);
-      outcome = switch (response.statusCode) {
-        200 => PlacementNetworkMap(response.body),
-        304 when conditional != null => const PlacementNetworkNotModified(),
-        404 => const PlacementNetworkNotFound(),
-        _ => const PlacementNetworkOffline(),
-      };
-      freshEtag = response.etag;
-    } on DocumentTooLargeException {
-      // A body longer than any map is not a map.
-      outcome = const PlacementNetworkMap('');
-    } on Object {
-      outcome = const PlacementNetworkOffline();
-    }
+    final target = withCacheBuster(mapUrl, _now(), ++_sequence);
+    final fetched = await fetchPlacementMap(_transport, target, ifNoneMatch: conditional, timeout: timeout);
+    // A 304 to a request that did not ask for one is not believed.
+    final outcome = fetched.outcome is PlacementNetworkNotModified && conditional == null
+        ? const PlacementNetworkOffline()
+        : fetched.outcome;
     final decision = pickPlacementMap(network: outcome, lastKnown: _lastKnown, bundled: bundledMap);
     if (decision.remember && outcome is PlacementNetworkMap) {
       _lastKnown = outcome.text;
-      _etag = freshEtag;
+      _etag = fetched.etag;
       try {
-        await store?.write(outcome.text);
+        await store?.write(_mapKey, outcome.text);
       } on Object catch (error) {
         debugPrint('[hotlayout] the placement map could not be stored ($error)');
       }

@@ -17,19 +17,19 @@ Widget homeBanner({
     theme: theme,
     data: data,
     onAction: onAction,
-    onPlacement: (name, report) => log('$name: ${report.name}'),
+    onPlacementEvent: (name, event) => log('$name: ${event.show.name} ${event.report?.name}'),
   );
 }
 
 /// Keeps the last known map between launches of the app.
 final class MyPlacementStore implements PlacementMapStore {
-  String? _text;
+  final Map<String, String> _texts = {};
 
   @override
-  Future<String?> read() async => _text;
+  Future<String?> read(String key) async => _texts[key];
 
   @override
-  Future<void> write(String text) async => _text = text;
+  Future<void> write(String key, String text) async => _texts[key] = text;
 }
 
 /// A source of your own: a bundled map and a store.

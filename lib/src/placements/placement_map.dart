@@ -12,11 +12,9 @@
 // OWN keys of the map only (`constructor` is not a place).
 library;
 
-import 'dart:convert' show jsonDecode;
+import 'dart:convert' show jsonDecode, utf8;
 
 import 'package:flutter/foundation.dart' show immutable;
-
-import '../model/compatibility.dart' show SchemaVersion;
 
 /// The version of the placement contract this reader reads.
 const String kPlacementsContractVersion = '1.0.0';
@@ -32,12 +30,24 @@ const int kMaxPlacements = 200;
 /// transport still stops reading a body several times this size (see `HttpPlacementTransport`).
 const int kPlacementsMaxBytes = 65536;
 
+/// The most bytes of a map body the reader reads; a longer body is a corrupt map. The byte order
+/// mark counts.
+const int kPlacementsReadMaxBytes = 262144;
+
+/// The deepest nesting of arrays and objects the reader parses (the root counts as one); a deeper
+/// body is a corrupt map, judged before it is parsed.
+const int kPlacementsReadMaxDepth = 32;
+
+/// How long one request of the placement code may take, from its start to the end of the body.
+const Duration kPlacementFetchTimeout = Duration(seconds: 20);
+
 final RegExp _namePattern = RegExp(r'^[a-z][a-z0-9]*(\.[a-z0-9-]+)*$');
 final RegExp _documentIdPattern = RegExp(r'^(?!\.+$)[A-Za-z0-9._-]{1,64}$');
 final RegExp _entryPattern = RegExp(r'^[a-z0-9][a-z0-9-]*$');
 const int _entryMax = 48;
 
-final int _readerMajor = SchemaVersion.tryParse(kPlacementsContractVersion)!.major;
+final RegExp _versionPattern = RegExp(r'^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$');
+const String _readerMajor = '1';
 
 /// Whether [name] has the form of a placement name: lowercase Latin letters and digits in
 /// dot-separated segments, at most 64 characters.
@@ -116,24 +126,84 @@ PlacementMapRead readPlacementMap(Object? raw) {
   if (raw is! Map) return const PlacementMapCorrupt();
   final version = raw.containsKey('placementsVersion') ? raw['placementsVersion'] : null;
   if (version is! String) return const PlacementMapCorrupt();
-  final parsed = SchemaVersion.tryParse(version);
+  // The major is compared as a string of digits: a number of any length is another major, never an overflow.
+  final parsed = _versionPattern.firstMatch(version);
   if (parsed == null) return const PlacementMapCorrupt();
-  if (parsed.major != _readerMajor) return const PlacementMapUnsupported();
+  if (parsed.group(1) != _readerMajor) return const PlacementMapUnsupported();
   final places = raw.containsKey('placements') ? raw['placements'] : null;
   if (!_isObject(places)) return const PlacementMapCorrupt();
   return PlacementMapOk(version: version, places: (places as Map).cast<Object?, Object?>());
 }
 
+/// Whether [text] holds more than [max] nested arrays and objects (the root is level one).
+///
+/// Counts brackets outside strings WITHOUT parsing, so a text that would overflow the stack of a
+/// parser is judged before it is given to one.
+bool jsonNestingExceeds(String text, int max) {
+  var depth = 0;
+  var inString = false;
+  var escaped = false;
+  for (var i = 0; i < text.length; i++) {
+    final code = text.codeUnitAt(i);
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (code == 0x5c) {
+        escaped = true;
+      } else if (code == 0x22) {
+        inString = false;
+      }
+    } else if (code == 0x22) {
+      inString = true;
+    } else if (code == 0x7b || code == 0x5b) {
+      depth++;
+      if (depth > max) return true;
+    } else if (code == 0x7d || code == 0x5d) {
+      depth--;
+    }
+  }
+  return false;
+}
+
 /// The text of the file → map. Text that is not JSON is [PlacementMapCorrupt], not an exception:
 /// "the map is spoiled" travels the same way as any other unreadable map.
+///
+/// One leading U+FEFF is skipped. A text longer than [kPlacementsReadMaxBytes] bytes of UTF-8, or
+/// nested deeper than [kPlacementsReadMaxDepth], is corrupt.
 PlacementMapRead readPlacementMapText(String text) {
+  // Every UTF-16 unit is at least one byte: a long text is judged without encoding it.
+  if (text.length > kPlacementsReadMaxBytes || utf8.encode(text).length > kPlacementsReadMaxBytes) {
+    return const PlacementMapCorrupt();
+  }
+  final body = text.isNotEmpty && text.codeUnitAt(0) == 0xfeff ? text.substring(1) : text;
+  if (jsonNestingExceeds(body, kPlacementsReadMaxDepth)) return const PlacementMapCorrupt();
   final Object? raw;
   try {
-    raw = jsonDecode(text);
+    raw = jsonDecode(body);
   } on FormatException {
     return const PlacementMapCorrupt();
   }
   return readPlacementMap(raw);
+}
+
+/// The bytes of a body → text, or `null` when the body cannot be a map: longer than
+/// [kPlacementsReadMaxBytes], or not UTF-8. Invalid bytes are never replaced with U+FFFD (`c0 af`
+/// must not turn into a slash). A byte order mark stays in the text; [readPlacementMapText] skips one.
+String? decodePlacementBody(List<int> bytes) {
+  if (bytes.length > kPlacementsReadMaxBytes) return null;
+  try {
+    // A space in front keeps the decoder from dropping a leading byte order mark on its own: the
+    // rule skips exactly one, and two are not JSON.
+    return utf8.decode(<int>[0x20, ...bytes]).substring(1);
+  } on FormatException {
+    return null;
+  }
+}
+
+/// The bytes of a map body → map: [decodePlacementBody], then [readPlacementMapText].
+PlacementMapRead readPlacementMapBytes(List<int> bytes) {
+  final text = decodePlacementBody(bytes);
+  return text == null ? const PlacementMapCorrupt() : readPlacementMapText(text);
 }
 
 /// One entry of the map. `documentId: null` is an empty place (an entry point beside it is not read).
@@ -189,7 +259,12 @@ final class PlacementNetworkNotFound extends PlacementNetworkOutcome {
   const PlacementNetworkNotFound();
 }
 
-/// No answer: a connection error, a timeout, 5xx, 403.
+/// 200 with a body that is not a map for a reason found before reading: not UTF-8, or over the size limit.
+final class PlacementNetworkCorrupt extends PlacementNetworkOutcome {
+  const PlacementNetworkCorrupt();
+}
+
+/// No answer: a connection error, the deadline, a redirect, 5xx, 403.
 final class PlacementNetworkOffline extends PlacementNetworkOutcome {
   const PlacementNetworkOffline();
 }
@@ -281,6 +356,8 @@ PlacementSourceDecision pickPlacementMap({
         bundled,
         read is PlacementMapUnsupported ? PlacementSourceStatus.unsupported : PlacementSourceStatus.corrupt,
       );
+    case PlacementNetworkCorrupt():
+      return _fallbackFrom(lastKnown, bundled, PlacementSourceStatus.corrupt);
     case PlacementNetworkNotModified():
       final last = lastKnown == null ? null : readPlacementMapText(lastKnown);
       if (last is PlacementMapOk) {
@@ -392,3 +469,55 @@ PlacementShowing placementShowing(PlacementResolution resolution, [PlacementDocu
   }
   return const PlacementShowing(show: PlacementShow.document, entry: null, report: PlacementReport.entryMissing);
 }
+
+// ---------------------------------------------------------------------------------------------
+// What the host hears
+
+/// The settled state of a placement, as the host is told about it. One shape for both outcomes:
+/// when [show] is [PlacementShow.nothing] there is no document and no entry.
+@immutable
+final class PlacementEvent {
+  const PlacementEvent({
+    required this.show,
+    required this.report,
+    required this.mapStatus,
+    required this.documentId,
+    required this.entry,
+  });
+
+  /// Whether a document is drawn.
+  final PlacementShow show;
+
+  /// Why nothing is drawn, or not what was asked; `null` when the document is drawn as asked.
+  final PlacementReport? report;
+
+  /// Why the map in use is the one in use.
+  final PlacementSourceStatus mapStatus;
+
+  /// The document drawn; `null` when nothing is.
+  final String? documentId;
+
+  /// The entry point the document starts from; `null` is its initial screen.
+  final String? entry;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PlacementEvent &&
+      other.show == show &&
+      other.report == report &&
+      other.mapStatus == mapStatus &&
+      other.documentId == documentId &&
+      other.entry == entry;
+
+  @override
+  int get hashCode => Object.hash(show, report, mapStatus, documentId, entry);
+
+  @override
+  String toString() => 'PlacementEvent(${show.name}, ${report?.name}, ${mapStatus.name}, $documentId, $entry)';
+}
+
+/// The event the host hears when a placement settles in [next] after [previous] (`null`: the first
+/// settled state), or `null` when nothing the host can see has changed. A change of any of the five
+/// fields is an event, the return to a drawn document (`report` null) included.
+PlacementEvent? placementEventFor(PlacementEvent? previous, PlacementEvent next) =>
+    previous == next ? null : next;

@@ -1,9 +1,8 @@
 // Adversarial pass over placements: the placement map and the documents it names come from the
 // network, so they are untrusted input.
 //
-// Tests skipped with an `adversary:` reason are FINDINGS: they state what should hold and currently does
-// not; a fix removes the skip. The other tests are GUARDS: paths around the claims that were tried
-// and did not work.
+// The `findings` group states what once did not hold and now does; the `guards` group holds paths
+// around the claims that were tried and did not work.
 import 'dart:async';
 import 'dart:convert';
 
@@ -16,6 +15,7 @@ import 'package:http/testing.dart';
 
 import 'support/fixtures.dart';
 import 'support/network.dart';
+import 'support/placement_bytes.dart';
 
 String _map(Map<String, Object?> places) => jsonEncode({'placementsVersion': '1.0.0', 'placements': places});
 
@@ -37,13 +37,13 @@ final class _Store implements PlacementMapStore {
   String? text;
 
   @override
-  Future<String?> read() async => text;
+  Future<String?> read(String key) async => text;
 
   @override
-  Future<void> write(String value) async => text = value;
+  Future<void> write(String key, String value) async => text = value;
 }
 
-PlacementResponse _ok(String body) => (statusCode: 200, body: body, etag: null);
+PlacementResponse _ok(String body) => (statusCode: 200, body: bytesOf(body), etag: null);
 
 void main() {
   final base = Uri.parse('https://example.test/orgs/o1/projects/p1');
@@ -55,8 +55,6 @@ void main() {
       () {
         expect(readPlacementMapText(hugeMajor), isA<PlacementMapUnsupported>());
       },
-      skip:
-          'adversary: SchemaVersion.tryParse calls int.parse, which throws on 20 digits; readPlacementMapText only catches the jsonDecode error',
     );
 
     test(
@@ -77,8 +75,6 @@ void main() {
         expect(load.mapSource, PlacementMapSource.lastKnown);
         expect(load.resolution.status, PlacementStatus.empty);
       },
-      skip:
-          'adversary: the FormatException escapes pickPlacementMap, so every poll throws and the placement never uses its fallbacks',
     );
 
     test(
@@ -86,32 +82,35 @@ void main() {
       () {
         expect(() => pickPlacementMap(network: const PlacementNetworkOffline(), bundled: hugeMajor), returnsNormally);
       },
-      skip: 'adversary: same int.parse overflow on the fallback path',
     );
 
-    testWidgets(
-      'the default constructor does not refetch and blank the placement on every parent rebuild',
-      (tester) async {
-        // The default constructor builds a NEW PlacementSource in its initializer, so a parent
-        // rebuild always reaches didUpdateWidget with a non-identical source: the document is
-        // dropped and the map is read again.
-        final a = HotlayoutPlacement(
-          name: 'home.banner',
+    testWidgets('the default constructor keeps its source across parent rebuilds', (tester) async {
+      // The test binding answers every request with 400, so the placement settles on "unreadable".
+      // A rebuild with the same name and project must not start over: the host hears that once.
+      final events = <PlacementEvent>[];
+      Widget host(String name) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: HotlayoutPlacement(
+          name: name,
           projectBase: base,
           theme: RenderTheme.fallback(),
           data: const {},
-        );
-        final b = HotlayoutPlacement(
-          name: 'home.banner',
-          projectBase: base,
-          theme: RenderTheme.fallback(),
-          data: const {},
-        );
-        expect(identical(a.source, b.source), isTrue);
-      },
-      // adversary: HotlayoutPlacement(...) creates its PlacementSource per widget instance
-      skip: true,
-    );
+          refreshInterval: null,
+          onPlacementEvent: (_, event) => events.add(event),
+        ),
+      );
+      await tester.pumpWidget(host('home.banner'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpWidget(host('home.banner'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpWidget(host('home.banner'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      expect(events.length, 1);
+      // Another name is another place: it is read again and told again.
+      await tester.pumpWidget(host('profile.top'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      expect(events.length, 2);
+    });
 
     testWidgets(
       'a source swapped while a refresh is in flight still ends with the document on screen',
@@ -152,8 +151,6 @@ void main() {
         await tester.pump();
         expect(tester.getSize(find.byType(HotlayoutPlacement)).height, greaterThan(0));
       },
-      // adversary: _busy drops the refresh of the new source and the generation check drops the old one; nothing is drawn until the next timer tick (5 min by default)
-      skip: true,
     );
   });
 
@@ -249,10 +246,10 @@ void main() {
       expect(resolvePlacement(map, 'home.banner').status, PlacementStatus.empty);
     });
 
-    test('deep JSON inside the size cap does not overflow the stack', () {
+    test('deep JSON inside the size cap is corrupt and never reaches the parser', () {
       const depth = 100000;
       final text = '{"placementsVersion":"1.0.0","placements":{},"x":${'[' * depth}${']' * depth}}';
-      expect(readPlacementMapText(text), isA<PlacementMapOk>());
+      expect(readPlacementMapText(text), isA<PlacementMapCorrupt>());
     });
 
     test('a corrupt, another-major or 404 answer never overwrites the last known map', () async {
@@ -262,8 +259,8 @@ void main() {
       for (final response in <PlacementResponse>[
         _ok('<html>'),
         _ok('{"placementsVersion":"2.0.0","placements":{}}'),
-        (statusCode: 404, body: '', etag: null),
-        (statusCode: 304, body: '', etag: null),
+        (statusCode: 404, body: noBytes, etag: null),
+        (statusCode: 304, body: noBytes, etag: null),
       ]) {
         final store = _Store(good);
         final load = await PlacementSource(
@@ -287,7 +284,7 @@ void main() {
       expect(load.mapStatus, PlacementSourceStatus.corrupt);
     });
 
-    test('cross-reader note: a body with a UTF-8 BOM reads as a map here, as in the browser reader', () async {
+    test('a body with one UTF-8 byte order mark is a map', () async {
       final bytes = [
         0xef,
         0xbb,
@@ -303,11 +300,11 @@ void main() {
       expect(load.mapStatus, PlacementSourceStatus.fresh);
     });
 
-    test('cross-reader note: a body that is not UTF-8 counts as no answer (offline) here', () async {
+    test('a body that is not UTF-8 is a corrupt map, not "no answer"', () async {
       final bytes = [...utf8.encode('{"placementsVersion":"1.0.0","x":"'), 0xff, ...utf8.encode('","placements":{}}')];
       final transport = HttpPlacementTransport(client: MockClient((_) async => http.Response.bytes(bytes, 200)));
       final load = await PlacementSource(projectBase: base, name: 'home.banner', transport: transport).refresh();
-      expect(load.mapStatus, PlacementSourceStatus.offline);
+      expect(load.mapStatus, PlacementSourceStatus.corrupt);
     });
   });
 }

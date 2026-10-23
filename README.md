@@ -848,7 +848,7 @@ return HotlayoutPlacement(
   theme: theme,
   data: data,
   onAction: onAction,
-  onPlacement: (name, report) => log('$name: ${report.name}'),
+  onPlacementEvent: (name, event) => log('$name: ${event.show.name} ${event.report?.name}'),
 );
 ```
 
@@ -867,9 +867,11 @@ return HotlayoutPlacement(
 
 A poll that cannot read the document keeps the one that is on screen.
 
-**Where the map comes from.** The map is held like a published document: the network first (with `If-None-Match`, so a poll that finds nothing new costs a 304), then the last known text, then a copy bundled with the app. `PlacementSourceStatus` says why the map in use is the one in use, and three stories stay apart: `offline` (the network is silent; the last known map is kept), `corrupt` / `unsupported` (the network answered with something that is not a map, or a map of another major version) and `notPublished` (404: the project has no placements; every place is then `unknown`). Only a fresh map from the network is remembered. The `ETag` header is a custom request header: in a web build it makes the browser send a CORS preflight, so expose it on your storage or pass a `PlacementTransport` that does not send it.
+**What the host hears.** `onPlacementEvent` gets a `PlacementEvent` (`show`, `report`, `mapStatus`, `documentId`, `entry`) on every change of any of the five, the first settled state included and the return of a drawn document too (`show: document`, `report: null`): a host that folded the frame on `documentMissing` learns when to unfold it. The same state again is not told. `onPlacement` is the shorter form: it hears only the reasons (`report` not null), once each.
 
-**Your own source.** Build a `PlacementSource` for a transport of your own, a bundled map or a store that keeps the last known map between launches, and hand it to `HotlayoutPlacement.fromSource`:
+**Where the map comes from.** The map is held like a published document: the network first (with `If-None-Match`, so a poll that finds nothing new costs a 304), then the last known text, then a copy bundled with the app. `PlacementSourceStatus` says why the map in use is the one in use, and three stories stay apart: `offline` (the network is silent; the last known map is kept), `corrupt` / `unsupported` (the network answered with something that is not a map, or a map of another major version) and `notPublished` (404: the project has no placements; every place is then `unknown`). Only a fresh map from the network is remembered, and it is kept per map address (a `PlacementMapStore` receives the address as `key`). A body is read as bytes up to 262 144; one that is longer, not UTF-8 (nothing is replaced with U+FFFD), nested deeper than 32 levels or of a major version that is not 1 (compared as digits, a number of any length is another major) is `corrupt` or `unsupported`, and one leading byte order mark is skipped. Redirects are not followed (a `3xx` answer is no answer for the map and an unreadable document), and every request has 20 seconds, to the end of the body. The `ETag` header is a custom request header: in a web build it makes the browser send a CORS preflight, so expose it on your storage or pass a `PlacementTransport` that does not send it.
+
+**Your own source.** `PlacementTransport.fetch` returns the body as bytes (`PlacementResponse.body` is a `Uint8List`) and must not follow redirects. Build a `PlacementSource` for a transport of your own, a bundled map or a store that keeps the last known map between launches, and hand it to `HotlayoutPlacement.fromSource`:
 
 ```dart
 final source = PlacementSource(

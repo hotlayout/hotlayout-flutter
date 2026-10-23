@@ -333,7 +333,8 @@ void main() {
       'PlacementSource', 'PlacementLoad', 'PlacementDocumentSource', 'PlacementDocumentException',
       'PlacementTransport', 'PlacementResponse', 'HttpPlacementTransport', 'PlacementMapStore',
       'placementFileUrl', 'resolvePlacement', 'readPlacementMapText', 'isPlacementName',
-      'kPlacementsContractVersion',
+      'kPlacementsContractVersion', 'PlacementEvent', 'PlacementEventCallback', 'kPlacementFetchTimeout',
+      'readPlacementMapBytes',
     });
   });
 }
