@@ -118,3 +118,29 @@ export 'src/data/document_source.dart'
         HttpDocumentTransport,
         PublishedDocumentSource,
         kDocumentFetchTimeout;
+
+// Placements: named places of the app that show the document the builder put there.
+export 'src/placements/hotlayout_placement.dart' show HotlayoutPlacement, PlacementReportCallback;
+export 'src/placements/placement_map.dart'
+    show
+        PlacementMapRead,
+        PlacementMapSource,
+        PlacementReport,
+        PlacementResolution,
+        PlacementSourceStatus,
+        PlacementStatus,
+        isPlacementName,
+        kPlacementsContractVersion,
+        readPlacementMapText,
+        resolvePlacement;
+export 'src/placements/placement_source.dart'
+    show
+        HttpPlacementTransport,
+        PlacementDocumentException,
+        PlacementDocumentSource,
+        PlacementLoad,
+        PlacementMapStore,
+        PlacementResponse,
+        PlacementSource,
+        PlacementTransport,
+        placementFileUrl;

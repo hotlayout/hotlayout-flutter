@@ -55,6 +55,7 @@ Website: [hotlayout.com](https://hotlayout.com) · Changes by version: [CHANGELO
 - [Language and right-to-left](#language-and-right-to-left)
 - [Network and the fallback](#network-and-the-fallback)
 - [Live data and new versions](#live-data-and-new-versions)
+- [Placements](#placements)
 - [What the reader reports](#what-the-reader-reports)
 - [Versions](#versions)
 - [Platform notes](#platform-notes)
@@ -831,6 +832,59 @@ Instead of a timer you can listen to a signal your backend sends after a publica
 ```
 
 What this does not cover: a document whose new version needs a newer package (another major) is not taken from the network — the source falls back, `LivePublication` keeps what is on screen, and the reason is in `DocumentLoad.detail`.
+
+## Placements
+
+A placement is a named place of your app (`home.banner`, `promo.raffle-button`). The app names the place in code; which published document stands there is decided in the builder and can change without a release. The project publishes one small file, `placements/published.json` (the placement map), next to the theme; it is read without a token.
+
+Names are lowercase Latin letters and digits in dot-separated segments, at most 64 characters. The map is its own contract (`assets/contract/placements.json`, version 1.0.0), versioned apart from the document schema and the theme.
+
+**The simple case.** `HotlayoutPlacement` reads the map, finds the document of the place and draws it:
+
+```dart
+return HotlayoutPlacement(
+  name: 'home.banner',
+  projectBase: Uri.parse(projectBase), // the project folder in your storage
+  theme: theme,
+  data: data,
+  onAction: onAction,
+  onPlacement: (name, report) => log('$name: ${report.name}'),
+);
+```
+
+`projectBase` is the folder of the project, either a plain folder (`https://host/orgs/o1/projects/p1`) or the address of a Firebase Storage object folder (`https://…/v0/b/<bucket>/o/orgs%2Fo1%2Fprojects%2Fp1`). The map is read from `<projectBase>/placements/published.json`, the document from `<projectBase>/documents/<documentId>/published.json`. The widget polls the map every `refreshInterval` (five minutes by default, `null` for never) and when the app returns to the foreground.
+
+**What the place draws.** A placement that has no document to draw draws nothing at all (a zero-size box) and tells you why, once per cause, through `onPlacement`:
+
+| `PlacementReport` | Meaning |
+|---|---|
+| `empty` | The place is declared in the map but nothing is put into it. |
+| `unknown` | The map has no such place (or the name cannot be a place). |
+| `unreadable` | The map could not be read, or the entry of this place is broken. |
+| `documentMissing` | The document of the place is gone (404). |
+| `documentUnreadable` | The document could not be read, or is of another major version. |
+| `entryMissing` | The document is drawn, but the entry point of the place is not in it; it starts on its first screen. Someone has to fix the configuration. |
+
+A poll that cannot read the document keeps the one that is on screen.
+
+**Where the map comes from.** The map is held like a published document: the network first (with `If-None-Match`, so a poll that finds nothing new costs a 304), then the last known text, then a copy bundled with the app. `PlacementSourceStatus` says why the map in use is the one in use, and three stories stay apart: `offline` (the network is silent; the last known map is kept), `corrupt` / `unsupported` (the network answered with something that is not a map, or a map of another major version) and `notPublished` (404: the project has no placements; every place is then `unknown`). Only a fresh map from the network is remembered. The `ETag` header is a custom request header: in a web build it makes the browser send a CORS preflight, so expose it on your storage or pass a `PlacementTransport` that does not send it.
+
+**Your own source.** Build a `PlacementSource` for a transport of your own, a bundled map or a store that keeps the last known map between launches, and hand it to `HotlayoutPlacement.fromSource`:
+
+```dart
+final source = PlacementSource(
+  projectBase: base,
+  name: 'home.banner',
+  bundledMap: await rootBundle.loadString('assets/hotlayout/placements.json'),
+  store: MyPlacementStore(), // implements PlacementMapStore
+);
+final load = await source.refresh();
+// load.resolution.status: document, empty, unknown or unreadable
+// load.entry: the entry point, or null for the initial screen
+// load.documentSource: a DocumentSource of the placed document, or null
+```
+
+`PlacementDocumentSource` is a `DocumentSource`, but unlike `PublishedDocumentSource` it has no bundled fallback: `load()` throws `PlacementDocumentException` (`missing` tells a 404 from the rest) when there is no readable document.
 
 ## What the reader reports
 

@@ -327,6 +327,13 @@ void main() {
       'DocumentSource', 'BundledDocumentSource', 'PublishedDocumentSource', 'DocumentLoad',
       'DocumentLoadStatus', 'DocumentTransport', 'DocumentResponse', 'HttpDocumentTransport',
       'kDocumentFetchTimeout',
+      // placements: named places of the app that show the document the builder put there
+      'HotlayoutPlacement', 'PlacementReportCallback', 'PlacementReport', 'PlacementResolution',
+      'PlacementStatus', 'PlacementSourceStatus', 'PlacementMapSource', 'PlacementMapRead',
+      'PlacementSource', 'PlacementLoad', 'PlacementDocumentSource', 'PlacementDocumentException',
+      'PlacementTransport', 'PlacementResponse', 'HttpPlacementTransport', 'PlacementMapStore',
+      'placementFileUrl', 'resolvePlacement', 'readPlacementMapText', 'isPlacementName',
+      'kPlacementsContractVersion',
     });
   });
 }
