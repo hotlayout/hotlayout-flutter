@@ -867,7 +867,7 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.31.0` | — |
+| Package | `0.31.1` | — |
 | Document contract (schema) | `9.28.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
@@ -978,6 +978,7 @@ If you update from an older version of the package, these are the places where t
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
 | 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
+| 0.31.1 | A window in the middle (`modalPlacement: 'center'`) laid edge to edge stands above the bottom inset as well, so on a phone with a home indicator it moves up by half that inset; a host that gives the reader a zero inset sees no change. A button with a border keeps its shadow. |
 | 0.31.0 | A shadow under a background that lets light through (a translucent colour or gradient, or glass) is painted only outside the box, as a CSS `box-shadow` is; before, it showed through the box. |
 
 ## Platform notes
