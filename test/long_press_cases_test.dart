@@ -332,24 +332,6 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('a write action on a long press is not run', (tester) async {
-      phone(tester);
-      final writes = <String>[];
-      await pumpDocument(
-        tester,
-        UiDocumentBuilder.bare([
-          _card('a', action: true, longPress: true, longPressOverride: {'type': 'setValue', 'params': {'path': 'task.pick', 'value': 'x'}}),
-        ]),
-        onWrite: (path, value) => writes.add(path),
-        onAction: (_, _) {},
-      );
-      final gesture = await tester.startGesture(tester.getCenter(find.text('Coffee week')));
-      await tester.pump(const Duration(milliseconds: 600));
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(writes, isEmpty);
-    });
-
     testWidgets('the pressed pose stays while the finger is down, also after the long press fired', (tester) async {
       phone(tester);
       await pumpDocument(tester, UiDocumentBuilder.bare([_card('card', action: true, longPress: true)]), onAction: (_, _) {});

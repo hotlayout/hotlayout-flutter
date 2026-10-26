@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.28.0';
+const String kSupportedSchemaVersion = '9.30.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -484,6 +484,10 @@ const Map<String, String> kFeatureCatalog = {
   'themeNumbers': '9.28.0',
   'silentText': '9.28.0',
   'modalFocus': '9.28.0',
+  // 9.29.0: the node `name`, a label for the editor that no reader draws. 9.30.0: a write action on a long press; an
+  // older reader drops it (`olderReader`).
+  'nodeName': '9.29.0',
+  'longPressWrite': '9.30.0',
 };
 
 /// Whether THIS code supports a capability the document names.

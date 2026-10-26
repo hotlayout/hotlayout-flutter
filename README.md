@@ -924,7 +924,7 @@ Three numbers describe what this package reads, and the package version is a fou
 | What | Version | Constant |
 |---|---|---|
 | Package | `0.32.0` | — |
-| Document contract (schema) | `9.28.0` | `kSupportedSchemaVersion` |
+| Document contract (schema) | `9.30.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -946,7 +946,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.28.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.30.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -1009,6 +1009,8 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.26.0 | a long press on a card or a row, a list grouped by a field with a header, a sheet that closes by a drag down, `dismissible: false` | [Pressable cards](#pressable-cards), [Grouped list](#grouped-list), [Windows and modal sheets](#windows-and-modal-sheets) |
 | 9.27.0 | the record of a page opened from a row follows the data | [One screen, many records](#one-screen-many-records) |
 | 9.28.0 | no new field: the rules of the reader for picture addresses, the number of list instances on a screen, the numbers of a theme, a text that paints nothing and the focus of a sheet that cannot be dismissed | [Images](#images), [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
+| 9.29.0 | the node field `name` (a label for the editor), which the reader ignores | [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
+| 9.30.0 | a write action (`setValue`, `toggleValue`) on `longPress` is performed | [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
 
 ### Behaviour that changed between package versions
 
@@ -1034,6 +1036,7 @@ If you update from an older version of the package, these are the places where t
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
 | 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
+| 0.33.0 | Reads contract 9.30.0: a `setValue` / `toggleValue` in `longPress` is performed on the hold, as on a tap (through `onWrite`, under `writablePaths`). The node field `name` is ignored. |
 | 0.32.0 | Placements: `HotlayoutPlacement` draws the document of a named place of the app; nothing changes for an app that does not use them. A window in the middle (`modalPlacement: 'center'`) laid edge to edge stands above the bottom inset as well, so on a phone with a home indicator it moves up by half that inset; a host that gives the reader a zero inset sees no change. A button with a border keeps its shadow. |
 | 0.31.0 | A shadow under a background that lets light through (a translucent colour or gradient, or glass) is painted only outside the box, as a CSS `box-shadow` is; before, it showed through the box. |
 

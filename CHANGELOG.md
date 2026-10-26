@@ -1,3 +1,10 @@
+## 0.33.0 (unreleased)
+
+Reads document contract **9.30.0** (theme 4.0.1, icon set 1.0.0 and data dictionary unchanged).
+
+- **A write action on a long press is performed.** A `setValue` or `toggleValue` in `longPress` of a card or a list row used to be dropped when the document was read; it now runs after the hold (or Shift+F10 / the context menu key) the way the same action runs on a tap: the haptic request, then the analytics event, then the write into the session and `onWrite` (under `writablePaths`). Writing a value the session already holds writes nothing. The role of the node still comes from its `action` alone, so a write on the hold makes the node neither an option of a group nor a switch.
+- **The node field `name` is accepted and ignored.** It is a label for the document's author in the editor; it is not drawn, not part of an accessible name, and not passed to actions, events or reports.
+
 ## 0.32.0
 
 The contract version is unchanged (9.28.0). Adds placements (a named place of the app that shows a document chosen in the builder) and two rendering fixes.

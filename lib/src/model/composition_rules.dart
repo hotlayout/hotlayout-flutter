@@ -1,7 +1,6 @@
 import 'action.dart';
 import 'bindable.dart';
 import 'long_press.dart' show kLongPressKey, kLongPressLabelKey;
-import 'action_catalog.dart' show kSetValueActionType, kToggleValueActionType;
 
 /// FREE COMPOSITION (schema 9.19.0, `x-style.layout.composition`).
 ///
@@ -71,13 +70,13 @@ final class PressTarget {
 bool isPressAction(ButtonAction action) => action.type != ButtonAction.noneType || action.track != null;
 
 /// The long press of a node's props (9.26.0), or `null`: no field, a field of the wrong shape, an action that does
-/// nothing, or a write action (`setValue` / `toggleValue` are not published there, and the reader does not run them
-/// on a long press).
+/// nothing. A write action (`setValue` / `toggleValue`) is read like any other: the flow performs it with the same
+/// write the fields use. The role of the node still comes from `action` alone.
 ButtonAction? readLongPress(Map<String, Object?> props) {
   final raw = props[kLongPressKey];
   if (raw is! Map) return null;
   final action = ButtonAction.parse(raw);
-  if (!isPressAction(action) || (action.type == kSetValueActionType || action.type == kToggleValueActionType)) return null;
+  if (!isPressAction(action)) return null;
   return action;
 }
 

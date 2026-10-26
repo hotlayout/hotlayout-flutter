@@ -113,6 +113,8 @@ const List<String> fixtureIds = [
   // 9.26.0: a card that opens a window on a hold, a history grouped by days, a sheet that closes by a drag and one
   // that waits for a button; en and uk.
   'longpress-groups-sheet-screens',
+  // 9.30.0: a write action on a long press -- the hold marks a step done, the tap opens it.
+  'longpress-write-screens',
   // 9.27.0: a page opened from a row that follows the data when a task moves to another list; en and uk.
   'live-record-screens',
 ];
