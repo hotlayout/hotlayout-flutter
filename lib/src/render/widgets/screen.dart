@@ -299,6 +299,11 @@ extension ScreenWidgets on NodeRenderer {
           final sheetWindow = SheetWindowScope.of(context);
           final windowRadius = sheetWindow ? sheetWindowRadius(own?.radius) : own?.radius;
           final boxStyle = identical(windowRadius, own?.radius) ? own : own!.withRadius(windowRadius);
+          // THE BOTTOM INSET OF A SHEET (schema 9.31.0, `sheetSafeBottom`): a sheet reaches the physical bottom of its
+          // area, so the platform inset is added INSIDE its box, under the content, once. With a pinned block the
+          // zone's own low part takes it; without one the sheet gets a low part of its own. A window in the middle and
+          // a sheet shown as a window have none.
+          final lowShown = hasLow || (shrink && !window && !sheetWindow && MediaQuery.viewPaddingOf(context).bottom > 0);
           Widget zonesWith(ZoneTail? tail) => nodeBox(
             boxStyle,
             slot: Slot.fill,
@@ -318,7 +323,7 @@ extension ScreenWidgets on NodeRenderer {
               hasBar: barZone != null,
               hasTop: hasTop,
               hasPinned: hasPinned,
-              hasLow: hasLow,
+              hasLow: lowShown,
               children: [
                 if (barZone != null)
                   KeyedSubtree(key: const ValueKey('hl-zone-bar'), child: KeyedSubtree(key: scroll.barKey, child: barZone)),
@@ -351,7 +356,7 @@ extension ScreenWidgets on NodeRenderer {
                       ),
                     ),
                   ),
-                if (hasLow)
+                if (lowShown)
                   KeyedSubtree(
                     key: const ValueKey('hl-zone-low'),
                     child: buildLowZone(

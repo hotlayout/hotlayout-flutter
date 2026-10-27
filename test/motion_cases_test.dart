@@ -579,7 +579,7 @@ void main() {
     final doc = loadFixture('motion-blur-screens');
 
     test('the screens and the fields the reader reads', () {
-      expect(doc.schemaVersion, '9.30.0');
+      expect(doc.schemaVersion, '9.31.0');
       expect(doc.screens.map((s) => s.screenId), ['home', 'sheet']);
       expect(doc.screens[1].presentation, ScreenPresentationToken.modal);
       expect(doc.screens[1].backdropBlur, 16);

@@ -165,6 +165,9 @@ void main() {
         // 9.24.0: the motion of the dot and the top zone. Mirrors are `bottom_zone_rules.dart` and
         // `top_zone_rules.dart`; values are checked by `bottom_zone_cases_test.dart` and `top_zone_cases_test.dart`.
         'navBadgeMotion', 'topZone',
+        // 9.31.0: the bottom inset of a modal sheet. Mirror is `sheet_safe_bottom.dart`; values are checked by
+        // `sheet_safe_bottom_cases_test.dart`.
+        'sheetSafeBottom',
       });
     });
 

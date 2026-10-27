@@ -1,3 +1,9 @@
+## 0.34.0 (unreleased)
+
+Reads document contract **9.31.0** (theme 4.0.1, icon set 1.0.0 and data dictionary unchanged).
+
+- **A sheet takes the bottom inset inside its box.** A modal sheet from the bottom reaches the physical bottom of its area, so the home indicator or the gesture bar used to lie over its last node (usually the main button). The reader now adds the platform inset (`MediaQuery.viewPaddingOf(context).bottom` of its own context) inside the sheet, under the content, once: the background and the radius of the screen root extend under the inset, and the last node stands above it. With a shown pinned block (`pin: 'bottom'`) the inset goes under the content of that zone, as on a page, not a second time under the root. The sheet is as tall as its content plus the inset, no taller than the area; taller content scrolls the body above the inset. A window in the middle (`modalPlacement: 'center'`), a sheet shown as a window on a wide layout and pages are unchanged. A host that already accounts for the inset (a `SafeArea` above the reader) gives zero and sees no change. `sheetSafeBottomOf`, `sheetInsetPlaceOf` and `sheetBoxOf` are the pure rules; every row of the shared table `fixtures/sheet-safe-bottom/sheet-safe-bottom-cases.json` runs in the package tests.
+
 ## 0.33.0 (unreleased)
 
 Reads document contract **9.30.0** (theme 4.0.1, icon set 1.0.0 and data dictionary unchanged).
