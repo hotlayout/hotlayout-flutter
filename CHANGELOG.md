@@ -1,3 +1,7 @@
+## 0.36.1 (unreleased)
+
+- **A carousel follows a second change of the value made during its own scroll.** When the host changed the stop number twice in a row (for example 2 to 0, and 80 ms later to 1) while the reader was still animating to the first target, the second change was compared with the stop the animation was passing by, judged "already there" and not followed: the value said 1 and the carousel stopped on 0. The carousel now follows from the goal of its last own scroll until that scroll comes to rest; a move by a person (a finger, the wheel) drops that goal.
+
 ## 0.36.0 (unreleased)
 
 Reads document contract **9.33.0** (theme 4.0.1, icon set 1.0.0 and data dictionary 1.8.0 unchanged).

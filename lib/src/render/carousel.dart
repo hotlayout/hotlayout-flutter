@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/gestures.dart' show PointerScrollEvent;
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/semantics.dart';
 
 import '../model/carousel_rules.dart';
@@ -160,6 +161,10 @@ class _CarouselState extends State<Carousel> {
   /// following of the value) clear it, so they never write.
   bool _person = false;
 
+  /// The offset the reader is scrolling towards (the goal of its last own animation) until that scroll comes to rest:
+  /// a value changed again in the middle of it follows from there, not from the stop the animation passes by.
+  double? _heading;
+
   /// The finger holds the row: a change of the value is not applied then.
   bool _dragging = false;
 
@@ -218,10 +223,12 @@ class _CarouselState extends State<Carousel> {
     _person = false;
     final position = _controller.position;
     final goal = offset.clamp(position.minScrollExtent, position.maxScrollExtent).toDouble();
-    if ((position.pixels - goal).abs() < 0.01) return;
+    if (_heading == null && (position.pixels - goal).abs() < 0.01) return;
     if (animate) {
+      _heading = goal;
       _controller.animateTo(goal, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
     } else {
+      _heading = null;
       _controller.jumpTo(goal);
     }
   }
@@ -248,7 +255,7 @@ class _CarouselState extends State<Carousel> {
         previous: previous,
         next: value,
         stopCount: stops.length,
-        active: activeCarouselStop(stops, _controller.position.pixels),
+        active: activeCarouselStop(stops, _heading ?? _controller.position.pixels),
       );
       if (target != null) _moveByReader(stops[target], animate: !MediaQuery.disableAnimationsOf(context));
     });
@@ -260,8 +267,11 @@ class _CarouselState extends State<Carousel> {
     if (notification is ScrollStartNotification && notification.dragDetails != null) {
       _dragging = true;
       _person = true;
+      _heading = null;
     }
+    if (notification is UserScrollNotification && notification.direction != ScrollDirection.idle) _heading = null;
     if (notification is! ScrollEndNotification) return false;
+    _heading = null;
     _dragging = false;
     final stops = _liveStops();
     final active = activeCarouselStop(stops, notification.metrics.pixels).clamp(0, stops.length - 1);
@@ -391,7 +401,10 @@ class _CarouselState extends State<Carousel> {
     final scroll = Listener(
       // The wheel is a person's move too; a drag is told by its scroll notification.
       onPointerSignal: (event) {
-        if (event is PointerScrollEvent) _person = true;
+        if (event is PointerScrollEvent) {
+          _person = true;
+          _heading = null;
+        }
       },
       child: NotificationListener<ScrollNotification>(
         key: _scrollKey,

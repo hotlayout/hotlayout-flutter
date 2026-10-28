@@ -69,4 +69,28 @@ void main() {
     ]);
     expect(shown(), ['details-new']);
   });
+
+  testWidgets("a second change of the value made during the reader's own scroll is followed to the second target", (
+    tester,
+  ) async {
+    phone(tester);
+    final doc = loadFixture('carousel-stop-screens');
+    Map<String, Object?> at(int n) => {
+      'account': {'cardIndex': n},
+    };
+    await pumpDocument(tester, doc, data: at(2), onWrite: (p, value) {});
+    await tester.pumpAndSettle();
+    final last = positionOf(tester).pixels;
+    expect(last, greaterThan(0));
+
+    await pumpDocument(tester, doc, data: at(0), onWrite: (p, value) {});
+    await tester.pump(const Duration(milliseconds: 100));
+    // The scroll towards the first card is under way, passing by the second one.
+    await pumpDocument(tester, doc, data: at(1), onWrite: (p, value) {});
+    await tester.pumpAndSettle();
+    final second = positionOf(tester).pixels;
+    expect(second, greaterThan(0), reason: 'not on the first card');
+    expect(second, lessThan(last), reason: 'not on the last card');
+    expect(shown(), ['details-credit']);
+  });
 }
