@@ -17,6 +17,7 @@ import '../model/node_style.dart';
 import '../model/shown_text.dart';
 import '../model/text_emphasis.dart';
 import '../model/tokens.dart';
+import '../model/visibility_fade.dart';
 import '../model/width_class.dart';
 import '../theme/render_theme.dart';
 import 'carousel.dart';
@@ -28,6 +29,7 @@ import 'list_budget.dart';
 import 'picture_policy.dart';
 import 'render_scope.dart';
 import 'screen_form.dart';
+import 'visibility_fade_scope.dart';
 import 'widgets/app_bar.dart';
 import 'widgets/button.dart';
 import 'widgets/column.dart';
@@ -67,10 +69,14 @@ class NodeRenderer {
     this.listInstance,
     this.links = const [],
     this.budget,
+    this.fades,
   });
 
   /// The list budget of this screen (`x-listBudget`), made once before drawing; `null` draws every record.
   final ListBudgetPlan? budget;
+
+  /// The fades of this screen (9.33.0, `visibilityTransition`); `null` means every condition acts at once.
+  final FadeBook? fades;
 
   /// The `Repeater` instances this node is drawn in, over the links of its screen's frame, outer first (9.27.0). An
   /// action carries them to the stack, which keeps them so the record of the page it opens follows the data.
@@ -181,6 +187,7 @@ class NodeRenderer {
     listInstance: listInstance ?? this.listInstance,
     links: links ?? this.links,
     budget: budget,
+    fades: fades,
   );
 
   /// The same renderer, but with a LIST RECORD in scope.
@@ -309,8 +316,20 @@ class NodeRenderer {
     _numberSiblings(nodes);
     // The commonest case is no condition in the list; then nothing is copied.
     if (nodes.every((node) => !node.hasVisibilityRule)) return nodes;
-    return [for (final node in nodes) if (node.isVisible(data)) node];
+    return [for (final node in nodes) if (drawnNow(node)) node];
   }
+
+  /// Whether [node] stands in the layout now: its condition holds, or it is a node that fades (9.33.0) and is still
+  /// fading out or has already entered.
+  bool drawnNow(ChildNode node) {
+    final book = fades;
+    if (book == null || !fadesOnChange(node)) return node.isVisible(data);
+    return book.sync(fadeKeyOf(node), node.isVisible(data));
+  }
+
+  /// The key of a fading node in the book of its screen: the node together with the instances of the lists it stands
+  /// in, so the rows of a list fade each on its own.
+  String fadeKeyOf(ChildNode node) => carouselStateKey(node.id, instance);
 
   /// NUMBERING OF LIST ITEMS (`listMarker.number`). Computed over the CHILDREN OF ONE PARENT BY
   /// THE DOCUMENT, before conditionally hidden ones are filtered out: a group is numbered

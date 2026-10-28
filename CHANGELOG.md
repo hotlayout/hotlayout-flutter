@@ -1,3 +1,9 @@
+## 0.36.0 (unreleased)
+
+Reads document contract **9.33.0** (theme 4.0.1, icon set 1.0.0 and data dictionary 1.8.0 unchanged).
+
+- **A node fades in and out when its condition changes.** A node with `visibilityTransition: 'fade'` and a `visibleIf` no longer blinks when the condition changes on a shown screen. A node whose condition stops holding stays in the layout and fades out for 120 ms (`cubic-bezier(0.4, 0, 1, 1)`) and then leaves it; a node whose condition starts to hold waits 120 ms out of the layout and then enters it transparent and fades in for 160 ms (`cubic-bezier(0, 0, 0.2, 1)`). Every node follows its own timeline, with no pairing, so two neighbours with mutually exclusive conditions change the layout once. A change during a transition goes to the new goal from the current opacity, the time scaled by the distance. While a node fades out it catches no press, takes no focus and is out of the accessibility tree; a node that is entering is a control from the moment it enters the layout. The children of a `Column`, `Row`, `Container`, `Stack`, `Grid` and a list all fade; the zones of the screen (the first child of the root when it is an app bar, a node with a `pin` of any value, a navigation bar and its items), a tab of `Tabs` and a node without `visibleIf` follow their condition at once. There is no transition on the first show, after going back, when the language or the width class changes, or under the system "disable animations". A document without the field draws exactly as before. `visibilityFadeChange`, `visibilityFadeAt` and the other rules in `visibility_fade.dart` are the pure rules; every row of `fixtures/visibility-fade/visibility-fade-cases.json` runs in the package tests, the screen row on the real finished screen.
+
 ## 0.35.0 (unreleased)
 
 Reads document contract **9.32.0** (theme 4.0.1 and icon set 1.0.0 unchanged; data dictionary 1.8.0 adds `account.cardIndex`).

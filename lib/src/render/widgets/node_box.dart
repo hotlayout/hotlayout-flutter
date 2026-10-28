@@ -13,9 +13,11 @@ import '../../model/scrolled_bar.dart';
 import '../../model/silent_text.dart';
 import '../../model/style_values.dart';
 import '../../model/tokens.dart';
+import '../../model/visibility_fade.dart';
 import '../dashed_border.dart';
 import '../layout/styled_size.dart';
 import '../node_motion.dart';
+import '../visibility_fade_scope.dart';
 import '../node_renderer.dart';
 import '../render_scope.dart';
 import 'image.dart';
@@ -41,12 +43,21 @@ extension NodeBoxWidgets on NodeRenderer {
     Slot slot = Slot.free,
     AlignToken? stretchAlign,
     bool naturalRow = false,
-  }) => styledNode(
-    node,
-    slot,
-    (renderer, own) => renderer.renderBody(node, own, naturalRow: naturalRow, slot: slot),
-    stretchAlign: stretchAlign,
-  );
+  }) {
+    final box = styledNode(
+      node,
+      slot,
+      (renderer, own) => renderer.renderBody(node, own, naturalRow: naturalRow, slot: slot),
+      stretchAlign: stretchAlign,
+    );
+    // A node that fades (9.33.0) is wrapped the same way whatever its phase, so its subtree keeps its state when the
+    // phase changes.
+    final book = fades;
+    if (book == null || !fadesOnChange(node)) return box;
+    final key = fadeKeyOf(node);
+    book.sync(key, node.isVisible(data));
+    return FadeBox(book: book, entryKey: key, child: box);
+  }
 
   /*
    * NODE STYLE: ONE PLACE FOR ALL WIDGETS (schema 9.0.0).

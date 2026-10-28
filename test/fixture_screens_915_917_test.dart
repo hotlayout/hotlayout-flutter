@@ -36,7 +36,7 @@ final Finder _anyButton = find.byWidgetPredicate((w) => w is ButtonStyleButton);
 
 void main() {
   test('fixtures: schema versions and catalogue', () {
-    expect(loadFixture('alignment-screens').schemaVersion, '9.32.0');
+    expect(loadFixture('alignment-screens').schemaVersion, '9.33.0');
     expect(loadFixture('app-bar-screens').schemaVersion, '9.16.0');
     expect(loadFixture('text-emphasis-screens').schemaVersion, '9.17.0');
     for (final id in ['alignment-screens', 'app-bar-screens', 'text-emphasis-screens']) {

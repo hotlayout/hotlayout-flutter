@@ -25,13 +25,14 @@ final class _RawNode {
     this._keys,
     this.widthClass,
     this.hiddenByClass,
-    this.columnsFromOverride, [
+    this.columnsFromOverride,
+    this.fades, [
     this.depth = 0,
   ]);
 
   static _RawNode of(Object? raw, LocalizationKeys keys, WidthClass widthClass, [int depth = 0]) {
     if (raw is! Map) {
-      return _RawNode('<malformed>', '<malformed>', const {}, null, null, null, const [], false, null, null, null, false, false, false, null, null, null, keys, widthClass, false, false, depth);
+      return _RawNode('<malformed>', '<malformed>', const {}, null, null, null, const [], false, null, null, null, false, false, false, null, null, null, keys, widthClass, false, false, false, depth);
     }
     final json = Map<String, Object?>.from(raw);
     final type = json['type'] is String ? json['type'] as String : '<no-type>';
@@ -71,6 +72,14 @@ final class _RawNode {
       // 9.18.0: `showOn` is the second, independent half of "is the node visible".
       !showsOnWidthClass(showOnOf(json['showOn']), widthClass),
       effective.columnsFromOverride,
+      // 9.33.0: the node fades when its condition changes: the word `fade`, a condition to change, and not a zone of
+      // the screen (a navigation bar or its item, a node with a `pin` of any value; the app bar of the root is
+      // taken off by the screen).
+      readsVisibilityFade(json[kVisibilityTransitionKey]) &&
+          json['visibleIf'] != null &&
+          // The tabs of a `Tabs` are not faded either: the open one follows its condition at once.
+          type != 'Tab' &&
+          !isScreenZoneNode(type, pinned: json.containsKey('pin'), firstOfScreenRoot: false),
       depth,
     );
   }
@@ -150,6 +159,9 @@ final class _RawNode {
 
   /// `columns` came from a `propsOn` layer: its bounds are 1..6.
   final bool columnsFromOverride;
+
+  /// The node fades when its condition changes (9.33.0).
+  final bool fades;
 
   /// The localization key for this node's field, or `null` if the document has no translations at all.
   String? key(String path) => _keys.of(id, path);

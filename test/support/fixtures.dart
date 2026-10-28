@@ -120,6 +120,8 @@ const List<String> fixtureIds = [
   // 9.32.0: cards in a carousel whose active stop is a data path: the dots, the details of the shown card and a
   // swipe all work through the one number.
   'carousel-stop-screens',
+  // 9.33.0: the heading and the details of the shown card fade out in place and the next ones fade in after them.
+  'visibility-fade-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

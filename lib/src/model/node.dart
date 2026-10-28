@@ -31,6 +31,7 @@ import 'swipe_confirm.dart';
 import 'text_spans.dart';
 import 'tokens.dart';
 import 'visibility.dart';
+import 'visibility_fade.dart';
 import 'width_class.dart';
 
 part 'nodes/chrome.dart';
@@ -93,9 +94,12 @@ sealed class UiNode {
     if (node.type == 'Screen') {
       // Since 9.0.0 the screen's `props` are empty: background and padding moved to `style`, and the reader
       // has no default look: a screen without a style has neither background nor padding.
+      final children = node.childNodes();
+      // The app bar that is the first child of the root is the app bar ZONE: it follows its condition at once.
+      if (children.isNotEmpty && children.first is AppBarNode) unmarkVisibilityFade(children.first);
       return ScreenNode(
         id: node.id,
-        children: node.childNodes(),
+        children: children,
         style: node.style,
         styleWhen: node.styleWhen,
         gap: FieldSpacing.parse(node.props['gap'], fieldDefault: SpacingToken.sm),
@@ -115,6 +119,12 @@ sealed class UiNode {
   }
 
   static ChildNode _parseChild(_RawNode node) {
+    final parsed = _parseTyped(node);
+    if (node.fades) markVisibilityFade(parsed);
+    return parsed;
+  }
+
+  static ChildNode _parseTyped(_RawNode node) {
     final id = node.id;
     // `visibleIf` is a field of the node, not a prop, and every child type has it, so it is parsed once
     // before the type is chosen.

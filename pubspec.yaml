@@ -12,7 +12,7 @@ topics:
   - widget
 # The version of the PACKAGE (semver), not of the contract: the schema and theme versions it
 # reads are `kSupportedSchemaVersion` and `kSupportedThemeContractVersion`.
-version: 0.35.0
+version: 0.36.0
 
 environment:
   sdk: ^3.11.5

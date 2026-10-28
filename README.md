@@ -923,8 +923,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.35.0` | — |
-| Document contract (schema) | `9.32.0` | `kSupportedSchemaVersion` |
+| Package | `0.36.0` | — |
+| Document contract (schema) | `9.33.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
@@ -946,7 +946,7 @@ What changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
 The two notices differ because the cure differs:
 
 - A **newer** document is read by a newer app, so the user is asked to update.
-- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.32.0): … the document has to be republished from the builder`).
+- An **older** document (an `8.x` document in a `9.x` renderer) is read by no newer app: it has to be **republished from the builder**, and the user can do nothing. The notice gives no advice, and the reason goes to the debug log (`[hotlayout] document schema 8.20.0 is an older major than this renderer reads (9.33.0): … the document has to be republished from the builder`).
 
 `verdict.isMajorMismatch` is true for both.
 
@@ -1011,6 +1011,7 @@ A document that uses a feature needs a renderer that reads that minor; an older 
 | 9.28.0 | no new field: the rules of the reader for picture addresses, the number of list instances on a screen, the numbers of a theme, a text that paints nothing and the focus of a sheet that cannot be dismissed | [Images](#images), [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
 | 9.29.0 | the node field `name` (a label for the editor), which the reader ignores | [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
 | 9.30.0 | a write action (`setValue`, `toggleValue`) on `longPress` is performed | [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
+| 9.33.0 | a node fades in and out when its `visibleIf` changes (`visibilityTransition: 'fade'`) | [Fading nodes](#fading-nodes), [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
 | 9.32.0 | the carousel tells the active stop to a number path (`carousel.stopPath`) and follows the value | [Carousel and segmented progress](#carousel-and-segmented-progress), [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
 | 9.31.0 | the bottom safe inset of a modal sheet lies inside its box, under the content | [Windows and modal sheets](#windows-and-modal-sheets), [Behaviour that changed between package versions](#behaviour-that-changed-between-package-versions) |
 
@@ -1038,6 +1039,7 @@ If you update from an older version of the package, these are the places where t
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
 | 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
+| 0.36.0 | Reads contract 9.33.0: a node with `visibilityTransition: 'fade'` and a `visibleIf` fades out in place and then leaves the layout, or waits out of the layout and then fades in, when its condition changes on a shown screen. A document without the field draws as before; under the system "disable animations", on the first show, after going back and when the language or the width class changes, a node follows its condition at once. A widget test that expects a hidden node gone right after the data changed needs `pump(Duration)` or `pumpAndSettle` for such a node. |
 | 0.35.0 | Reads contract 9.32.0: a carousel with `carousel.stopPath` writes the stop a person settled on to that number path (through `onWrite`, under `writablePaths`) and stands on the stop the value names; a document without the field draws as before. |
 | 0.34.0 | Reads contract 9.31.0: a modal sheet from the bottom takes the bottom safe inset (`MediaQuery.viewPaddingOf`) inside its box, under its content and once (under the pinned block when there is one), so its last node stands above the home indicator and its background reaches the bottom. A window in the middle, a sheet shown as a window and pages are unchanged; a host that gives the reader a zero inset sees no change. |
 | 0.33.0 | Reads contract 9.30.0: a `setValue` / `toggleValue` in `longPress` is performed on the hold, as on a tap (through `onWrite`, under `writablePaths`). The node field `name` is ignored. |
@@ -1358,6 +1360,19 @@ A `Row` with `scrollable: true`, or a `Repeater` laid out in a row, with a `caro
 - with `stopPath`, a number data path, the carousel tells the active stop: when a person's swipe (or the wheel) has settled on a stop it writes the stop number, counted from 0 and by stops, not cards, to that path through the same write a field makes (the session of the screen stack and `onWrite`, under `writablePaths`; `onAction` is not called). The carousel stands on the stop the value names when it is shown (without animation) and moves to it when the number changes — an own dot that sets the number, or your data — while a finger holds the row the change is not applied, and a value you refused to write leaves the carousel where the person put it. The reader's own moves never write.
 
 A `ProgressBar` with `segments` (2…12) is drawn as equal steps, each filled whole or not at all, with `currentColor` for the first unfilled one. While its value leads to a new value (`animateChanges`, `animateIn`) the steps fill smoothly, see [Progress bar and ring](#progress-bar-and-ring).
+
+### Fading nodes
+
+A node with `visibilityTransition: 'fade'` and a `visibleIf` does not blink in and out when its condition changes on a shown screen:
+
+- a node whose condition stops holding stays where it is and fades out for 120 ms, then leaves the layout; while it fades it takes no press, no focus and is out of the accessibility tree;
+- a node whose condition starts to hold waits 120 ms out of the layout, then enters it transparent and fades in for 160 ms;
+- every node follows its own timeline, with no pairing: two neighbours with mutually exclusive conditions are both invisible at the wait, and the layout changes once;
+- a change during a transition goes to the new goal from the current opacity, the time scaled by the distance;
+- the field is not read on the zones of the screen (the first child of the root when it is an app bar, a node with a `pin`, a navigation bar and its items) nor on a tab of `Tabs`: they follow the condition at once;
+- there is no transition on the first show of a screen, after going back to it, when the language or the width class changes, and under the system "disable animations".
+
+The numbers and the curves are the data of the contract, and the moments of a transition run on the frames of the app, so a widget test moves them with `pump(Duration)`.
 
 ### Parts of a list row
 

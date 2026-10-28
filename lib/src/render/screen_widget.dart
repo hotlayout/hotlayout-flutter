@@ -22,6 +22,7 @@ import 'node_renderer.dart';
 import 'picture_policy.dart';
 import 'screen_form.dart';
 import 'version_notice.dart';
+import 'visibility_fade_scope.dart';
 import 'width_class_scope.dart';
 
 Widget screenWidget(
@@ -57,64 +58,64 @@ Widget screenWidget(
   // screen entry) and then painted as an ordinary document; when the class changes (rotation,
   // split screen) the same tree is repainted with other props, and the field keys and the
   // carousels' memory of the frame stay.
-  Widget drawn(DateTime? clock) => WidthClassScope(
-    builder: (context, widthClass) {
-      final root = screen.rootIn(widthClass);
-      // The host's record is the same input as the rest: only the form's own data path keys, no
-      // `null` values.
-      final screenRecord = safeRecord(record);
-      // First the data WITHOUT the scope, which is what the host reads when deciding which entity to
-      // supply. Then the same scope goes on top of it as layer 3.
-      final base = ScreenData.scoped(document: data, record: screenRecord, session: session);
-      final scope = scopeFor?.call((params: params, record: screenRecord, read: base.lookup)) ?? const {};
-      // Data layers of THIS screen (without a list item's row record): the screen's form is computed
-      // from them, because the form is about the screen, not a node.
-      final screenData = ScreenData.scoped(
-        document: data,
-        record: screenRecord,
-        session: session,
-        scope: scope,
-      );
-      // THE LIST BUDGET (`x-listBudget`): one plan per screen, before the first list is drawn, over the tree of this
-      // width class. One report per screen, in debug builds, without a word of the data.
-      final budget = ListBudgetPlan.of(root, screenData);
-      if (budget.notDrawn > 0) {
-        ReportHub.ignored(
-          'screen "${screen.screenId}"',
-          'the list budget of $kListBudgetPerScreen instances was reached: ${budget.notDrawn} instances of list templates were not drawn',
+  Widget drawn(DateTime? clock) => FadeScope(
+    builder: (context, fades) => WidthClassScope(
+      builder: (context, widthClass) {
+        // Fades (9.33.0): a change of the width class or the language, and "disable animations", put a node at rest.
+        fades.begin(context: '${widthClass.name}|${locale ?? ''}', animate: !MediaQuery.disableAnimationsOf(context));
+        final root = screen.rootIn(widthClass);
+        // The host's record is the same input as the rest: only the form's own data path keys, no
+        // `null` values.
+        final screenRecord = safeRecord(record);
+        // First the data WITHOUT the scope, which is what the host reads when deciding which entity to
+        // supply. Then the same scope goes on top of it as layer 3.
+        final base = ScreenData.scoped(document: data, record: screenRecord, session: session);
+        final scope = scopeFor?.call((params: params, record: screenRecord, read: base.lookup)) ?? const {};
+        // Data layers of THIS screen (without a list item's row record): the screen's form is computed
+        // from them, because the form is about the screen, not a node.
+        final screenData = ScreenData.scoped(document: data, record: screenRecord, session: session, scope: scope);
+        // THE LIST BUDGET (`x-listBudget`): one plan per screen, before the first list is drawn, over the tree of this
+        // width class. One report per screen, in debug builds, without a word of the data.
+        final budget = ListBudgetPlan.of(root, screenData);
+        if (budget.notDrawn > 0) {
+          ReportHub.ignored(
+            'screen "${screen.screenId}"',
+            'the list budget of $kListBudgetPerScreen instances was reached: ${budget.notDrawn} instances of list templates were not drawn',
+          );
+        }
+        final renderer = NodeRenderer(
+          budget: budget,
+          theme: theme,
+          data: screenData,
+          form: ScreenForm(root: root, data: screenData),
+          strings: strings,
+          locale: locale,
+          // READER CLOCK (`readerClock: 'injectable-read-at-render'`). Read ONCE per screen, here, at
+          // paint time: all strings of a frame count days from one instant, and the screen does not
+          // repaint as time passes; the computed value stands until the next paint.
+          now: clock ?? now ?? DateTime.now(),
+          onAction: handler,
+          onWrite: onWrite,
+          pictures: pictures,
+          labels: labels,
+          carouselMemory: memory,
+          shownScreenId: screen.screenId,
+          links: links,
+          fades: fades,
         );
-      }
-      final renderer = NodeRenderer(
-        budget: budget,
-        theme: theme,
-        data: screenData,
-        form: ScreenForm(root: root, data: screenData),
-        strings: strings,
-        locale: locale,
-        // READER CLOCK (`readerClock: 'injectable-read-at-render'`). Read ONCE per screen, here, at
-        // paint time: all strings of a frame count days from one instant, and the screen does not
-        // repaint as time passes; the computed value stands until the next paint.
-        now: clock ?? now ?? DateTime.now(),
-        onAction: handler,
-        onWrite: onWrite,
-        pictures: pictures,
-        labels: labels,
-        carouselMemory: memory,
-        shownScreenId: screen.screenId,
-        links: links,
-      );
-      // Root of THIS screen's input fields: the registry for the "next" key and the host's
-      // `autofill` parameter. One per screen, so "next" does not jump to the screen under a modal.
-      return InputScope(
-        autofill: autofill,
-        child: renderer.renderRoot(
-          root,
-          presentation: presentation ?? screen.presentation,
-          placement: screen.placement,
-          widthClass: widthClass,
-        ),
-      );
-    },
+        // Root of THIS screen's input fields: the registry for the "next" key and the host's
+        // `autofill` parameter. One per screen, so "next" does not jump to the screen under a modal.
+        return InputScope(
+          autofill: autofill,
+          child: renderer.renderRoot(
+            root,
+            presentation: presentation ?? screen.presentation,
+            placement: screen.placement,
+            widthClass: widthClass,
+          ),
+        );
+      },
+    ),
   );
 
   // A countdown that ticks (9.21.0): a screen with a `countdownPart` redraws every second (a minute, with no
