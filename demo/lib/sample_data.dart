@@ -335,6 +335,9 @@ const Map<String, Object?> sampleScreenData = {
   'activity.day': 'Mon, Oct 12',
   'task.id': 'card-payments',
 
+  // Dictionary 1.8.0: the stop of a card carousel (schema 9.32.0), the first card until a person moves it.
+  'account.cardIndex': 0,
+
   // --------------------------------------------------------------- collections
   'tasks': sampleTasks,
   'doneTasks': sampleDoneTasks,

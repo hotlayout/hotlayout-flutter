@@ -2,9 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/semantics.dart';
 
 import '../model/carousel_rules.dart';
+import '../model/carousel_stop.dart';
 
 /// The carousel: scrolling that snaps to cards, with dots under it (schema 9.11.0,
 /// `x-style.layout.carousel`).
@@ -104,7 +106,21 @@ class Carousel extends StatefulWidget {
     this.cardWidths,
     this.stateKey,
     this.memory,
+    this.stopPath,
+    this.stopValue,
+    this.onStopWrite,
   });
+
+  /// The number data path of the active stop (9.32.0, `carousel.stopPath`); `null` means the carousel neither
+  /// writes nor follows anything.
+  final String? stopPath;
+
+  /// The value under [stopPath] now, read through the data layers of the node.
+  final Object? stopValue;
+
+  /// Writes the stop number a person settled on to [stopPath]: the very write an input field makes (session and
+  /// host at the same moment). `null` when nothing can be written.
+  final ValueChanged<int>? onStopWrite;
 
   /// The state key ([carouselStateKey]) and the stack frame's memory; without them the carousel
   /// starts at the first stop every time.
@@ -137,12 +153,32 @@ class Carousel extends StatefulWidget {
 class _CarouselState extends State<Carousel> {
   late final ScrollController _controller;
 
+  /// The value under the stop path when the carousel looked last: a change of the NUMBER it names moves the carousel.
+  Object? _lastValue;
+
+  /// A person moved the scroll since it was last at rest: a drag, or the wheel. The reader's own moves (the show, the
+  /// following of the value) clear it, so they never write.
+  bool _person = false;
+
+  /// The finger holds the row: a change of the value is not applied then.
+  bool _dragging = false;
+
+  /// The carousel stands on the stop its value names (set once the stops are laid out).
+  bool _placed = true;
+
   @override
   void initState() {
     super.initState();
-    final remembered = _remembered;
-    _controller = ScrollController(initialScrollOffset: remembered ?? 0);
-    if (remembered != null && remembered > 0) {
+    _lastValue = widget.stopValue;
+    final shown = _shownOffset();
+    final remembered = shown == null ? _remembered : null;
+    _controller = ScrollController(initialScrollOffset: shown ?? remembered ?? 0);
+    if (widget.stopPath != null) {
+      // With a path the value tells where to stand, whatever the frame remembered; the stops are known now (`perView`)
+      // or after the first measuring.
+      _placed = shown != null;
+      if (!_placed) WidgetsBinding.instance.addPostFrameCallback((_) => _placeShown());
+    } else if (remembered != null && remembered > 0) {
       // Fewer stops now (`fewerStops: clamp`): a remembered position beyond the scroll bounds
       // becomes the last stop rather than an empty place.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -160,17 +196,91 @@ class _CarouselState extends State<Carousel> {
     return key == null ? null : widget.memory?.offsets[key];
   }
 
-  /// Remember the open stop when the scroll comes to rest.
+  /// The offset of the stop the value names, when the stops are known; `null` otherwise.
+  double? _shownOffset() {
+    if (widget.stopPath == null) return null;
+    final stops = _stopsFor(widget.viewport)?.stops;
+    if (stops == null) return null;
+    return stops[carouselShownStop(widget.stopValue, stops.length)];
+  }
+
+  /// Stand on the stop the value names, without animation, once the stops are laid out (natural card widths).
+  void _placeShown() {
+    if (!mounted || _placed || widget.stopPath == null || !_controller.hasClients) return;
+    final stops = _liveStops();
+    _placed = true;
+    _moveByReader(stops[carouselShownStop(widget.stopValue, stops.length)], animate: false);
+  }
+
+  /// A move the reader makes (the show, the following of the value): never written back.
+  void _moveByReader(double offset, {required bool animate}) {
+    if (!_controller.hasClients) return;
+    _person = false;
+    final position = _controller.position;
+    final goal = offset.clamp(position.minScrollExtent, position.maxScrollExtent).toDouble();
+    if ((position.pixels - goal).abs() < 0.01) return;
+    if (animate) {
+      _controller.animateTo(goal, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+    } else {
+      _controller.jumpTo(goal);
+    }
+  }
+
+  @override
+  void didUpdateWidget(Carousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.stopPath != oldWidget.stopPath) {
+      _lastValue = widget.stopValue;
+      _placed = widget.stopPath == null;
+      if (!_placed) WidgetsBinding.instance.addPostFrameCallback((_) => _placeShown());
+      return;
+    }
+    if (widget.stopPath == null) return;
+    final previous = _lastValue;
+    _lastValue = widget.stopValue;
+    // The gesture wins: a change under the finger is not applied. A stop not laid out yet is placed from the latest value.
+    if (_dragging || !_placed) return;
+    final value = widget.stopValue;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.hasClients) return;
+      final stops = _liveStops();
+      final target = carouselStopFollow(
+        previous: previous,
+        next: value,
+        stopCount: stops.length,
+        active: activeCarouselStop(stops, _controller.position.pixels),
+      );
+      if (target != null) _moveByReader(stops[target], animate: !MediaQuery.disableAnimationsOf(context));
+    });
+  }
+
+  /// A scroll came to rest: remember the open stop, and tell a person's stop to the data.
   bool _onScroll(ScrollNotification notification) {
-    if (notification is! ScrollEndNotification || notification.depth != 0) return false;
+    if (notification.depth != 0 || notification.metrics.axis != Axis.horizontal) return false;
+    if (notification is ScrollStartNotification && notification.dragDetails != null) {
+      _dragging = true;
+      _person = true;
+    }
+    if (notification is! ScrollEndNotification) return false;
+    _dragging = false;
+    final stops = _liveStops();
+    final active = activeCarouselStop(stops, notification.metrics.pixels).clamp(0, stops.length - 1);
     final key = widget.stateKey;
     final memory = widget.memory;
-    if (key == null || memory == null || notification.metrics.axis != Axis.horizontal) return false;
-    final stops = _liveStops();
-    final pixels = notification.metrics.pixels;
-    memory.offsets[key] = stops[activeCarouselStop(stops, pixels).clamp(0, stops.length - 1)];
+    if (key != null && memory != null) memory.offsets[key] = stops[active];
+    final byPerson = _person;
+    _person = false;
+    final write = widget.onStopWrite;
+    // Not in the middle of a layout (a rest caused by new dimensions is never a person's): a write sets state.
+    if (widget.stopPath != null &&
+        write != null &&
+        SchedulerBinding.instance.schedulerPhase != SchedulerPhase.persistentCallbacks) {
+      final value = carouselStopWrite(settled: active, byPerson: byPerson, current: widget.stopValue);
+      if (value != null) write(value);
+    }
     return false;
   }
+
   final List<GlobalKey> _keys = [];
 
   /// The scroll does not change its element when dots appear or disappear: otherwise the old and
@@ -251,6 +361,7 @@ class _CarouselState extends State<Carousel> {
         if (same) return;
       }
       setState(() => _measured = widths);
+      if (!_placed) WidgetsBinding.instance.addPostFrameCallback((_) => _placeShown());
     });
   }
 
@@ -277,15 +388,21 @@ class _CarouselState extends State<Carousel> {
 
     // The list goes BEFORE the cards (the item role needs a parent with the list role), so it
     // wraps the row inside the scroll, not the scroll itself.
-    final scroll = NotificationListener<ScrollNotification>(
-      key: _scrollKey,
-      onNotification: _onScroll,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        controller: _controller,
-        padding: widget.padding,
-        physics: CarouselPhysics(stops: _liveStops),
-        child: Semantics(container: true, role: SemanticsRole.list, child: widget.rowBuilder(children)),
+    final scroll = Listener(
+      // The wheel is a person's move too; a drag is told by its scroll notification.
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent) _person = true;
+      },
+      child: NotificationListener<ScrollNotification>(
+        key: _scrollKey,
+        onNotification: _onScroll,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: _controller,
+          padding: widget.padding,
+          physics: CarouselPhysics(stops: _liveStops),
+          child: Semantics(container: true, role: SemanticsRole.list, child: widget.rowBuilder(children)),
+        ),
       ),
     );
 

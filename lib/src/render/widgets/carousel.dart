@@ -37,6 +37,8 @@ extension CarouselWidgets on NodeRenderer {
     required List<(NodeRenderer, ChildNode)> items,
   }) {
     final padding = theme.resolveBoxSpacing(own?.padding) ?? EdgeInsetsDirectional.zero;
+    final stopPath = carousel.stopPath;
+    final write = onWrite;
     final peekRef = carousel.peek;
     final peek = (peekRef == null ? null : theme.resolveSpacing(peekRef)) ?? theme.spacing[kDefaultCarouselPeek] ?? 0;
     return LayoutBuilder(
@@ -66,6 +68,9 @@ extension CarouselWidgets on NodeRenderer {
         return Carousel(
           stateKey: carouselStateKey(nodeId, instance),
           memory: carouselMemory,
+          stopPath: stopPath,
+          stopValue: stopPath == null ? null : data.lookup(stopPath),
+          onStopWrite: stopPath == null || write == null ? null : (stop) => write(stopPath, stop),
           cards: cards,
           cardWidths: cardWidth == null ? null : widths,
           viewport: viewport,

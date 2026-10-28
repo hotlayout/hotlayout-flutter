@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.31.0';
+const String kSupportedSchemaVersion = '9.32.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -490,6 +490,8 @@ const Map<String, String> kFeatureCatalog = {
   'longPressWrite': '9.30.0',
   // 9.31.0: the bottom safe inset of a modal sheet lies inside its box; an older reader adds nothing there.
   'sheetSafeBottom': '9.31.0',
+  // 9.32.0: the carousel writes its active stop to a number path and follows the value; an older reader skips the field.
+  'carouselStop': '9.32.0',
 };
 
 /// Whether THIS code supports a capability the document names.

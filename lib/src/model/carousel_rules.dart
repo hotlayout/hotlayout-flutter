@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'carousel_stop.dart';
 import 'progress_rules.dart';
 import 'style_values.dart';
 
@@ -49,7 +50,7 @@ const String kCarouselActiveColor = 'primary';
 
 /// A carousel as the reader reads it (`readCarousel`).
 final class ReaderCarousel {
-  const ReaderCarousel({this.perView, this.peek, this.dots = true});
+  const ReaderCarousel({this.perView, this.peek, this.dots = true, this.stopPath});
 
   /// Number of whole cards in the visible area; `null` means natural width.
   final int? perView;
@@ -60,12 +61,20 @@ final class ReaderCarousel {
   /// `false` — `indicator: 'none'`.
   final bool dots;
 
-  @override
-  bool operator ==(Object other) =>
-      other is ReaderCarousel && other.perView == perView && other.peek == peek && other.dots == dots;
+  /// The number data path the carousel writes its active stop to and follows (9.32.0, `carousel.stopPath`); `null`
+  /// means there is no readable path, and the carousel neither writes nor follows anything.
+  final String? stopPath;
 
   @override
-  int get hashCode => Object.hash(perView, peek, dots);
+  bool operator ==(Object other) =>
+      other is ReaderCarousel &&
+      other.perView == perView &&
+      other.peek == peek &&
+      other.dots == dots &&
+      other.stopPath == stopPath;
+
+  @override
+  int get hashCode => Object.hash(perView, peek, dots, stopPath);
 }
 
 /// THE FIELD VALUE AS THE READER READS IT, whatever its shape:
@@ -75,6 +84,7 @@ final class ReaderCarousel {
 ///  * `peek` not a reference to a spacing: the default (read like a thickness:
 ///    a token or an integer 0..128);
 ///  * `indicator`: only `'none'` turns the dots off, anything else means dots;
+///  * `stopPath` (9.32.0): a non-empty string up to 128 characters, otherwise there is no path;
 ///  * an unknown key is skipped.
 ReaderCarousel? readCarousel(Object? raw) {
   if (raw is! Map) return null;
@@ -90,6 +100,7 @@ ReaderCarousel? readCarousel(Object? raw) {
         : null,
     peek: readProgressThickness(raw['peek']),
     dots: raw['indicator'] != 'none',
+    stopPath: carouselStopPathOf(raw),
   );
 }
 

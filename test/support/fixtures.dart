@@ -117,6 +117,9 @@ const List<String> fixtureIds = [
   'longpress-write-screens',
   // 9.27.0: a page opened from a row that follows the data when a task moves to another list; en and uk.
   'live-record-screens',
+  // 9.32.0: cards in a carousel whose active stop is a data path: the dots, the details of the shown card and a
+  // swipe all work through the one number.
+  'carousel-stop-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

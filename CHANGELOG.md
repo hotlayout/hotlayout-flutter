@@ -1,3 +1,9 @@
+## 0.35.0 (unreleased)
+
+Reads document contract **9.32.0** (theme 4.0.1 and icon set 1.0.0 unchanged; data dictionary 1.8.0 adds `account.cardIndex`).
+
+- **A carousel tells the active stop.** The optional `carousel.stopPath` names a number data path. When a person's swipe or the wheel has settled on a stop after snapping, the reader writes the stop number (from 0, counted by stops, not cards) to that path through the write a field makes: the session of the screen stack and `onWrite`, under `writablePaths`. `onAction` is not called and there is no analytics event. Nothing is written during the gesture, for a move the reader made itself (the show, following the value), or when the path already holds that number. The carousel stands on the stop the value names when it is shown, without animation (a non-integer or missing value is the first stop, a number beyond the stops is clamped to the last), and moves to it when the number changes — with animation, or at once under the system "disable animations"; a change while a finger holds the row is not applied, and a write the host refused leaves the carousel where the person put it. A card with the stop in a data list is not published by the builder. A document without the field draws exactly as before. `carouselStopPathOf`, `carouselShownStop`, `carouselStopFollow` and `carouselStopWrite` are the pure rules; every row of the `stop...` groups of `fixtures/carousel/carousel-cases.json` runs in the package tests, the run rows with real fingers.
+
 ## 0.34.0 (unreleased)
 
 Reads document contract **9.31.0** (theme 4.0.1, icon set 1.0.0 and data dictionary unchanged).
