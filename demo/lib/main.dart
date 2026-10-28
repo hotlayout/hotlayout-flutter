@@ -205,6 +205,11 @@ final List<({String id, String title})> kFixtures = [
   // 9.11.0. Carousel of challenges from data (`perView: 1`, `xl` peek, dots), a row of
   // six badges (`perView: 3`, no dots) and milestones as steps (`segments: 6`); `en`, `uk`, `ar`.
   (id: 'carousel-steps-screens', title: 'Carousel and steps'),
+  // 9.32.0. A card carousel that writes its active stop to the session; the block under
+  // the cards follows it.
+  (id: 'carousel-stop-screens', title: 'Carousel drives the screen'),
+  // 9.33.0. Nodes that fade in and out when their condition changes.
+  (id: 'visibility-fade-screens', title: 'Fade on condition'),
   // 9.12.0. Bottom zone: a navigation bar with three sections (`navigate.section`), a button
   // pinned to the bottom above the bar, and a sheet with two pinned buttons; `en`, `uk`, `ar`.
   (id: 'bottom-zone-screens', title: 'Navigation bar and pinned block'),
