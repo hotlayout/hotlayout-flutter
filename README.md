@@ -2,6 +2,8 @@
 
 Flutter renderer for [HotLayout](https://hotlayout.com) server-driven UI (SDUI). A screen is put together in the HotLayout visual builder and published as JSON; your app draws it with native Flutter widgets, so changing a screen needs no app release.
 
+**Quickstart:** [docs](https://hotlayout.com/docs/integrator/quickstart-flutter) · [video](https://youtu.be/CXSNkaRxisA) · **Builder and access:** [hotlayout.com](https://hotlayout.com)
+
 ```sh
 flutter pub add hotlayout_flutter
 ```
