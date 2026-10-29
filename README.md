@@ -77,7 +77,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.32.0
+  hotlayout_flutter: ^0.33.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -965,7 +965,7 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.36.1` | — |
+| Package | `0.33.0` | — |
 | Document contract (schema) | `9.33.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
@@ -1081,10 +1081,7 @@ If you update from an older version of the package, these are the places where t
 | 0.25.0 | The callback you pass as `onAction` / `onRecordAction` may return a `Future`: a "swipe to confirm" button stays busy until it completes (`HostActions.handle` returns the `Future` of its handler). A swipe button no longer returns to the start right after the action. A child of the screen root with `pin: 'top'` right after the app bar no longer scrolls with the body. A number with `animateIn` starts from zero each time its screen is shown, so a test that reads it right after the first frame sees zero until time is advanced with `pump(Duration)`. |
 | 0.24.0 | A change of screen moves (see [Transitions between screens](#transitions-between-screens)): for 300 ms after a page step both screens are in the tree, so a widget test that expects the old screen gone needs `pump(Duration)` or `pumpAndSettle`, or `transitions: HotlayoutTransitions.none`. A closed modal layer stays in the tree while it sinks away. On iOS and macOS a deeper page goes back with an edge swipe. |
 | 0.19.0 | `isEmpty` / `isNotEmpty` judge the value whatever its type, and a string of spaces is no longer empty. `setValue` and `toggleValue` write through `onWrite`. A screen deeper than 32 levels is not drawn at all. |
-| 0.36.0 | Reads contract 9.33.0: a node with `visibilityTransition: 'fade'` and a `visibleIf` fades out in place and then leaves the layout, or waits out of the layout and then fades in, when its condition changes on a shown screen. A document without the field draws as before; under the system "disable animations", on the first show, after going back and when the language or the width class changes, a node follows its condition at once. A widget test that expects a hidden node gone right after the data changed needs `pump(Duration)` or `pumpAndSettle` for such a node. |
-| 0.35.0 | Reads contract 9.32.0: a carousel with `carousel.stopPath` writes the stop a person settled on to that number path (through `onWrite`, under `writablePaths`) and stands on the stop the value names; a document without the field draws as before. |
-| 0.34.0 | Reads contract 9.31.0: a modal sheet from the bottom takes the bottom safe inset (`MediaQuery.viewPaddingOf`) inside its box, under its content and once (under the pinned block when there is one), so its last node stands above the home indicator and its background reaches the bottom. A window in the middle, a sheet shown as a window and pages are unchanged; a host that gives the reader a zero inset sees no change. |
-| 0.33.0 | Reads contract 9.30.0: a `setValue` / `toggleValue` in `longPress` is performed on the hold, as on a tap (through `onWrite`, under `writablePaths`). The node field `name` is ignored. |
+| 0.33.0 | Reads contract 9.30.0 to 9.33.0 and placement map 1.1.0. A `setValue` / `toggleValue` in `longPress` is performed on the hold (through `onWrite`, under `writablePaths`). A modal sheet from the bottom takes the bottom safe inset (`MediaQuery.viewPaddingOf`) inside its box; a host that gives the reader a zero inset sees no change. A carousel with `carousel.stopPath` writes the stop a person settled on and stands on the stop the value names. A node with `visibilityTransition: 'fade'` and a `visibleIf` fades in and out when its condition changes; a widget test that expects a hidden node gone right after the data changed needs `pump(Duration)` or `pumpAndSettle` for such a node. A place of the placement map may carry a `schedule`, decided by the device clock. A document without the new fields draws as before. |
 | 0.32.0 | Placements: `HotlayoutPlacement` draws the document of a named place of the app; nothing changes for an app that does not use them. A window in the middle (`modalPlacement: 'center'`) laid edge to edge stands above the bottom inset as well, so on a phone with a home indicator it moves up by half that inset; a host that gives the reader a zero inset sees no change. A button with a border keeps its shadow. |
 | 0.31.0 | A shadow under a background that lets light through (a translucent colour or gradient, or glass) is painted only outside the box, as a CSS `box-shadow` is; before, it showed through the box. |
 
