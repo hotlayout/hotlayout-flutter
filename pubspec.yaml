@@ -3,6 +3,7 @@ description: >-
   Flutter renderer for HotLayout server-driven UI. Draws screens published by
   the HotLayout builder from a JSON document, a theme and your data.
 homepage: https://hotlayout.com
+documentation: https://hotlayout.com/docs/integrator/quickstart-flutter
 repository: https://github.com/hotlayout/hotlayout-flutter
 issue_tracker: https://github.com/hotlayout/hotlayout-flutter/issues
 topics:

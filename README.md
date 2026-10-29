@@ -65,6 +65,7 @@ Website: [hotlayout.com](https://hotlayout.com) · Changes by version: [CHANGELO
 - [Demo](#demo)
 - [Limitations](#limitations)
 - [When nothing shows up](#when-nothing-shows-up)
+- [Learn more](#learn-more)
 - [License](#license)
 
 ## Install
@@ -1859,6 +1860,13 @@ About the icons:
 | Text is in the wrong language | Log the `locale` you pass and `document.shownLocale(locale)`. |
 
 Debug builds print what the renderer decided not to draw, prefixed with `[hotlayout]`.
+
+## Learn more
+
+- Website: [hotlayout.com](https://hotlayout.com)
+- Documentation: [hotlayout.com/docs](https://hotlayout.com/docs), including the [quickstart for this platform](https://hotlayout.com/docs/integrator/quickstart-flutter)
+- Video quickstart: [YouTube](https://youtu.be/CXSNkaRxisA)
+- Getting the builder: screens are made in the HotLayout builder, hosted at hotlayout.com or self-hosted. To get access, use "Get access" on [hotlayout.com](https://hotlayout.com) or write to [contact@hotlayout.com](mailto:contact@hotlayout.com).
 
 ## License
 
