@@ -20,9 +20,13 @@ final class _Transport implements PlacementTransport {
   final String body;
   int requests = 0;
 
+  /// The network is cut: the request does not happen.
+  bool offline = false;
+
   @override
   Future<PlacementResponse> fetch(Uri url, {String? ifNoneMatch}) async {
     requests++;
+    if (offline) throw const SocketException('offline');
     return (statusCode: 200, body: bytesOf(body), etag: null);
   }
 }
@@ -193,6 +197,56 @@ void main() {
       await settle(tester);
       expect(tester.getSize(find.byType(HotlayoutPlacement)).height, greaterThan(0));
       expect(events.last.show, PlacementShow.document);
+    });
+    testWidgets('a window opens, closes and survives a return to the foreground with the network cut', (tester) async {
+      var now = DateTime.utc(2026, 10, 31, 23);
+      final map = _Transport(_map({
+        'home.banner': {
+          'documentId': 'everyday',
+          'schedule': [
+            {'documentId': 'sale', 'from': '2026-11-01T00:00:00Z', 'until': '2026-11-02T00:00:00Z'},
+          ],
+        },
+      }));
+      final documents = FakeDocumentTransport((url) async {
+        final id = url.pathSegments[url.pathSegments.length - 2];
+        return (statusCode: 200, body: publishedDocumentJson(documentId: id, name: id));
+      });
+      final events = <PlacementEvent>[];
+      final source = PlacementSource(
+        projectBase: base,
+        name: 'home.banner',
+        transport: map,
+        documentTransport: documents,
+        now: () => now,
+      );
+      await mount(tester, source, events);
+      await settle(tester);
+      expect(events.last.documentId, 'everyday');
+      expect(documents.requests.map((u) => u.pathSegments[u.pathSegments.length - 2]).toSet(), {'everyday', 'sale'});
+
+      map.offline = true;
+      documents.respond = (_) async => throw const SocketException('offline');
+
+      now = DateTime.utc(2026, 11, 1);
+      await tester.pump(const Duration(hours: 1));
+      await settle(tester);
+      expect(events.last.show, PlacementShow.document);
+      expect(events.last.documentId, 'sale', reason: 'the document of the window was read ahead');
+      expect(tester.getSize(find.byType(HotlayoutPlacement)).height, greaterThan(0));
+
+      now = DateTime.utc(2026, 11, 1, 12);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await settle(tester);
+      await settle(tester);
+      expect(events.last.show, PlacementShow.document, reason: 'coming back offline does not blank the document');
+      expect(events.last.documentId, 'sale');
+
+      now = DateTime.utc(2026, 11, 2);
+      await tester.pump(const Duration(days: 1));
+      await settle(tester);
+      expect(events.last.show, PlacementShow.document);
+      expect(events.last.documentId, 'everyday', reason: 'after the window the permanent content returns');
     });
   });
 }

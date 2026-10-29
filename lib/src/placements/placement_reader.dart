@@ -2,6 +2,8 @@
 // read, what is drawn decided. No widget here, so a test can run it without one.
 library;
 
+import 'dart:async';
+
 import '../data/document_source.dart';
 import 'placement_map.dart';
 import 'placement_source.dart';
@@ -18,16 +20,21 @@ final class PlacementReading {
 
 /// Reads a [PlacementSource] again and again and remembers the document it showed.
 ///
-/// The remembered document is keyed by the ADDRESS of the document, not by its id: the same id in
-/// another project is another document. It keeps the placement on screen across a poll that cannot
-/// read the document, and is dropped the moment the document answers 404.
+/// The documents read are kept by the ADDRESS of the document, not by its id: the same id in
+/// another project is another document. After the map is read, the documents of every window of the
+/// schedule are read in the background, so a window opens with no network. A read that cannot
+/// complete (the network is silent, the answer is not a document) falls back on the last good copy
+/// of that document; a 404 drops the copy.
 final class PlacementReader {
   PlacementReader(this.source);
 
   final PlacementSource source;
 
+  /// The most documents kept; the least recently read goes first.
+  static const int kCacheMax = 64;
+
+  final Map<String, DocumentLoad> _cache = {};
   DocumentLoad? _document;
-  String? _documentKey;
 
   PlacementResolution? _resolution;
 
@@ -35,7 +42,35 @@ final class PlacementReader {
   int? nextBoundaryMs;
 
   /// Asks the network again and settles.
-  Future<PlacementReading> read() async => _settle(await source.refresh());
+  Future<PlacementReading> read() async {
+    final reading = await _settle(await source.refresh());
+    _prefetch();
+    return reading;
+  }
+
+  /// Reads, in the background, the documents of the place that are not held yet.
+  void _prefetch() {
+    for (final documentSource in source.allDocumentSources()) {
+      if (_cache.containsKey(documentSource.url.toString())) continue;
+      unawaited(_remember(documentSource));
+    }
+  }
+
+  Future<void> _remember(PlacementDocumentSource documentSource) async {
+    try {
+      _store(documentSource.url.toString(), await documentSource.load());
+    } on Object {
+      // A document that cannot be read ahead is read again when its window opens.
+    }
+  }
+
+  DocumentLoad _store(String key, DocumentLoad loaded) {
+    final held = _cache.remove(key);
+    final kept = held != null && held.signature == loaded.signature ? held : loaded;
+    _cache[key] = kept;
+    if (_cache.length > kCacheMax) _cache.remove(_cache.keys.first);
+    return kept;
+  }
 
   /// Decides again, at the clock of now, on the map already held, and settles. Sends nothing for the
   /// map. `null` when there is nothing to settle: no map has been read yet, or the place stands as
@@ -55,28 +90,21 @@ final class PlacementReader {
     PlacementDocumentOutcome? outcome;
     if (documentSource == null) {
       _document = null;
-      _documentKey = null;
     } else {
       final key = documentSource.url.toString();
       try {
-        final loaded = await documentSource.load();
-        final held = _document;
-        _document = held != null && _documentKey == key && held.signature == loaded.signature ? held : loaded;
-        _documentKey = key;
+        _document = _store(key, await documentSource.load());
         outcome = PlacementDocumentOk(_document!.document.entryPoints.keys);
       } on PlacementDocumentException catch (error) {
-        if (error.missing) {
-          _document = null;
-          _documentKey = null;
-          outcome = const PlacementDocumentMissing();
-        } else if (_document != null && _documentKey == key) {
-          // A poll that could not read the document keeps the one on screen.
-          outcome = PlacementDocumentOk(_document!.document.entryPoints.keys);
-        } else {
-          _document = null;
-          _documentKey = null;
-          outcome = const PlacementDocumentUnreadable();
-        }
+        if (error.missing) _cache.remove(key);
+        // A read that cannot complete keeps the last good copy of this document.
+        final kept = error.missing ? null : _cache[key];
+        _document = kept;
+        outcome = kept != null
+            ? PlacementDocumentOk(kept.document.entryPoints.keys)
+            : error.missing
+            ? const PlacementDocumentMissing()
+            : const PlacementDocumentUnreadable();
       }
     }
     final showing = placementShowing(load.resolution, outcome);

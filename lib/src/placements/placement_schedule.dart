@@ -114,3 +114,15 @@ int? nextPlacementBoundary(PlacementMapRead map, String name, int nowMs) {
   }
   return next;
 }
+
+/// Ids of the documents the place [name] can show: its permanent content and every readable window.
+List<String> placementDocumentIds(PlacementMapRead map, String name) {
+  final ids = <String>{};
+  final permanent = resolvePlacement(map, name).documentId;
+  if (permanent != null) ids.add(permanent);
+  for (final item in _scheduleOf(map, name) ?? const <_Window>[]) {
+    final id = item.documentId;
+    if (id != null) ids.add(id);
+  }
+  return ids.toList();
+}

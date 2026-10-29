@@ -378,6 +378,22 @@ final class PlacementSource {
     return _loadFrom(decision);
   }
 
+  /// The sources of every document the place can show on the map held: its permanent content and
+  /// each window of the schedule. Empty before the first [refresh].
+  List<PlacementDocumentSource> allDocumentSources() {
+    final map = _decision?.map;
+    if (map == null) return const [];
+    return [for (final id in placementDocumentIds(map, name)) _documentSourceFor(id)];
+  }
+
+  PlacementDocumentSource _documentSourceFor(String documentId) => PlacementDocumentSource(
+    url: placementFileUrl(projectBase, 'documents/$documentId/published.json'),
+    documentId: documentId,
+    transport: _documentTransport,
+    timeout: timeout,
+    now: _now,
+  );
+
   PlacementLoad _loadFrom(PlacementSourceDecision decision) {
     final nowMs = clockMs;
     final resolution = resolvePlacementAt(decision.map, name, nowMs);
@@ -387,15 +403,7 @@ final class PlacementSource {
       mapSource: decision.source,
       mapStatus: decision.status,
       nextBoundaryMs: nextPlacementBoundary(decision.map, name, nowMs),
-      documentSource: resolution.status == PlacementStatus.document
-          ? PlacementDocumentSource(
-              url: placementFileUrl(projectBase, 'documents/${resolution.documentId}/published.json'),
-              documentId: resolution.documentId!,
-              transport: _documentTransport,
-              timeout: timeout,
-              now: _now,
-            )
-          : null,
+      documentSource: resolution.status == PlacementStatus.document ? _documentSourceFor(resolution.documentId!) : null,
     );
   }
 }
