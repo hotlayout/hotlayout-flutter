@@ -29,9 +29,28 @@ final class PlacementReader {
   DocumentLoad? _document;
   String? _documentKey;
 
+  PlacementResolution? _resolution;
+
+  /// The instant the answer may change next, as of the last pass; `null` when it changes no more.
+  int? nextBoundaryMs;
+
   /// Asks the network again and settles.
-  Future<PlacementReading> read() async {
-    final load = await source.refresh();
+  Future<PlacementReading> read() async => _settle(await source.refresh());
+
+  /// Decides again, at the clock of now, on the map already held, and settles. Sends nothing for the
+  /// map. `null` when there is nothing to settle: no map has been read yet, or the place stands as
+  /// it stood (a boundary at which another window holds the place changes nothing for the host).
+  Future<PlacementReading?> recompute() async {
+    final load = source.recompute();
+    if (load == null) return null;
+    nextBoundaryMs = load.nextBoundaryMs;
+    if (load.resolution == _resolution) return null;
+    return _settle(load);
+  }
+
+  Future<PlacementReading> _settle(PlacementLoad load) async {
+    _resolution = load.resolution;
+    nextBoundaryMs = load.nextBoundaryMs;
     final documentSource = load.documentSource;
     PlacementDocumentOutcome? outcome;
     if (documentSource == null) {

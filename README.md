@@ -837,7 +837,7 @@ What this does not cover: a document whose new version needs a newer package (an
 
 A placement is a named place of your app (`home.banner`, `promo.raffle-button`). The app names the place in code; which published document stands there is decided in the builder and can change without a release. The project publishes one small file, `placements/published.json` (the placement map), next to the theme; it is read without a token.
 
-Names are lowercase Latin letters and digits in dot-separated segments, at most 64 characters. The map is its own contract (`assets/contract/placements.json`, version 1.0.0), versioned apart from the document schema and the theme.
+Names are lowercase Latin letters and digits in dot-separated segments, at most 64 characters. The map is its own contract (`assets/contract/placements.json`, version 1.1.0), versioned apart from the document schema and the theme.
 
 **The simple case.** `HotlayoutPlacement` reads the map, finds the document of the place and draws it:
 
@@ -868,6 +868,48 @@ return HotlayoutPlacement(
 A poll that cannot read the document keeps the one that is on screen.
 
 **What the host hears.** `onPlacementEvent` gets a `PlacementEvent` (`show`, `report`, `mapStatus`, `documentId`, `entry`) on every change of any of the five, the first settled state included and the return of a drawn document too (`show: document`, `report: null`): a host that folded the frame on `documentMissing` learns when to unfold it. The same state again is not told. `onPlacement` is the shorter form: it hears only the reasons (`report` not null), once each.
+
+**A schedule.** A place may name documents that stand in it for a window of time (a promotion: from a date to a date), over its permanent content, and may be paused. The reader decides by the **clock of the device**, so the banner appears and goes on time without a network. A window is `from` (included) to `until` (excluded), both in UTC and whole seconds (`2026-11-27T22:00:00Z`); a window whose `documentId` is `null` is a pause: the place is `empty` for its time. Outside every window the permanent content stands. A broken window is skipped whole and does not spoil the place; when windows overlap, the one that started later wins. `HotlayoutPlacement` sets a timer at the next boundary of the schedule and decides again on the map it already holds (the map is not read again at a boundary), and decides again at once when the app returns to the foreground, because the clock may have jumped. A change is an ordinary `PlacementEvent`, the change of `documentId` / `entry` and `empty` &harr; `document` included; a boundary at which the answer stays the same tells the host nothing. A reader of an older version of the contract shows the permanent content only.
+
+An empty place draws a zero-size box, but the margins around it are yours. To remove them as well, listen to `onPlacementEvent` and keep the place mounted:
+
+```dart
+class PaddedBanner extends StatefulWidget {
+  const PaddedBanner({super.key, required this.projectBase, required this.theme, required this.data});
+
+  final String projectBase;
+  final RenderTheme theme;
+  final Map<String, Object?> data;
+
+  @override
+  State<PaddedBanner> createState() => _PaddedBannerState();
+}
+
+class _PaddedBannerState extends State<PaddedBanner> {
+  bool _shown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: _shown ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8) : EdgeInsets.zero,
+      // The place stays mounted: it draws a zero-size box while empty and decides again by itself
+      // when the next window of its schedule starts or ends.
+      child: HotlayoutPlacement(
+        name: 'home.banner',
+        projectBase: Uri.parse(widget.projectBase),
+        theme: widget.theme,
+        data: widget.data,
+        onPlacementEvent: (name, event) {
+          final shown = event.show == PlacementShow.document;
+          if (shown != _shown) setState(() => _shown = shown);
+        },
+      ),
+    );
+  }
+}
+```
+
+Inside the place, an empty result is `SizedBox.shrink()`. Tests (and a host with its own time source) pass `clock` to `HotlayoutPlacement`, or `now` to `PlacementSource`; `PlacementSource.recompute()` decides again on the held map without the network, and `resolvePlacementAt`, `nextPlacementBoundary` and `placementInstantMs` are the pure rules.
 
 **Where the map comes from.** The map is held like a published document: the network first (with `If-None-Match`, so a poll that finds nothing new costs a 304), then the last known text, then a copy bundled with the app. `PlacementSourceStatus` says why the map in use is the one in use, and three stories stay apart: `offline` (the network is silent; the last known map is kept), `corrupt` / `unsupported` (the network answered with something that is not a map, or a map of another major version) and `notPublished` (404: the project has no placements; every place is then `unknown`). Only a fresh map from the network is remembered, and it is kept per map address (a `PlacementMapStore` receives the address as `key`). A body is read as bytes up to 262 144; one that is longer, not UTF-8 (nothing is replaced with U+FFFD), nested deeper than 32 levels or of a major version that is not 1 (compared as digits, a number of any length is another major) is `corrupt` or `unsupported`, and one leading byte order mark is skipped. Redirects are not followed (a `3xx` answer is no answer for the map and an unreadable document), and every request has 20 seconds, to the end of the body. The `ETag` header is a custom request header: in a web build it makes the browser send a CORS preflight, so expose it on your storage or pass a `PlacementTransport` that does not send it.
 

@@ -128,6 +128,7 @@ export 'src/placements/placement_map.dart'
         PlacementMapSource,
         PlacementReport,
         PlacementResolution,
+        PlacementShow,
         PlacementSourceStatus,
         PlacementStatus,
         isPlacementName,
@@ -136,6 +137,8 @@ export 'src/placements/placement_map.dart'
         readPlacementMapBytes,
         readPlacementMapText,
         resolvePlacement;
+export 'src/placements/placement_schedule.dart'
+    show kPlacementMaxTimerMs, nextPlacementBoundary, placementInstantMs, resolvePlacementAt;
 export 'src/placements/placement_source.dart'
     show
         HttpPlacementTransport,

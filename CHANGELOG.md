@@ -1,3 +1,9 @@
+## 0.37.0 (unreleased)
+
+Reads placement map **1.1.0** (document schema 9.33.0, theme, icon set and data dictionary unchanged).
+
+- **A place can be scheduled.** An entry of the placement map may carry `schedule`: documents that stand in the place for a window of time (`from` included, `until` excluded, UTC whole seconds), over its permanent content; a window with `documentId: null` pauses the place (`empty`). `resolvePlacementAt`, `nextPlacementBoundary` and `placementInstantMs` are the pure rules (a broken window is skipped whole, an overlap goes to the later `from`, a broken permanent content stays `unreadable`); every row of `scheduleCases` of the shared table runs in the package tests. The clock is the device's: `HotlayoutPlacement` sets a timer at the next boundary (cut to 2^31 - 1 ms and counted again), decides again on the map it holds without reading the network, and decides again when the app returns to the foreground. `HotlayoutPlacement(clock: ...)` and `PlacementSource(now: ...)` inject the clock; `PlacementSource.recompute()` and `PlacementLoad.nextBoundaryMs` are the building blocks for a host with its own widget. `PlacementShow` is exported (the type of `PlacementEvent.show`).
+
 ## 0.36.1 (unreleased)
 
 - **A carousel follows a second change of the value made during its own scroll.** When the host changed the stop number twice in a row (for example 2 to 0, and 80 ms later to 1) while the reader was still animating to the first target, the second change was compared with the stop the animation was passing by, judged "already there" and not followed: the value said 1 and the carousel stopped on 0. The carousel now follows from the goal of its last own scroll until that scroll comes to rest; a move by a person (a finger, the wheel) drops that goal.

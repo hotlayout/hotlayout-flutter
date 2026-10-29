@@ -16,6 +16,7 @@ import 'package:http/http.dart' as http;
 import '../data/document_source.dart';
 import '../model/ui_document.dart';
 import 'placement_map.dart';
+import 'placement_schedule.dart';
 
 /// What the placement code needs from an HTTP answer: the code, the body as RAW BYTES (the reader
 /// decides whether they are UTF-8) and the `ETag`.
@@ -243,6 +244,7 @@ final class PlacementLoad {
     required this.mapSource,
     required this.mapStatus,
     required this.documentSource,
+    this.nextBoundaryMs,
   });
 
   /// The placement name.
@@ -260,6 +262,10 @@ final class PlacementLoad {
   /// The source of the placed document; `null` unless [resolution] is a document.
   final PlacementDocumentSource? documentSource;
 
+  /// The instant (milliseconds since the epoch) at which the answer may change next, by the
+  /// schedule of the place; `null` when the schedule changes nothing any more.
+  final int? nextBoundaryMs;
+
   /// The entry point to start from; `null` is the initial screen of the document.
   String? get entry => resolution.entry;
 }
@@ -272,6 +278,12 @@ final class PlacementLoad {
 /// final load = await source.refresh();
 /// final document = load.documentSource; // null: nothing to draw, see load.resolution
 /// ```
+///
+/// What stands in the place is decided at the instant of the clock of the device (the `now` given to
+/// the constructor, [DateTime.now] by default), because the map may schedule documents for a window
+/// of time (see [resolvePlacementAt]). [recompute] decides again on the map already held, without the
+/// network: call it when [PlacementLoad.nextBoundaryMs] comes, and when the app returns to the
+/// foreground.
 ///
 /// Call [refresh] again to poll: it sends `If-None-Match` with the `ETag` of the last fresh answer,
 /// so a map that did not change costs a 304. A refresh that finds the network silent keeps the last
@@ -309,6 +321,7 @@ final class PlacementSource {
 
   String? _lastKnown;
   String? _etag;
+  PlacementSourceDecision? _decision;
   bool _storeRead = false;
   int _sequence = 0;
 
@@ -319,6 +332,16 @@ final class PlacementSource {
 
   /// The last known text of the map, or `null`.
   String? get lastKnownMap => _lastKnown;
+
+  /// The clock of this source: milliseconds since the epoch.
+  int get clockMs => _now().toUtc().millisecondsSinceEpoch;
+
+  /// Decides again, at the clock of now, on the map the last [refresh] chose; `null` before the
+  /// first [refresh]. Sends nothing.
+  PlacementLoad? recompute() {
+    final decision = _decision;
+    return decision == null ? null : _loadFrom(decision);
+  }
 
   /// Asks the network for the map and decides which map to use.
   Future<PlacementLoad> refresh() async {
@@ -351,12 +374,19 @@ final class PlacementSource {
     if (decision.status != PlacementSourceStatus.fresh) {
       debugPrint('[hotlayout] placement map: ${decision.status.name}, using ${decision.source.name}');
     }
-    final resolution = resolvePlacement(decision.map, name);
+    _decision = decision;
+    return _loadFrom(decision);
+  }
+
+  PlacementLoad _loadFrom(PlacementSourceDecision decision) {
+    final nowMs = clockMs;
+    final resolution = resolvePlacementAt(decision.map, name, nowMs);
     return PlacementLoad(
       name: name,
       resolution: resolution,
       mapSource: decision.source,
       mapStatus: decision.status,
+      nextBoundaryMs: nextPlacementBoundary(decision.map, name, nowMs),
       documentSource: resolution.status == PlacementStatus.document
           ? PlacementDocumentSource(
               url: placementFileUrl(projectBase, 'documents/${resolution.documentId}/published.json'),

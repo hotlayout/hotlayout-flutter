@@ -13,6 +13,7 @@ import '../report/hotlayout_report.dart';
 import '../theme/render_theme.dart';
 import 'placement_map.dart';
 import 'placement_reader.dart';
+import 'placement_schedule.dart';
 import 'placement_source.dart';
 
 /// Tells the host why a placement draws nothing, or not what was asked: once per cause, not on
@@ -49,6 +50,15 @@ typedef PlacementEventCallback = void Function(String name, PlacementEvent event
 /// The map is polled every [refreshInterval] and when the app returns to the foreground. A poll
 /// that finds the network silent keeps what is on screen.
 ///
+/// A place may be scheduled: the map can name documents that stand in it for a window of time, or
+/// pause it (the place is then empty). Which one stands is decided by the clock of the device, so a
+/// banner appears and goes on time without the network: a timer waits for the next boundary of the
+/// schedule and decides again on the map already held (the map is not read again at a boundary), and
+/// the app coming back to the foreground decides again at once. A host that wants to remove its own
+/// padding around an empty place listens to [onPlacementEvent] (`event.show`). The default
+/// constructor takes the clock as [clock] (tests); with [HotlayoutPlacement.fromSource] it is the one
+/// of the source.
+///
 /// To control the source (your own transport, a store for the last known map, a bundled map) build a
 /// [PlacementSource] and use [HotlayoutPlacement.fromSource].
 class HotlayoutPlacement extends StatefulWidget {
@@ -58,6 +68,7 @@ class HotlayoutPlacement extends StatefulWidget {
     required String name,
     required Uri projectBase,
     String? bundledMap,
+    DateTime Function()? clock,
     required this.theme,
     required this.data,
     this.refreshInterval = const Duration(minutes: 5),
@@ -77,7 +88,8 @@ class HotlayoutPlacement extends StatefulWidget {
   }) : source = null,
        _name = name,
        _projectBase = projectBase,
-       _bundledMap = bundledMap;
+       _bundledMap = bundledMap,
+       _clock = clock;
 
   /// A placement read through [source].
   const HotlayoutPlacement.fromSource({
@@ -101,7 +113,8 @@ class HotlayoutPlacement extends StatefulWidget {
     this.onReport,
   }) : _name = null,
        _projectBase = null,
-       _bundledMap = null;
+       _bundledMap = null,
+       _clock = null;
 
   /// The source given to [HotlayoutPlacement.fromSource]; `null` for the default constructor, which
   /// keeps its own source in its state and builds a new one only when [name], the project or the
@@ -111,6 +124,7 @@ class HotlayoutPlacement extends StatefulWidget {
   final String? _name;
   final Uri? _projectBase;
   final String? _bundledMap;
+  final DateTime Function()? _clock;
 
   final RenderTheme theme;
   final Map<String, Object?> data;
@@ -143,8 +157,10 @@ class HotlayoutPlacement extends StatefulWidget {
 
 class _HotlayoutPlacementState extends State<HotlayoutPlacement> with WidgetsBindingObserver {
   Timer? _timer;
+  Timer? _boundaryTimer;
   bool _busy = false;
   bool _again = false;
+  bool _againNetwork = false;
   int _generation = 0;
 
   late PlacementReader _reader;
@@ -158,6 +174,7 @@ class _HotlayoutPlacementState extends State<HotlayoutPlacement> with WidgetsBin
           projectBase: widget._projectBase!,
           name: widget._name!,
           bundledMap: widget._bundledMap,
+          now: widget._clock,
         ),
   );
 
@@ -187,6 +204,7 @@ class _HotlayoutPlacementState extends State<HotlayoutPlacement> with WidgetsBin
       _document = null;
       _event = null;
       _toldReport = null;
+      _boundaryTimer?.cancel();
       unawaited(_refresh());
     }
     if (old.refreshInterval != widget.refreshInterval) _startTimer();
@@ -200,28 +218,48 @@ class _HotlayoutPlacementState extends State<HotlayoutPlacement> with WidgetsBin
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_refresh());
+    if (state != AppLifecycleState.resumed) return;
+    // The clock may have jumped while the app was away: decide again at once, then ask the network.
+    unawaited(_refresh(network: false));
+    unawaited(_refresh());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _boundaryTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _refresh() async {
+  /// One timer at the next boundary of the schedule, cut to what a timer can hold and counted again
+  /// at its end.
+  void _armBoundary() {
+    _boundaryTimer?.cancel();
+    _boundaryTimer = null;
+    final boundary = _reader.nextBoundaryMs;
+    if (boundary == null || !mounted) return;
+    final wait = (boundary - _reader.source.clockMs).clamp(0, kPlacementMaxTimerMs);
+    _boundaryTimer = Timer(Duration(milliseconds: wait), () => unawaited(_refresh(network: false)));
+  }
+
+  /// Settles the place: with [network] the map is read again, without it the map already held is
+  /// decided again at the clock of now.
+  Future<void> _refresh({bool network = true}) async {
     if (_busy) {
       // A refresh asked for while one is running (a new source, the app coming back) runs after it.
       _again = true;
+      _againNetwork = _againNetwork || network;
       return;
     }
     _busy = true;
     final generation = _generation;
     try {
       final reader = _reader;
-      final reading = await reader.read();
+      final reading = network ? await reader.read() : await reader.recompute();
       if (!mounted || generation != _generation) return;
+      _armBoundary();
+      if (reading == null) return;
       final event = placementEventFor(_event, reading.event);
       final changed = !identical(reading.document, _document) || event != null;
       _document = reading.document;
@@ -238,8 +276,10 @@ class _HotlayoutPlacementState extends State<HotlayoutPlacement> with WidgetsBin
     } finally {
       _busy = false;
       if (_again && mounted) {
+        final network = _againNetwork;
         _again = false;
-        unawaited(_refresh());
+        _againNetwork = false;
+        unawaited(_refresh(network: network));
       }
     }
   }

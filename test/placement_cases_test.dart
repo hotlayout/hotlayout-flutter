@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hotlayout_flutter/src/placements/placement_map.dart';
 import 'package:hotlayout_flutter/src/placements/placement_reader.dart';
+import 'package:hotlayout_flutter/src/placements/placement_schedule.dart';
 import 'package:hotlayout_flutter/src/placements/placement_source.dart';
 
 import 'support/network.dart';
@@ -34,6 +35,9 @@ void main() {
   final eventCases = (table['eventCases']! as List)
       .cast<Map<String, Object?>>();
   final cacheCases = (table['cacheCases']! as List)
+      .cast<Map<String, Object?>>();
+
+  final scheduleCases = (table['scheduleCases']! as List)
       .cast<Map<String, Object?>>();
 
   Map<String, Object?> row(Object? value) =>
@@ -89,6 +93,11 @@ void main() {
     expect(transportCases.length, 26);
     expect(eventCases.length, 8);
     expect(cacheCases.length, 3);
+    expect(scheduleCases.length, 37);
+    expect(
+      scheduleCases.fold<int>(0, (n, r) => n + (r['checks']! as List).length),
+      89,
+    );
     expect(
       readCases.fold<int>(0, (n, r) => n + (r['resolve']! as List).length),
       80,
@@ -330,6 +339,40 @@ void main() {
             (expected['status'], expected['report'], expected['mapStatus']),
             reason: 'project $project',
           );
+        }
+      });
+    }
+  });
+
+  group('scheduleCases', () {
+    for (final c in scheduleCases) {
+      test(c['name']! as String, () {
+        final read = c.containsKey('text')
+            ? readPlacementMapText(c['text']! as String)
+            : readPlacementMap(c['json']);
+        // The tolerant reader reads the same map from its serialised text.
+        final again = c.containsKey('json')
+            ? readPlacementMapText(jsonEncode(c['json']))
+            : read;
+        for (final map in [read, again]) {
+          for (final item in (c['checks']! as List)) {
+            final check = row(item);
+            final nowMs = placementInstantMs(check['now'])!;
+            final place = check['place']! as String;
+            final got = resolvePlacementAt(map, place, nowMs);
+            final reason = 'place $place at ${check['now']}';
+            expect(
+              (got.status.name, got.documentId, got.entry),
+              (check['status'], check['documentId'], check['entry']),
+              reason: reason,
+            );
+            final next = check['next'];
+            expect(
+              nextPlacementBoundary(map, place, nowMs),
+              next == null ? isNull : placementInstantMs(next),
+              reason: 'next boundary, $reason',
+            );
+          }
         }
       });
     }

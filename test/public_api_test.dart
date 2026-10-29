@@ -335,6 +335,8 @@ void main() {
       'placementFileUrl', 'resolvePlacement', 'readPlacementMapText', 'isPlacementName',
       'kPlacementsContractVersion', 'PlacementEvent', 'PlacementEventCallback', 'kPlacementFetchTimeout',
       'readPlacementMapBytes',
+      // the schedule of a place (placement map 1.1.0)
+      'PlacementShow', 'resolvePlacementAt', 'nextPlacementBoundary', 'placementInstantMs', 'kPlacementMaxTimerMs',
     });
   });
 }

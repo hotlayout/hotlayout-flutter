@@ -17,7 +17,7 @@ import 'dart:convert' show jsonDecode, utf8;
 import 'package:flutter/foundation.dart' show immutable;
 
 /// The version of the placement contract this reader reads.
-const String kPlacementsContractVersion = '1.0.0';
+const String kPlacementsContractVersion = '1.1.0';
 
 /// The longest placement name.
 const int kPlacementNameMax = 64;
@@ -52,6 +52,12 @@ const String _readerMajor = '1';
 /// Whether [name] has the form of a placement name: lowercase Latin letters and digits in
 /// dot-separated segments, at most 64 characters.
 bool isPlacementName(String name) => name.length <= kPlacementNameMax && _namePattern.hasMatch(name);
+
+/// Whether [id] has the form of a document id of the map (also the one of a scheduled window).
+bool isPlacementDocumentId(String id) => _documentIdPattern.hasMatch(id);
+
+/// Whether [entry] has the form of an entry point name of the map.
+bool isPlacementEntry(String entry) => entry.length <= _entryMax && _entryPattern.hasMatch(entry);
 
 /// A map after tolerant reading.
 @immutable
