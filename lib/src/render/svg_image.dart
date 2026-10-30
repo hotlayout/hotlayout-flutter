@@ -27,7 +27,7 @@ import 'picture_policy.dart';
 ///
 /// The content type (`image/svg+xml`) is deliberately not consulted: it is known only AFTER the
 /// request, while the choice of what to draw with must be made before it. The consequence is
-/// documented in the README: an SVG at an address with no extension is not drawn.
+/// documented at hotlayout.com/docs/integrator/flutter-reference: an SVG at an address with no extension is not drawn.
 bool isSvgUrl(String url) {
   final uri = Uri.tryParse(url.trim());
   if (uri == null) return false;

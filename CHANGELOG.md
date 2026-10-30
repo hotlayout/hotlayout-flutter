@@ -16,6 +16,8 @@ Reads document contract **9.33.0** (theme 4.0.1, icon set 1.0.0, data dictionary
 
 - **A write action on a long press is performed.** A `setValue` or `toggleValue` in `longPress` of a card or a list row used to be dropped when the document was read; it now runs after the hold (or Shift+F10 / the context menu key) the way the same action runs on a tap: the haptic request, then the analytics event, then the write into the session and `onWrite` (under `writablePaths`). Writing a value the session already holds writes nothing. The role of the node still comes from its `action` alone, so a write on the hold makes the node neither an option of a group nor a switch.
 - **The node field `name` is accepted and ignored.** It is a label for the document's author in the editor; it is not drawn, not part of an accessible name, and not passed to actions, events or reports.
+- **Which schema minor each entry above belongs to.** 9.29.0: the node field `name`. 9.30.0: a `setValue` / `toggleValue` on `longPress` is performed. 9.31.0: the bottom inset of a modal sheet. 9.32.0: `carousel.stopPath`. 9.33.0: `visibilityTransition: 'fade'`. A document that uses none of these draws as before.
+- **Testing a fade.** A widget test that expects a node with `visibilityTransition: 'fade'` to be gone right after the data changed needs `pump(Duration)` or `pumpAndSettle`: the node stays in the tree for the fade-out.
 
 ## 0.32.0
 

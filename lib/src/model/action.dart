@@ -247,7 +247,7 @@ final class ButtonAction {
 ///
 /// Returns `true` when an executor was called. The package has no dependency
 /// that could open an address by itself: `launchUrl` of `url_launcher` is the
-/// usual executor (see the README).
+/// usual executor (see hotlayout.com/docs/integrator/flutter-reference).
 bool runStandardAction(
   ButtonAction action, {
   void Function(String url)? openUrl,
