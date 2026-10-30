@@ -1,3 +1,9 @@
+## 0.33.1 - 2026-10-30
+
+Reads the same documents and themes as 0.33.0. No code change.
+
+- **The README is a short introduction.** The full reference (data, actions, theme, language, network, placements, what each widget guarantees) moved to [hotlayout.com/docs](https://hotlayout.com/docs/integrator/flutter-reference); the step-by-step guide is the [Flutter quickstart](https://hotlayout.com/docs/integrator/quickstart-flutter).
+
 ## 0.33.0 - 2026-10-29
 
 Reads document contract **9.33.0** (theme 4.0.1, icon set 1.0.0, data dictionary 1.8.0) and placement map **1.1.0**. Folds in the entries that were prepared as 0.33.0 to 0.37.0 and never published.
