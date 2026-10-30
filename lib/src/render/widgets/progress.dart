@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../data/screen_data.dart';
 import '../../model/bindable.dart';
 import '../../model/node.dart';
 import '../../model/node_style.dart';
@@ -78,7 +79,10 @@ extension ProgressWidgets on NodeRenderer {
 
   /// The progress bar. Geometry and paint follow `x-style.layout.progress.bar`; see
   /// [ProgressTrack].
-  Widget buildProgressBar(ProgressBarNode node, {TransitionLeads leads = const {}}) {
+  ///
+  /// [finalData] is given while a value runs: the label is then measured with the final numbers and the shown
+  /// ones are only painted over its place, so the width of the bar does not change on a frame of the motion.
+  Widget buildProgressBar(ProgressBarNode node, {TransitionLeads leads = const {}, ScreenData? finalData}) {
     final value = node.value.resolve(data);
     final rawMax = node.max.resolve(data);
     // `max` is also a binding, so zero or a negative value from data is a real scenario: a
@@ -116,14 +120,34 @@ extension ProgressWidgets on NodeRenderer {
           // left-to-right writing, the left in right-to-left).
           Align(
             alignment: AlignmentDirectional.centerEnd,
-            child: Text(
-              label,
-              style: theme
-                  .text(TypographyToken.caption)
-                  .copyWith(color: theme.color(ColorToken.muted)),
-            ),
+            child: _barLabel(node, label, finalData),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _barLabel(ProgressBarNode node, String label, ScreenData? finalData) {
+    final style = theme.text(TypographyToken.caption).copyWith(color: theme.color(ColorToken.muted));
+    if (finalData == null) return Text(label, style: style);
+    final held = copy(data: finalData);
+    final heldLabel = held._progressLabel(
+      node.labelFormat,
+      node.value,
+      node.max,
+      progressRatio(node.value.resolve(finalData), node.max.resolve(finalData)),
+    );
+    if (heldLabel == null) return Text(label, style: style);
+    return Stack(
+      fit: StackFit.passthrough,
+      clipBehavior: Clip.none,
+      children: [
+        Opacity(opacity: 0, child: Text(heldLabel, style: style)),
+        Positioned.fill(
+          child: ExcludeSemantics(
+            child: Text(label, style: style.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+          ),
+        ),
       ],
     );
   }

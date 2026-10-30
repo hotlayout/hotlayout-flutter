@@ -54,8 +54,11 @@ extension TransitionWidgets on NodeRenderer {
       data: data,
       identity: record ?? instance.join('/'),
       localeKey: '$locale|${strings.locale}',
-      builder: (context, shown, active, leads) =>
-          _announce(drawn, active, _plain(drawn, shown == data ? this : copy(data: shown), own, slot, leads)),
+      builder: (context, shown, active, leads) => _announce(
+        drawn,
+        active,
+        active ? _held(drawn, copy(data: shown), own, slot, leads) : _plain(drawn, this, own, slot, leads),
+      ),
     );
   }
 
@@ -69,6 +72,35 @@ extension TransitionWidgets on NodeRenderer {
     CircularProgressNode() => renderer.buildCircularProgress(node, own, slot),
     _ => const SizedBox.shrink(),
   };
+
+  /// A node whose numbers run: it is MEASURED with the final numbers and the shown ones are only painted over
+  /// its place, so the layout changes once, when the data change, and never on a frame of the motion. The text
+  /// between is painted from the same start, with the same width and alignment, in figures of equal width.
+  Widget _held(ChildNode node, NodeRenderer shownRenderer, NodeStyle? own, Slot slot, TransitionLeads leads) {
+    switch (node) {
+      case TextNode():
+        return Stack(
+          fit: StackFit.passthrough,
+          clipBehavior: Clip.none,
+          alignment: AlignmentDirectional.topStart,
+          children: [
+            Opacity(opacity: 0, child: buildText(node, own)),
+            Positioned.fill(
+              child: ExcludeSemantics(
+                child: DefaultTextStyle.merge(
+                  style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+                  child: shownRenderer.buildText(node, own),
+                ),
+              ),
+            ),
+          ],
+        );
+      case ProgressBarNode():
+        return shownRenderer.buildProgressBar(node, leads: leads, finalData: data);
+      default:
+        return _plain(node, shownRenderer, own, slot, leads);
+    }
+  }
 
   /// What the screen reader hears: the FINAL value while the shown one is between values, never the numbers in
   /// between (`semantics`). The widgets keep one shape whether a number is between values or not.

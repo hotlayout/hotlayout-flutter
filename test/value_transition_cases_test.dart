@@ -66,6 +66,8 @@ void main() {
       'description', 'durationMs', 'curveCases', 'stepCases', 'digitsCases', 'decisionCases', 'targetCases',
       // 9.24.0: the appearance, run by `value_appear_cases_test.dart`.
       'appearNote', 'appearStepCases', 'appearDecisionCases', 'appearTargetCases', 'appearFlowCases',
+      // The layout held by the final value: `value_layout_cases_test.dart`.
+      'layoutNote', 'layoutCases',
     });
     expect(_table['durationMs'], kValueTransitionMs);
     expect(_rows('curveCases'), hasLength(7));
@@ -174,7 +176,7 @@ void main() {
     Future<void> change(WidgetTester tester, List<_Json> children, Map<String, Object?> data, {bool reduced = false, String? locale}) =>
         pumpDocument(tester, docWith(children), data: data, disableAnimations: reduced, locale: locale);
 
-    String shownText(WidgetTester tester) => tester.widget<Text>(find.byType(Text).first).data!;
+    String shownText(WidgetTester tester) => tester.widget<Text>(find.byType(Text).last).data!;
 
     Future<void> at(WidgetTester tester, int ms) => tester.pump(Duration(milliseconds: ms));
 

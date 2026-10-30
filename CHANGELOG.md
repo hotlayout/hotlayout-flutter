@@ -1,3 +1,10 @@
+## Unreleased
+
+Reads the same documents and themes as 0.33.1.
+
+- **A running number no longer moves the layout.** While a number runs (`animateChanges` or `animateIn`), a `Text` is measured with the numbers at their FINAL values, and the number between is only painted over the place of the final text: from the same start, with the same width, alignment, font and colour, in figures of equal width (`FontFeature.tabularFigures()`) while it runs. The size, the line breaks and the height are those of the final text on every frame, so a line such as "You're ahead of N% of users this week" no longer wraps and unwraps while N counts up and nothing below it jumps. The layout changes once, when the data change or the node is shown; a new value during the motion makes the new final value hold the place. The screen reader hears the final text; the painted one is out of the accessibility tree. The label of a `ProgressBar` holds the place of its final label the same way; the fill, the track and the ring do not depend on the shown value. Under the system "disable animations" nothing runs and nothing is held. A reader older than this one measures the painted value, so the layout may jump on the frames of the motion.
+- **Shared tables.** The new row of the carousel table (a card with the zero token for padding, gap and peek fills the whole viewport) and the `layoutCases` group of the value table run in the package tests.
+
 ## 0.33.1 - 2026-10-30
 
 Reads the same documents and themes as 0.33.0. No code change.

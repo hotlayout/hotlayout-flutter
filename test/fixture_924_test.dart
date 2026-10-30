@@ -89,7 +89,7 @@ void main() {
       await pumpDocument(tester, _startingAt('home'), data: _data, safeTop: 47, safeBottom: 34);
       expect(find.text('0'), findsWidgets, reason: 'the first frame of the balance is zero');
       await tester.pump(const Duration(milliseconds: 350));
-      final mid = _balance().evaluate().map((e) => (e.widget as Text).data!).first;
+      final mid = _balance().evaluate().map((e) => (e.widget as Text).data!).last;
       expect(mid, isNot('0'));
       await tester.pump(const Duration(seconds: 2));
       expect(find.text('12,480'), findsOneWidget);
@@ -107,7 +107,8 @@ void main() {
       await tester.tap(find.text('Home').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
-      expect(find.text('12,480'), findsNothing, reason: 'it starts from zero again');
+      // The final text is held invisible in its place; the painted one is the last of the pair.
+      expect(tester.widget<Text>(_balance().last).data, isNot('12,480'), reason: 'it starts from zero again');
       await _frames(tester, 20);
       expect(find.text('12,480'), findsOneWidget);
     });
