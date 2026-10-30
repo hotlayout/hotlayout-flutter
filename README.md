@@ -1,14 +1,28 @@
-# hotlayout_flutter
+# HotLayout for Flutter — `hotlayout_flutter`
 
 Flutter renderer for [HotLayout](https://hotlayout.com) server-driven UI (SDUI). A screen is put together in the HotLayout visual builder and published as JSON; your app draws it with native Flutter widgets, so changing a screen needs no app release.
 
-**Quickstart:** [docs](https://hotlayout.com/docs/integrator/quickstart-flutter) · [video](https://youtu.be/CXSNkaRxisA) · **Builder and access:** [hotlayout.com](https://hotlayout.com)
+**Quickstart:** [docs](https://hotlayout.com/docs/integrator/quickstart-flutter) · [video](https://youtu.be/CXSNkaRxisA) · **Builder and access:** [hotlayout.com](https://hotlayout.com) · [try the editor](https://hotlayout.com/try)
+
+[![pub.dev](https://img.shields.io/pub/v/hotlayout_flutter?label=pub.dev&color=0a6cc9)](https://pub.dev/packages/hotlayout_flutter)
+[![pub points](https://img.shields.io/pub/points/hotlayout_flutter?color=0a6cc9)](https://pub.dev/packages/hotlayout_flutter/score)
+[![License](https://img.shields.io/badge/license-Apache--2.0-0a6cc9)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-hotlayout.com-0a6cc9)](https://hotlayout.com/docs)
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hotlayout/.github/main/profile/assets/app-obsidian.png" alt="A rewards screen built in HotLayout, dark theme" width="240">
+  &nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/hotlayout/.github/main/profile/assets/app-sunny.png" alt="The same kind of screen with another theme, light and playful" width="240">
+</p>
+<p align="center"><sub>Two screens built in HotLayout. Try the editor in your browser, no sign-up: <a href="https://hotlayout.com/try">https://hotlayout.com/try</a></sub></p>
 
 ```sh
 flutter pub add hotlayout_flutter
 ```
 
 The integration is one call, `renderDocument`, inside a screen of your own app:
+
+The snippet is cut from `example/lib/main.dart`; the names it uses (`theme`, `document`, `_actions`, `_onWrite`) are defined there.
 
 ```dart
 return Theme(
@@ -55,7 +69,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.33.0
+  hotlayout_flutter: ^0.33.1
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
