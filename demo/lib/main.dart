@@ -210,6 +210,9 @@ final List<({String id, String title})> kFixtures = [
   (id: 'carousel-stop-screens', title: 'Carousel drives the screen'),
   // 9.33.0. Nodes that fade in and out when their condition changes.
   (id: 'visibility-fade-screens', title: 'Fade on condition'),
+  // 9.34.0. Slide-to-confirm buttons: the fill follows the thumb, the button collapses into a circle, and the circle
+  // fills the screen before it changes.
+  (id: 'swipe-motion-screens', title: 'Swipe to confirm: motion'),
   // 9.12.0. Bottom zone: a navigation bar with three sections (`navigate.section`), a button
   // pinned to the bottom above the bar, and a sheet with two pinned buttons; `en`, `uk`, `ar`.
   (id: 'bottom-zone-screens', title: 'Navigation bar and pinned block'),

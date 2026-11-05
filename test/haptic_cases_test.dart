@@ -9,6 +9,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/render/swipe_confirm_paint.dart';
 import 'package:hotlayout_flutter/hotlayout_flutter.dart';
 import 'package:hotlayout_flutter/src/render/swipe_confirm_button.dart';
 
@@ -167,7 +168,7 @@ void main() {
       final thumb = tester.getRect(
         find.descendant(
           of: find.byType(SwipeConfirmTrack),
-          matching: find.byWidgetPredicate((w) => w is DecoratedBox && w.decoration is BoxDecoration && (w.decoration as BoxDecoration).shape == BoxShape.circle),
+          matching: find.byKey(kSwipeThumbKey),
         ),
       );
       final gesture = await tester.startGesture(Offset(thumb.center.dx, track.center.dy));

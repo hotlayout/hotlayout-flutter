@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' show Tristate;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/render/swipe_confirm_paint.dart';
 import 'package:hotlayout_flutter/hotlayout_flutter.dart';
 import 'package:hotlayout_flutter/src/model/node.dart';
 import 'package:hotlayout_flutter/src/model/swipe_confirm.dart';
@@ -67,7 +68,7 @@ Map<String, Object?> _swipeButton({bool disabled = false, String size = 'lg', Ma
 
 Finder _thumb() => find.descendant(
   of: find.byType(SwipeConfirmTrack),
-  matching: find.byWidgetPredicate((w) => w is DecoratedBox && w.decoration is BoxDecoration && (w.decoration as BoxDecoration).shape == BoxShape.circle),
+  matching: find.byKey(kSwipeThumbKey),
 );
 
 void main() {

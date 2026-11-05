@@ -28,11 +28,16 @@ final class ButtonNode extends ChildNode {
     this.disabledIf,
     this.zone,
     this.confirmBySwipe = false,
+    this.confirmRipple = false,
   });
 
   /// "Swipe to confirm" (9.22.0, `confirm: 'swipe'`): the button is a track with a thumb; the action runs when the thumb
   /// is dragged past the threshold. Only the word `swipe` is read.
   final bool confirmBySwipe;
+
+  /// After a swipe the circle the button collapses into grows over the screen, then the screen changes (9.34.0,
+  /// `confirmTransition: 'ripple'`). Only the word `ripple` is read; whether it plays also depends on the action.
+  final bool confirmRipple;
 
   /// App bar zone (9.16.0): `leading` means the node stands in the leading zone of the `AppBar`
   /// instead of the arrow. Read only on a direct child of the app bar.
@@ -97,6 +102,7 @@ ButtonNode _parseButton(_RawNode node, VisibilityCondition? visibleIf) {
     disabledIf: VisibilityCondition.parse(props['disabledIf']),
     zone: node.zone,
     confirmBySwipe: confirmsBySwipe(props['confirm']),
+    confirmRipple: confirmTransitionIsRipple(props[kConfirmTransitionKey]),
   );
 }
 

@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/render/swipe_confirm_paint.dart';
 import 'package:hotlayout_flutter/hotlayout_flutter.dart';
 import 'package:hotlayout_flutter/src/model/swipe_confirm.dart';
 import 'package:hotlayout_flutter/src/render/swipe_confirm_button.dart';
@@ -43,8 +44,18 @@ const _hostAction = {'type': 'redeem', 'params': <String, String>{}};
 
 Finder _thumb() => find.descendant(
   of: find.byType(SwipeConfirmTrack),
-  matching: find.byWidgetPredicate((w) => w is DecoratedBox && w.decoration is BoxDecoration && (w.decoration as BoxDecoration).shape == BoxShape.circle),
+  matching: find.byKey(kSwipeThumbKey),
 );
+
+/// Plays [ms] milliseconds in frames of 50: a ticker starts on its first frame and each controller of the button
+/// starts when the previous one ends, so one long pump would not run them in turn.
+Future<void> _run(WidgetTester tester, int ms) async {
+  for (var spent = 0; spent < ms; spent += 50) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+Finder _circle() => find.byKey(kSwipeCircleKey);
 
 Finder _ring() => find.descendant(of: find.byType(SwipeConfirmTrack), matching: find.byType(RotationTransition));
 
@@ -142,28 +153,30 @@ void main() {
       final track = tester.getRect(find.byType(SwipeConfirmTrack));
       await _swipe(tester);
       expect(calls, ['redeem'], reason: 'the action runs at once, before the thumb arrives');
+      final endLeft = track.right - 4 - start.width;
       await tester.pump(const Duration(milliseconds: 100));
-      final middle = tester.getRect(_thumb()).left;
-      expect(middle, greaterThan(start.left));
-      await tester.pump(const Duration(milliseconds: 200));
-      final end = tester.getRect(_thumb());
-      expect(end.right, closeTo(track.right - 4, 1.5), reason: 'the thumb stands at the end');
-      expect(_ring(), findsOneWidget, reason: 'the indicator instead of the glyph');
-      expect(find.text('Pay'), findsOneWidget, reason: 'the label stays');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(_thumb(), findsNothing, reason: 'the thumb has reached the end and the button collapses into a circle');
+      expect(_circle(), findsOneWidget);
+      expect(_ring(), findsOneWidget, reason: 'the indicator at the centre of the circle');
+      expect(find.text('Pay'), findsOneWidget, reason: 'the label stays in the tree');
 
       // Nothing acts while busy: a second swipe, a tap, Enter.
       await tester.tapAt(track.center);
       await _enter(tester);
       await tester.pump(const Duration(seconds: 3));
       expect(calls, ['redeem']);
-      expect(tester.getRect(_thumb()), end);
+      expect(_circle(), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 5));
+      expect(_circle(), findsOneWidget, reason: 'the limit has passed: the circle expands back');
+      await tester.pump(const Duration(milliseconds: 700));
       await tester.pump(const Duration(milliseconds: 125));
-      expect(tester.getRect(_thumb()).left, inExclusiveRange(start.left, end.left), reason: 'returning');
-      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.getRect(_thumb()).left, inExclusiveRange(start.left, endLeft + 1.5), reason: 'the thumb returns');
+      await tester.pump(const Duration(milliseconds: 250));
       expect(tester.getRect(_thumb()), start);
       expect(_ring(), findsNothing);
+      expect(_circle(), findsNothing);
       await _swipe(tester);
       expect(calls, ['redeem', 'redeem'], reason: 'the button acts again');
       await tester.pump(const Duration(seconds: 9));
@@ -176,12 +189,16 @@ void main() {
       final start = tester.getRect(_thumb());
       await _swipe(tester);
       await tester.pump(const Duration(seconds: 20));
+      await tester.pump(const Duration(seconds: 1));
       expect(_ring(), findsOneWidget, reason: 'a promise is held');
       answer.complete();
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_circle(), findsOneWidget, reason: 'the circle expands back first');
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 125));
-      expect(tester.getRect(_thumb()).left, greaterThan(start.left));
-      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.getRect(_thumb()).left, greaterThan(start.left), reason: 'then the thumb returns');
+      await tester.pump(const Duration(milliseconds: 250));
       expect(tester.getRect(_thumb()), start);
       expect(_ring(), findsNothing);
     });
@@ -195,20 +212,20 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       answer.completeError(StateError('refused'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await _run(tester, 2500);
       expect(tester.getRect(_thumb()), start);
     });
 
-    testWidgets('a Future that is already done does not cut the glide short', (tester) async {
+    testWidgets('a Future that is already done does not cut the collapse short', (tester) async {
       _view(tester);
       final start = Rect.zero;
       await pumpDocument(tester, UiDocumentBuilder.bare([_button(_hostAction)]), onAction: (a, id) => Future<void>.value());
       final begin = tester.getRect(_thumb());
       await _swipe(tester);
       await tester.pump(const Duration(milliseconds: 100));
-      expect(tester.getRect(_thumb()).left, greaterThan(begin.left), reason: 'still gliding to the end');
-      await tester.pump(const Duration(milliseconds: 600));
-      expect(tester.getRect(_thumb()), begin);
+      expect(_circle(), findsOneWidget, reason: 'the circle is still forming');
+      await _run(tester, 2000);
+      expect(tester.getRect(_thumb()), begin, reason: 'the circle forms, expands back and the thumb returns');
       expect(start, Rect.zero);
     });
 
@@ -220,10 +237,11 @@ void main() {
       final begin = tester.getRect(_thumb());
       await _swipe(tester);
       await tester.pump(const Duration(seconds: 12));
+      await tester.pump(const Duration(seconds: 1));
       expect(_ring(), findsOneWidget);
       answer.complete();
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await _run(tester, 1200);
       expect(tester.getRect(_thumb()), begin);
     });
 
@@ -251,8 +269,10 @@ void main() {
       await _enter(tester);
       expect(calls, ['redeem']);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 100));
       expect(tester.getRect(_thumb()).left, greaterThan(start.left));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(_circle(), findsOneWidget);
       expect(_ring(), findsOneWidget);
       await tester.pump(const Duration(seconds: 9));
     });

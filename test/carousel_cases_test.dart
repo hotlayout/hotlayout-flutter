@@ -64,7 +64,7 @@ void main() {
   test('the table is read entirely, and every field of it is known to this test', () {
     expect(hostCases, hasLength(8));
     expect(readCases, hasLength(17));
-    expect(cardCases, hasLength(17));
+    expect(cardCases, hasLength(18));
     expect(stopCases, hasLength(10));
     expect(activeCases, hasLength(10));
     expect(dotCases, hasLength(10));

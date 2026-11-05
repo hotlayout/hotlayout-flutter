@@ -132,6 +132,11 @@ extension ButtonWidgets on NodeRenderer {
       glyph: icon == null || icon == IconToken.unknown ? IconToken.parse(kSwipeThumbGlyph) : icon,
       disabled: disabled,
       onActivate: () => (runner: swipeRunnerOf(node.action.handOver(data.lookup)), promise: emit(node.action, node.id)),
+      ripple: node.confirmRipple,
+      intent: () {
+        final handed = node.action.handOver(data.lookup);
+        return (runner: swipeRunnerOf(handed), actionType: handed.type);
+      },
       focusColor: theme.color(ColorToken.primary),
     );
   }

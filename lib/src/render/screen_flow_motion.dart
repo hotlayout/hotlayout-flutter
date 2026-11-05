@@ -32,10 +32,12 @@ final class _SceneMove {
 }
 
 extension _ScreenFlowMotion on _ScreenFlowState {
-  /// Whether changes of screen move at all: the host did not turn transitions off and the system
-  /// does not ask for no motion.
+  /// Whether changes of screen move at all: the host did not turn transitions off, the system
+  /// does not ask for no motion, and no fill of a swipe button covers the screen (it is already the motion).
   bool get _moves =>
-      widget.transitions != HotlayoutTransitions.none && !(MediaQuery.maybeDisableAnimationsOf(context) ?? false);
+      !_rippleCovers &&
+      widget.transitions != HotlayoutTransitions.none &&
+      !(MediaQuery.maybeDisableAnimationsOf(context) ?? false);
 
   /// The index of the page a list of frames paints at the bottom: the last frame that is not a
   /// modal layer.

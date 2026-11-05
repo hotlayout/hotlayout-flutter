@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.33.0';
+const String kSupportedSchemaVersion = '9.34.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -494,6 +494,9 @@ const Map<String, String> kFeatureCatalog = {
   'carouselStop': '9.32.0',
   // 9.33.0: a node fades in and out when its `visibleIf` changes; an older reader shows and hides it at once.
   'visibilityFade': '9.33.0',
+  // 9.34.0: a swipe button collapses into a circle and, with `confirmTransition: 'ripple'`, fills the screen before it
+  // changes; an older reader shows the look of 9.24 and changes the screen at once.
+  'swipeMotion': '9.34.0',
 };
 
 /// Whether THIS code supports a capability the document names.

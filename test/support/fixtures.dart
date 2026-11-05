@@ -122,6 +122,8 @@ const List<String> fixtureIds = [
   'carousel-stop-screens',
   // 9.33.0: the heading and the details of the shown card fade out in place and the next ones fade in after them.
   'visibility-fade-screens',
+  // 9.34.0: swipe-to-confirm buttons: the fill behind the thumb, the collapse into a circle, the fill over the screen.
+  'swipe-motion-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

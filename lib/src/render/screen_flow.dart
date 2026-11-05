@@ -26,6 +26,7 @@ import 'motion.dart';
 import 'picture_policy.dart';
 import 'screen_transitions.dart';
 import 'screen_widget.dart';
+import 'swipe_ripple_layer.dart';
 import 'tap_target.dart';
 import 'write_run.dart';
 
@@ -831,6 +832,9 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
 
   (UiDocument, String?, LocaleResolution)? _resolutionCache;
 
+  /// A fill of a swipe button covers the screen: the screen changes under it with no motion of its own.
+  bool _rippleCovers = false;
+
   @override
   Widget build(BuildContext context) {
     /*
@@ -865,7 +869,11 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
           transitions: widget.transitions,
           // The root of the flow for touch areas: one for all layers, because a modal and the screen
           // under it are the same flow.
-          child: TapTargetScope(child: _withEdgeSwipe(_buildStack())),
+          // The fill of a swipe button lies over the whole flow and outlives the screen it started on.
+          child: SwipeRippleHost(
+            onCoverChanged: (covered) => _rippleCovers = covered,
+            child: TapTargetScope(child: _withEdgeSwipe(_buildStack())),
+          ),
         ),
       ),
     );
