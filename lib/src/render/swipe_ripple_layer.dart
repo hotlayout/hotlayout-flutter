@@ -47,9 +47,9 @@ class SwipeRippleSpec {
 
 /// One fill in flight: the button asks for it to be dropped when it leaves before the screen is covered.
 class SwipeRippleHandle {
-  SwipeRippleHandle._(this._host, this._entry);
+  SwipeRippleHandle._(this._drop, this._entry);
 
-  final _SwipeRippleHostState _host;
+  final void Function(_Entry entry) _drop;
   final _Entry _entry;
 
   /// Whether the action has already run: from then on the fill belongs to the layer and goes on to its end.
@@ -57,7 +57,7 @@ class SwipeRippleHandle {
 
   /// Removes the fill if the screen has not been covered yet; nothing runs.
   void cancel() {
-    if (!_entry.acted) _host._remove(_entry);
+    if (!_entry.acted) _drop(_entry);
   }
 }
 
@@ -71,6 +71,9 @@ class _Entry {
   final Size screen;
   final Key key;
   bool acted = false;
+
+  /// The entry in the nearest `Overlay`, when the fill lies over the host's routes.
+  OverlayEntry? overlayEntry;
 }
 
 /// The place a button asks for a fill: the nearest [SwipeRippleHost] above it.
@@ -110,7 +113,7 @@ class _SwipeRippleHostState extends State<SwipeRippleHost> {
     final wasCovering = _entries.isNotEmpty;
     setState(() => _entries.add(entry));
     if (!wasCovering) widget.onCoverChanged?.call(true);
-    return SwipeRippleHandle._(this, entry);
+    return SwipeRippleHandle._(_remove, entry);
   }
 
   /// Drops [entry]. A button that leaves the tree asks for this while the tree is locked, so the layer goes after the
@@ -148,6 +151,90 @@ class _SwipeRippleHostState extends State<SwipeRippleHost> {
       ],
     ),
   );
+}
+
+/// Provides [SwipeRippleScope] for a screen drawn by `renderScreen`, where the host keeps the stack of screens: the
+/// fill lies in the nearest `Overlay`, above the routes of the host, so it outlives the route the button was on.
+///
+/// The layer is cut by the bounds of that overlay, and the farthest corner is a corner of it. A fill that has not
+/// covered the screen yet goes with the provider (nothing runs); one that has acted goes on to its end. With no
+/// `Overlay` above there is no place for a fill and no scope: the action runs at once.
+class SwipeRippleOverlayHost extends StatefulWidget {
+  const SwipeRippleOverlayHost({super.key, required this.child, this.onScreenCovered});
+
+  final Widget child;
+
+  /// `true` when a fill starts covering the screen (before the action), `false` when the last one is gone.
+  final ValueChanged<bool>? onScreenCovered;
+
+  @override
+  State<SwipeRippleOverlayHost> createState() => _SwipeRippleOverlayHostState();
+}
+
+class _SwipeRippleOverlayHostState extends State<SwipeRippleOverlayHost> {
+  final List<_Entry> _entries = [];
+
+  // Kept apart from `widget`: a fill that has acted outlives this state and still reports its end.
+  ValueChanged<bool>? _report;
+
+  SwipeRippleHandle _start(SwipeRippleSpec spec) {
+    final overlay = Overlay.of(context);
+    final box = overlay.context.findRenderObject() as RenderBox?;
+    final sized = box != null && box.hasSize;
+    final entry = _Entry(
+      spec,
+      sized ? box.globalToLocal(spec.center) : spec.center,
+      sized ? box.size : MediaQuery.sizeOf(context),
+    );
+    _report = widget.onScreenCovered;
+    final wasCovering = _entries.isNotEmpty;
+    _entries.add(entry);
+    entry.overlayEntry = OverlayEntry(
+      builder: (_) => Positioned.fill(
+        child: ClipRect(
+          child: _RippleLayer(
+            entry: entry,
+            onCovered: () {
+              entry.acted = true;
+              entry.spec.onCovered();
+            },
+            onDone: () => _remove(entry),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry.overlayEntry!);
+    if (!wasCovering) _report?.call(true);
+    return SwipeRippleHandle._(_remove, entry);
+  }
+
+  void _remove(_Entry entry) {
+    if (!_entries.remove(entry)) return;
+    entry.overlayEntry?.remove();
+    entry.overlayEntry?.dispose();
+    entry.overlayEntry = null;
+    if (_entries.isNotEmpty) return;
+    // A button that leaves the tree asks for this while the tree is locked, and the host may rebuild on the answer.
+    final report = _report;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_entries.isEmpty) report?.call(false);
+    });
+    SchedulerBinding.instance.ensureVisualUpdate();
+  }
+
+  @override
+  void dispose() {
+    for (final entry in List.of(_entries)) {
+      if (!entry.acted) _remove(entry);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (Overlay.maybeOf(context) == null) return widget.child;
+    return SwipeRippleScope(start: _start, child: widget.child);
+  }
 }
 
 /// The key of the fill while it is on the screen, for tests that look for it.

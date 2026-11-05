@@ -12,6 +12,7 @@ import 'picture_policy.dart';
 import 'screen_flow.dart';
 import 'screen_transitions.dart';
 import 'screen_widget.dart';
+import 'swipe_ripple_layer.dart';
 import 'version_notice.dart';
 
 export 'choice_scope.dart' show ChoiceOptionMark;
@@ -194,6 +195,14 @@ Widget renderDocument(
 /// given, only [onRecordAction] is called. [onTrack] gets the analytics event of
 /// a press (`action.track`), before the action; [onHaptic] gets the haptic request of the press (`action.haptic`),
 /// before the event. [resolveImageUrl], [maxDownloadBytes] and [writablePaths] are the same as in `renderDocument`.
+///
+/// A "swipe to confirm" button with `confirmTransition: 'ripple'` plays its fill here too: the circle grows in the
+/// nearest `Overlay` (the one of the `Navigator` that holds this screen's route), above the host's routes, and the
+/// action reaches [onAction] once the screen is covered; the fill then fades over whatever the host shows by then.
+/// [onScreenCovered] is told `true` when a fill starts covering the screen (before the action) and `false` when the
+/// last fill is gone. The host can push its route without a transition of its own while it is covered; one that plays
+/// a transition shows through the fade, which is fine. With no `Overlay` above the screen there is no fill, and the
+/// action runs at once.
 Widget renderScreen(
   ScreenEntry screen, {
   required RenderTheme theme,
@@ -216,9 +225,12 @@ Widget renderScreen(
   Object? writablePaths,
   RendererLabels labels = const RendererLabels(),
   HotlayoutReportCallback? onReport,
+  ValueChanged<bool>? onScreenCovered,
 }) => ReportListener(
   onReport: onReport,
   initial: theme.reports,
+  child: SwipeRippleOverlayHost(
+  onScreenCovered: onScreenCovered,
   child: screenWidget(
   screen,
   theme: theme,
@@ -245,5 +257,6 @@ Widget renderScreen(
   autofill: autofill,
   pictures: PicturePolicy(resolveImageUrl: resolveImageUrl, maxDownloadBytes: maxDownloadBytes),
   labels: labels,
+  ),
   ),
 );
