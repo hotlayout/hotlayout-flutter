@@ -69,7 +69,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.33.1
+  hotlayout_flutter: ^0.34.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -111,8 +111,8 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.33.1` | — |
-| Document contract (schema) | `9.33.0` | `kSupportedSchemaVersion` |
+| Package | `0.34.0` | — |
+| Document contract (schema) | `9.34.0` | `kSupportedSchemaVersion` |
 | Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
