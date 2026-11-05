@@ -121,8 +121,14 @@ extension NodeBoxWidgets on NodeRenderer {
       around: _withMotion(node, around ?? renderer.pressWrapperOf(node, own)),
       extraTop: extraTop,
       keepSemantics: _isControl(node),
+      clipsContent: !_glowEscapesBox(node),
     );
   }
+
+  /// A scale that glows (`glow` on a `ProgressBar` or a `CircularProgress`) is not clipped by its own box: the glow
+  /// lies outside the scale by its blur, and only an ancestor that clips may cut it, as it cuts a shadow.
+  static bool _glowEscapesBox(ChildNode node) =>
+      (node is ProgressBarNode && node.glow != null) || (node is CircularProgressNode && node.glow != null);
 
   /// Whether the node is a control (a card with an action, a button): it keeps its own name even when it paints
   /// nothing (`x-silentText`: only what is not a control goes silent with its opacity).
@@ -170,6 +176,7 @@ extension NodeBoxWidgets on NodeRenderer {
     Widget Function(Widget box)? around,
     double extraTop = 0,
     bool keepSemantics = false,
+    bool clipsContent = true,
   }) {
     if (style == null) {
       final room = extraTop > 0 ? Padding(padding: EdgeInsetsDirectional.only(top: extraTop), child: child) : child;
@@ -197,6 +204,7 @@ extension NodeBoxWidgets on NodeRenderer {
       shadow: theme.resolveNodeShadow(style),
       border: border,
       blur: style.backdropBlur,
+      clipsContent: clipsContent,
       child: result,
     );
 
@@ -241,6 +249,9 @@ extension NodeBoxWidgets on NodeRenderer {
   /// [blur] is the glass (schema 9.20.0, `style.backdropBlur`): whatever lies under the box is blurred within the
   /// radius, the background lies over the blur, and the content stays sharp. The shadow lies OUTSIDE the clip that
   /// bounds the blur, or it would vanish with what is past the edge.
+  ///
+  /// [clipsContent] false leaves the content to overflow the box (the radius still rounds the background): a scale
+  /// with a glow.
   Widget nodeSurface({
     Color? color,
     Gradient? gradient,
@@ -249,6 +260,7 @@ extension NodeBoxWidgets on NodeRenderer {
     List<BoxShadow>? shadow,
     BorderSide? border,
     int? blur,
+    bool clipsContent = true,
     required Widget child,
   }) {
     final hasRadius = radius != null && radius != BorderRadiusDirectional.zero && radius != BorderRadius.zero;
@@ -259,7 +271,7 @@ extension NodeBoxWidgets on NodeRenderer {
     // The content is clipped by the INNER edge of the border (the padding box, as in CSS): the inner radius is the
     // outer one minus the border width. Without a border it is the outer edge.
     Widget content = child;
-    if (hasRadius && border != null) {
+    if (clipsContent && hasRadius && border != null) {
       final inside = content;
       content = Builder(
         builder: (context) => ClipRRect(
@@ -285,7 +297,7 @@ extension NodeBoxWidgets on NodeRenderer {
         ],
       );
       content = hasRadius ? ClipRRect(borderRadius: radius, child: content) : ClipRect(child: content);
-    } else if (hasRadius && border == null) {
+    } else if (clipsContent && hasRadius && border == null) {
       content = ClipRRect(borderRadius: radius, child: content);
     }
     // The border goes over the content, not under it: the background layer would be covered by what lies in the corners.
