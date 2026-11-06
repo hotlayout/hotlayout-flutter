@@ -11,6 +11,11 @@ topics:
   - sdui
   - ui
   - widget
+screenshots:
+  - description: A rewards screen built in the HotLayout builder, drawn by this package with a dark theme.
+    path: doc/screenshots/obsidian.webp
+  - description: The same kind of screen with another theme, light and playful.
+    path: doc/screenshots/sunny.webp
 # The version of the PACKAGE (semver), not of the contract: the schema and theme versions it
 # reads are `kSupportedSchemaVersion` and `kSupportedThemeContractVersion`.
 version: 0.34.0
