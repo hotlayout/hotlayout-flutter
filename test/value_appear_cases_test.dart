@@ -149,7 +149,7 @@ void main() {
   });
 
   group('a number of a text, through real frames', () {
-    String shownText(WidgetTester tester) => tester.widget<Text>(find.byType(Text).first).data!;
+    String shownText(WidgetTester tester) => tester.widget<Text>(find.byType(Text).last).data!;
 
     Future<void> at(WidgetTester tester, int ms) => tester.pump(Duration(milliseconds: ms));
 

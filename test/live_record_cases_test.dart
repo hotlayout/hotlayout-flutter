@@ -324,7 +324,7 @@ void main() {
       await pump(missions(300));
       await tester.pump(const Duration(milliseconds: 100));
       final number = find.byWidgetPredicate((widget) => widget is Text && RegExp(r'^\d+$').hasMatch(widget.data ?? ''));
-      final middle = int.parse(tester.widget<Text>(number.first).data!);
+      final middle = int.parse(tester.widget<Text>(number.last).data!);
       expect(middle, inInclusiveRange(101, 299), reason: 'a changed number counts, as any changed value does');
       await tester.pumpAndSettle();
       expect(find.text('300'), findsOneWidget);
