@@ -1,4 +1,4 @@
-## 0.34.0 - 2026-11-05
+## 0.34.0 - 2026-11-06
 
 Reads document contract **9.34.0** (theme 4.0.1, icon set 1.0.0, data dictionary 1.8.0) and placement map **1.1.0**.
 
