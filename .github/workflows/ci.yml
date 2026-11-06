@@ -21,12 +21,13 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # The version the package is developed and published with: a newer pub get rewrites
+          # analysis_options.yaml and pubspec.lock, and the publish dry-run then sees a dirty tree.
+          flutter-version: 3.41.9
           cache: true
-      - run: flutter --version && flutter pub get
-      - run: git status --porcelain && git diff
+      - run: flutter pub get
       # `dart format --set-exit-if-changed` is not run: the code base is not
       # formatted with `dart format` yet, and reformatting it is a separate change.
       - run: flutter analyze
       - run: flutter test
-      - run: git status --porcelain && git diff
       - run: dart pub publish --dry-run
