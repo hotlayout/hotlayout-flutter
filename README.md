@@ -4,6 +4,7 @@ Flutter renderer for [HotLayout](https://hotlayout.com) server-driven UI (SDUI).
 
 **Quickstart:** [docs](https://hotlayout.com/docs/integrator/quickstart-flutter) · [video](https://youtu.be/CXSNkaRxisA) · **Builder and access:** [hotlayout.com](https://hotlayout.com) · [try the editor](https://hotlayout.com/try)
 
+[![CI](https://github.com/hotlayout/hotlayout-flutter/actions/workflows/ci.yml/badge.svg)](https://github.com/hotlayout/hotlayout-flutter/actions/workflows/ci.yml)
 [![pub.dev](https://img.shields.io/pub/v/hotlayout_flutter?label=pub.dev&color=0a6cc9)](https://pub.dev/packages/hotlayout_flutter)
 [![pub points](https://img.shields.io/pub/points/hotlayout_flutter?color=0a6cc9)](https://pub.dev/packages/hotlayout_flutter/score)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0a6cc9)](LICENSE)
