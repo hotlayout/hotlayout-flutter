@@ -127,9 +127,13 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> with TickerProvid
       vsync: this,
       duration: const Duration(milliseconds: kSwipeSpinnerTurnMs),
     );
-    _collapse = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))
-      ..addListener(() => setState(() {}))
-      ..addStatusListener(_onCollapse);
+    _collapse =
+        AnimationController(
+            vsync: this,
+            duration: Duration(milliseconds: kSwipeCollapseMs.round()),
+          )
+          ..addListener(() => setState(() {}))
+          ..addStatusListener(_onCollapse);
   }
 
   bool get _rtl => Directionality.of(context) == TextDirection.rtl;
@@ -170,7 +174,8 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> with TickerProvid
   void _glide(double target, int ms) {
     _from = _progress;
     _to = target;
-    if (MediaQuery.disableAnimationsOf(context) || _from == _to) {
+    // A thumb already at the end still takes the whole glide: the next step starts when it is over.
+    if (MediaQuery.disableAnimationsOf(context) || (_from == _to && _phase != _Phase.gliding)) {
       _move.stop();
       setState(() => _progress = target);
       _arrived();
@@ -323,7 +328,6 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> with TickerProvid
         halo: box.size.height,
         core: math.max(0.0, box.size.height - 2 * ring),
         color: widget.thumbColor,
-        indicatorColor: widget.glyphColor,
         indicatorSize: glyph,
         indicator: (turns) => SwipeSpinner(turns: turns, size: glyph, color: widget.glyphColor),
         onCovered: _covered,
@@ -335,16 +339,21 @@ class _SwipeConfirmTrackState extends State<SwipeConfirmTrack> with TickerProvid
   /// one that stays (a screen that did not change) is at rest again under the fading fill.
   void _covered() {
     if (!mounted) return;
-    widget.onActivate();
-    if (!mounted) return;
-    _stopSpin();
-    _collapse.value = 0;
-    _move.stop();
-    setState(() {
-      _progress = 0;
-      _circle = false;
-      _phase = _Phase.idle;
-    });
+    try {
+      widget.onActivate();
+    } finally {
+      // A host callback that throws leaves the button at rest, not collapsed under a fill that is going away.
+      if (mounted) {
+        _stopSpin();
+        _collapse.value = 0;
+        _move.stop();
+        setState(() {
+          _progress = 0;
+          _circle = false;
+          _phase = _Phase.idle;
+        });
+      }
+    }
   }
 
   void _start(DragStartDetails details) {

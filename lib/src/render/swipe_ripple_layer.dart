@@ -10,6 +10,7 @@ library;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
+import '../model/swipe_confirm.dart';
 import '../model/swipe_motion.dart';
 
 /// What the button hands over to start the fill.
@@ -19,7 +20,6 @@ class SwipeRippleSpec {
     required this.halo,
     required this.core,
     required this.color,
-    required this.indicatorColor,
     required this.indicatorSize,
     required this.onCovered,
     this.indicator,
@@ -35,7 +35,6 @@ class SwipeRippleSpec {
   /// The colour of the thumb: the core is this colour, the halo the same at [kSwipeHaloOpacity].
   final Color color;
 
-  final Color indicatorColor;
   final double indicatorSize;
 
   /// Draws the indicator of "busy" at the centre of the circle, or `null` for none.
@@ -51,9 +50,6 @@ class SwipeRippleHandle {
 
   final void Function(_Entry entry) _drop;
   final _Entry _entry;
-
-  /// Whether the action has already run: from then on the fill belongs to the layer and goes on to its end.
-  bool get acted => _entry.acted;
 
   /// Removes the fill if the screen has not been covered yet; nothing runs.
   void cancel() {
@@ -262,9 +258,14 @@ class _RippleLayerState extends State<_RippleLayer> with TickerProviderStateMixi
   @override
   void initState() {
     super.initState();
-    _clock = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))
-      ..addStatusListener(_onStatus);
-    _spin = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat();
+    _clock = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: kSwipeRippleMs.round()),
+    )..addStatusListener(_onStatus);
+    _spin = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: kSwipeSpinnerTurnMs),
+    )..repeat();
     // The geometry is fixed when the fill starts: the layer lies over the whole flow, so it is measured once.
     final entry = widget.entry;
     _scale = swipeRippleScaleOf(
@@ -280,12 +281,23 @@ class _RippleLayerState extends State<_RippleLayer> with TickerProviderStateMixi
   void _onStatus(AnimationStatus status) {
     if (status != AnimationStatus.completed) return;
     if (_stage == _Stage.grow) {
-      widget.onCovered();
-      if (!mounted) return;
+      // The fade is set going before the host hears anything: whatever the action does, the fill ends on its own.
       setState(() => _stage = _Stage.reveal);
       _clock
-        ..duration = const Duration(milliseconds: 200)
+        ..duration = Duration(milliseconds: kSwipeRevealMs.round())
         ..forward(from: 0);
+      try {
+        widget.onCovered();
+      } catch (error, stack) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'hotlayout_flutter',
+            context: ErrorDescription('while running the action of a swipe button after its fill covered the screen'),
+          ),
+        );
+      }
     } else {
       widget.onDone();
     }

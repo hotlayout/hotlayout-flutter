@@ -84,7 +84,7 @@ void main() {
       final host = _Host();
       await host.pump(tester);
       await _swipe(tester, 0);
-      await _play(tester, 850);
+      await _play(tester, 1050);
       expect(_fill(), findsOneWidget, reason: 'the circle grows in the overlay');
       expect(host.actions, isEmpty, reason: 'the action waits for the cover');
       expect(host.covered, [true], reason: 'told before the action');
@@ -100,6 +100,43 @@ void main() {
       expect(_fill(), findsNothing);
       expect(host.actions, ['navigate'], reason: 'the action ran once');
       expect(host.covered, [true, false]);
+    });
+
+    testWidgets('a host callback that throws is reported and does not leave the fill on the screen', (tester) async {
+      _view(tester);
+      final covered = <bool>[];
+      var taps = 0;
+      final doc = loadFixture('swipe-motion-screens');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                TextButton(onPressed: () => taps += 1, child: const Text('Host button')),
+                Expanded(
+                  child: renderScreen(
+                    doc.screens.first,
+                    theme: RenderTheme.fallback(),
+                    data: const {},
+                    onScreenCovered: covered.add,
+                    onAction: (action, nodeId) => throw StateError('host failure'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await _swipe(tester, 0);
+      await _play(tester, 1900);
+      expect(tester.takeException(), isA<StateError>(), reason: 'the failure of the host reaches the error report');
+      await _play(tester, 1000);
+      expect(_fill(), findsNothing, reason: 'the fill fades away whatever the action did');
+      expect(covered, [true, false]);
+      await tester.tapAt(tester.getCenter(find.text('Host button')));
+      await tester.pump();
+      expect(taps, 1, reason: 'presses reach the host again');
     });
 
     testWidgets('a button that leaves before the cover takes the fill with it and nothing runs', (tester) async {

@@ -1,3 +1,10 @@
+## 0.34.1 - 2026-11-06
+
+Reads the same documents and themes as 0.34.0.
+
+- **A host callback that throws no longer leaves the fill on the screen.** When `onAction`, `onNavigate`, `onTrack` or `onHaptic` threw while a swipe button's fill had just covered the screen, the fill stayed over the screen for good, swallowed every press, and `onScreenCovered(false)` never came. The fill now starts to fade before the host is told, the failure goes to `FlutterError.reportError`, and the button is at rest again.
+- **A thumb already at the end still takes its 200 ms glide.** Released with the thumb dragged all the way to the end, the button collapsed into the circle at once; the glide to the end, the collapse (600 ms) and the fill (800 ms) now follow each other as in the shared motion table.
+
 ## 0.34.0 - 2026-11-06
 
 Reads document contract **9.34.0** (theme 4.0.1, icon set 1.0.0, data dictionary 1.8.0) and placement map **1.1.0**.

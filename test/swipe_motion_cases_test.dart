@@ -379,7 +379,7 @@ void main() {
         expect(_thumb(), findsNWidgets(2), reason: 'only the thumbs of the other two buttons are left');
         expect(_fill(), findsNothing);
 
-        await _play(tester, 500);
+        await _play(tester, 700);
         expect(_fill(), findsOneWidget, reason: 'the circle grows over the screen');
         expect(log, isEmpty);
 
@@ -410,6 +410,17 @@ void main() {
         expect(find.text('Payment sent'), findsOneWidget);
       },
     );
+
+    testWidgets('a thumb already at the end still glides for 200 ms before the circle forms', (tester) async {
+      _view(tester);
+      await _pumpFrame(tester);
+      await _drag(tester, 0);
+      await _play(tester, 100);
+      expect(_circle(), findsNothing, reason: 'the glide to the end takes its 200 ms whatever the distance');
+      await _play(tester, 200);
+      expect(_circle(), findsOneWidget, reason: 'the circle forms once the glide is over');
+      await _play(tester, 2500);
+    });
 
     testWidgets('the fill is in the tree only for its time and covers every corner of the flow', (tester) async {
       _view(tester);
@@ -522,7 +533,7 @@ void main() {
       ], initialScreenId: 'first');
       await pumpDocument(tester, doc, onTrack: (event, nodeId, record) => events.add('${event.event}@$nodeId'));
       await _drag(tester, 0);
-      await _play(tester, 1000);
+      await _play(tester, 1200);
       expect(_fill(), findsOneWidget);
       expect(events, isEmpty, reason: 'the fill is still growing');
       await _play(tester, 600);

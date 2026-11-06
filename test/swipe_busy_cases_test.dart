@@ -155,7 +155,7 @@ void main() {
       expect(calls, ['redeem'], reason: 'the action runs at once, before the thumb arrives');
       final endLeft = track.right - 4 - start.width;
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 150));
+      await tester.pump(const Duration(milliseconds: 250));
       expect(_thumb(), findsNothing, reason: 'the thumb has reached the end and the button collapses into a circle');
       expect(_circle(), findsOneWidget);
       expect(_ring(), findsOneWidget, reason: 'the indicator at the centre of the circle');
@@ -190,6 +190,7 @@ void main() {
       await _swipe(tester);
       await tester.pump(const Duration(seconds: 20));
       await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
       expect(_ring(), findsOneWidget, reason: 'a promise is held');
       answer.complete();
       await tester.pump();
@@ -223,6 +224,7 @@ void main() {
       final begin = tester.getRect(_thumb());
       await _swipe(tester);
       await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 250));
       expect(_circle(), findsOneWidget, reason: 'the circle is still forming');
       await _run(tester, 2000);
       expect(tester.getRect(_thumb()), begin, reason: 'the circle forms, expands back and the thumb returns');
@@ -237,6 +239,7 @@ void main() {
       final begin = tester.getRect(_thumb());
       await _swipe(tester);
       await tester.pump(const Duration(seconds: 12));
+      await tester.pump(const Duration(seconds: 1));
       await tester.pump(const Duration(seconds: 1));
       expect(_ring(), findsOneWidget);
       answer.complete();
@@ -296,7 +299,9 @@ void main() {
       _view(tester);
       await pumpDocument(tester, UiDocumentBuilder.bare([_button(_hostAction)]), onAction: (a, id) {});
       await _swipe(tester);
+      await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 100));
       final turns = tester.widget<RotationTransition>(_ring()).turns;
       final first = turns.value;
       await tester.pump(const Duration(milliseconds: 400));

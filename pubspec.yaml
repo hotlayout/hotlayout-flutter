@@ -18,7 +18,7 @@ screenshots:
     path: doc/screenshots/sunny.webp
 # The version of the PACKAGE (semver), not of the contract: the schema and theme versions it
 # reads are `kSupportedSchemaVersion` and `kSupportedThemeContractVersion`.
-version: 0.34.0
+version: 0.34.1
 
 environment:
   sdk: ^3.11.5
