@@ -22,11 +22,11 @@ const int kMaxRepeaterItems = 50;
 /// reason as [kMaxRepeaterItems]: if each platform chose its own, the same
 /// document would be laid out differently in the builder and on the phone.
 ///
-/// One column is a `Column`, so the minimum is two; the maximum comes from the
-/// arithmetic of a narrow phone (at 360dp a fifth column is about 65dp, which
-/// is no longer a card).
+/// One column is a `Column`, so the minimum is two; the maximum is six (schema 9.41.0,
+/// `GridProps.columns` and `RepeaterProps.columns`, up from four). The cell formula does
+/// not change: `(width - gaps) / columns`.
 const int kGridMinColumns = 2;
-const int kGridMaxColumns = 4;
+const int kGridMaxColumns = 6;
 
 /// How many columns a grid takes when `columns` is not a number. A schema
 /// default, not a renderer choice.
@@ -211,7 +211,7 @@ const Map<String, String> kWidgetCatalog = {
   'TextField': '9.13.0',
   'Switch': '9.13.0',
   'Checkbox': '9.13.0',
-  // The chart (9.37.0). Not drawn by this reader yet: it is an unknown widget with nothing to draw.
+  // The chart (9.37.0). A 9.36 reader sees it as `unknownWidget`, an empty place.
   'Chart': '9.37.0',
 };
 
@@ -504,7 +504,7 @@ const Map<String, String> kFeatureCatalog = {
   'displayTypography': '9.35.0',
   // 9.36.0: an own gradient may be radial; an older reader omits the background.
   'radialGradient': '9.36.0',
-  // 9.37.0: the chart. Not drawn by this reader yet: a `Chart` is an unknown widget with no children.
+  // 9.37.0: the chart. An older reader draws a `Chart` as an unknown widget, which has no children.
   'chart': '9.37.0',
   // 9.38.0: default transitions between screens. Not performed by this reader yet: a screen change keeps its motion.
   'screenTransition': '9.38.0',
@@ -515,7 +515,8 @@ const Map<String, String> kFeatureCatalog = {
   // 9.40.0: spin and sway of a node and its appearance. Not performed by this reader yet: the node stands at rest.
   'motionTurn': '9.40.0',
   'nodeAppear': '9.40.0',
-  // 9.41.0: the host actions `copy` and `share`, up to six grid columns. Not performed by this reader yet.
+  // 9.41.0: the host actions `copy` and `share`, up to six grid columns. An older reader hands the two actions
+  // over as actions of the app, with no `standard`, and draws five or six columns as four.
   'copyShareActions': '9.41.0',
   'gridSixColumns': '9.41.0',
   // 9.42.0: a carousel that advances by time. Not performed by this reader yet: only a person moves it.

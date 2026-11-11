@@ -883,8 +883,8 @@ void main() {
           'style': {'color': 'success'},
           'children': [
             {
-              'id': 'chart',
-              'type': 'Chart',
+              'id': 'hologram',
+              'type': 'Hologram',
               'props': <String, Object?>{},
               'style': {
                 'color': 'danger',

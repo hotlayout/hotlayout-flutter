@@ -24,6 +24,7 @@ import 'offset_rules.dart';
 import 'part_style.dart';
 import 'scrolled_bar.dart';
 import 'carousel_rules.dart';
+import 'chart_rules.dart';
 import 'progress_rules.dart';
 import 'screen_top_rules.dart';
 import 'style_values.dart';
@@ -35,6 +36,7 @@ import 'visibility.dart';
 import 'visibility_fade.dart';
 import 'width_class.dart';
 
+part 'nodes/chart.dart';
 part 'nodes/chrome.dart';
 part 'nodes/content.dart';
 part 'nodes/controls.dart';
@@ -155,6 +157,7 @@ sealed class UiNode {
       'ListTile' => _parseListTile(node, visibleIf),
       'ProgressBar' => _parseProgressBar(node, visibleIf),
       'CircularProgress' => _parseCircularProgress(node, visibleIf),
+      'Chart' => _parseChart(node, visibleIf),
       'Badge' => _parseBadge(node, visibleIf),
       'IconButton' => _parseIconButton(node, visibleIf),
       'NavBar' => _parseNavBar(node, visibleIf),

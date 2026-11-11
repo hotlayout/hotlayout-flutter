@@ -40,8 +40,8 @@ void main() {
   test('an action without a handler is a miss, with the reason', () {
     final misses = <(String, HostActionMiss)>[];
     final actions = HostActions(onMiss: (call, reason) => misses.add((call.type, reason)));
-    actions.handle(_action('share'), 'n', null);
-    expect(misses, [('share', HostActionMiss.noHandler)]);
+    actions.handle(_action('redeem'), 'n', null);
+    expect(misses, [('redeem', HostActionMiss.noHandler)]);
   });
 
   group('standard actions', () {
@@ -73,6 +73,50 @@ void main() {
       final misses = <HostActionMiss>[];
       HostActions(onMiss: (_, reason) => misses.add(reason)).handle(_action('close'), 'n', null);
       expect(misses, [HostActionMiss.noExecutor]);
+    });
+
+    test('copy and share run through their check with the executors of the host', () {
+      final copied = <String>[];
+      final shared = <({String? text, String? url})>[];
+      final misses = <HostActionMiss>[];
+      final actions = HostActions(
+        copy: copied.add,
+        share: ({text, url}) => shared.add((text: text, url: url)),
+        onMiss: (_, reason) => misses.add(reason),
+      );
+      actions.handle(_action('copy', {'text': 'WEEKEND20'}), 'n', null);
+      actions.handle(_action('share', {'text': 'Join me', 'url': 'https://example.com/promo'}), 'n', null);
+      actions.handle(_action('share', {'url': 'https://example.com/promo'}), 'n', null);
+      // Nothing to copy, nothing to share, an address that is no https address: never performed.
+      actions.handle(_action('copy'), 'n', null);
+      actions.handle(_action('share'), 'n', null);
+      actions.handle(_action('share', {'text': 'Join me', 'url': 'javascript:alert(1)'}), 'n', null);
+      expect(copied, ['WEEKEND20']);
+      expect(shared, [
+        (text: 'Join me', url: 'https://example.com/promo'),
+        (text: null, url: 'https://example.com/promo'),
+      ]);
+      expect(misses, [HostActionMiss.invalid, HostActionMiss.invalid, HostActionMiss.invalid]);
+    });
+
+    test('copy and share without an executor are a miss', () {
+      final misses = <HostActionMiss>[];
+      final actions = HostActions(onMiss: (_, reason) => misses.add(reason));
+      actions.handle(_action('copy', {'text': 'x'}), 'n', null);
+      actions.handle(_action('share', {'text': 'x'}), 'n', null);
+      expect(misses, [HostActionMiss.noExecutor, HostActionMiss.noExecutor]);
+    });
+
+    test('a handler registered for copy or share still gets the action until the executor is passed', () {
+      final calls = <String>[];
+      final actions = HostActions(handlers: {'copy': (call) => calls.add('handler:${call.valueOf('text')}')});
+      actions.handle(_action('copy', {'text': 'x'}), 'n', null);
+      expect(calls, ['handler:x']);
+      final copied = <String>[];
+      HostActions(handlers: {'copy': (call) => calls.add('late')}, copy: copied.add)
+          .handle(_action('copy', {'text': 'y'}), 'n', null);
+      expect(copied, ['y']);
+      expect(calls, ['handler:x'], reason: 'the executor wins over the handler of the same type');
     });
 
     test('a handler for a standard type is refused when the router is created', () {

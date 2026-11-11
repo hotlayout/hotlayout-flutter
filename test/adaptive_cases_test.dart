@@ -3,7 +3,7 @@
 ///
 /// The tests read the contract table ITSELF
 /// (`assets/contract/fixtures/adaptive/adaptive-cases.json`, a copy of
-/// `contract/fixtures/adaptive/adaptive-cases.json`, 231 rows in 16 groups) and
+/// `contract/fixtures/adaptive/adaptive-cases.json`, 234 rows in 16 groups) and
 /// run the rows through the reader's formula (`width_class.dart`, tree resolution in a class) and a
 /// REAL widget where the row is about geometry:
 ///
@@ -12,7 +12,7 @@
 ///  3. `showCases` (22), `drawnCases` (7), `numberCases` (5), `tabCases` (4),
 ///     `weightCases` (5), `zoneCases` (5), `formCases` (6) -- visibility in every
 ///     place where the reader asks "visible";
-///  4. `validityCases` (39) -- the reader has no validator, so a row is checked by
+///  4. `validityCases` (42) -- the reader has no validator, so a row is checked by
 ///     the reader NOT crashing on a document the validator would reject;
 ///  5. `contentCases` (22) -- the screen content column: formula and real screen;
 ///  6. `gridCases` (12), `boxCases` (12) -- grid and container geometry;
@@ -124,7 +124,7 @@ _Json _screenRoot(List<_Json> children, {_Json? props, _Json? style, _Json? prop
 void main() {
   // ───────────────────────────── table structure ─────────────────────────────
 
-  test('table: 231 rows in sixteen groups', () {
+  test('table: 234 rows in sixteen groups', () {
     final counts = {
       'classCases': 20,
       'layerCases': 3,
@@ -137,7 +137,7 @@ void main() {
       'weightCases': 5,
       'zoneCases': 5,
       'formCases': 6,
-      'validityCases': 39,
+      'validityCases': 42,
       'contentCases': 22,
       'gridCases': 12,
       'boxCases': 12,
@@ -146,7 +146,7 @@ void main() {
     for (final entry in counts.entries) {
       expect(_rows(entry.key), hasLength(entry.value), reason: entry.key);
     }
-    expect(counts.values.reduce((a, b) => a + b), 231);
+    expect(counts.values.reduce((a, b) => a + b), 234);
   });
 
   // ───────────────────────────── class and cascade ─────────────────────────────
@@ -253,12 +253,12 @@ void main() {
       expect((_child(grid, WidthClass.compact, type: 'Grid') as GridNode).columns, 2);
       expect((_child(grid, WidthClass.medium, type: 'Grid') as GridNode).columns, 1);
       expect((_child(grid, WidthClass.expanded, type: 'Grid') as GridNode).columns, 6);
-      // The base keeps its bounds 2...4: columns outside them are clamped, as before.
+      // The base keeps its own bounds 2...6: columns outside them are clamped.
       final base = {
         'type': 'Grid',
         'props': {'columns': 9},
       };
-      expect((_child(base, WidthClass.expanded, type: 'Grid') as GridNode).columns, 4);
+      expect((_child(base, WidthClass.expanded, type: 'Grid') as GridNode).columns, 6);
       expect((_child({'type': 'Grid', 'props': {'columns': 1}}, WidthClass.compact, type: 'Grid') as GridNode).columns, 2);
       // A number outside the override bounds is clamped to 1...6.
       final loud = {

@@ -65,8 +65,8 @@ enum HostActionMiss {
   /// No handler is registered for this type.
   noHandler,
 
-  /// A standard action (`openUrl`, `deeplink`, `close`) whose executor was not
-  /// given, or whose scheme is not one of `deeplinkSchemes`.
+  /// A standard action (`openUrl`, `deeplink`, `close`, `copy`, `share`) whose executor
+  /// was not given, or whose scheme is not one of `deeplinkSchemes`.
   noExecutor,
 
   /// A standard action whose parameter failed the form check
@@ -85,9 +85,10 @@ enum HostActionMiss {
 /// final actions = HostActions(
 ///   handlers: {
 ///     'redeem': (call) => rewards.redeem(call.valueOf('reward.id')),
-///     'copy': (call) => Clipboard.setData(ClipboardData(text: call.valueOf('text') ?? '')),
 ///   },
 ///   openUrl: (url) => launchUrl(Uri.parse(url)),
+///   copy: (text) => Clipboard.setData(ClipboardData(text: text)),
+///   share: ({text, url}) => SharePlus.instance.share(ShareParams(text: text, uri: url == null ? null : Uri.parse(url))),
 ///   deeplinkSchemes: const {'myapp'},
 ///   openDeeplink: (url) => launchUrl(Uri.parse(url)),
 /// );
@@ -97,9 +98,12 @@ enum HostActionMiss {
 ///
 /// The order is fixed:
 ///
-///  1. a standard action of the catalog (`openUrl`, `deeplink`, `close`) goes
-///     to [runStandardAction] with the executors given here — it is checked
-///     there, and [handlers] never see these types;
+///  1. a standard action of the catalog (`openUrl`, `deeplink`, `close`, `copy`,
+///     `share`) goes to [runStandardAction] with the executors given here — it is
+///     checked there, and [handlers] never see `openUrl`, `deeplink` and `close`.
+///     `copy` and `share` are the exception, for a host that handled them as its
+///     own actions before they joined the catalog: without the executor here, a
+///     handler of that type still gets the action;
 ///  2. any other type goes to its handler in [handlers];
 ///  3. whatever was not performed goes to [onMiss], with the reason.
 ///
@@ -122,6 +126,8 @@ class HostActions {
     this.deeplinkSchemes,
     this.openDeeplink,
     this.close,
+    this.copy,
+    this.share,
     this.onMiss,
     this.onError,
     this.exclusive = true,
@@ -139,6 +145,19 @@ class HostActions {
 
   static const Set<String> _standardTypes = {kOpenUrlActionType, kDeeplinkActionType, kCloseActionType};
 
+  /// Whether [runStandardAction] decides this action. `copy` and `share` came later than the other three: a host that
+  /// registered a handler of that type keeps it until it passes the executor (`copy`, `share`) here.
+  bool _ownedByRunner(ButtonAction action) {
+    if (_standardTypes.contains(action.type)) return true;
+    final executor = switch (action.type) {
+      kCopyActionType => copy,
+      kShareActionType => share,
+      _ => null,
+    };
+    return (executor != null || !handlers.containsKey(action.type)) &&
+        (action.standard != null || action.invalid != null);
+  }
+
   /// Handlers of app-specific actions, by type.
   final Map<String, HostActionHandler> handlers;
 
@@ -153,6 +172,13 @@ class HostActions {
 
   /// Closes the flow on `close` (the renderer does not touch its stack).
   final VoidCallback? close;
+
+  /// Puts the text of a `copy` on the clipboard; the renderer never does. The text is checked (a non-empty string of at
+  /// most 2048 characters). A "Copied" confirmation is yours to show.
+  final void Function(String text)? copy;
+
+  /// Opens the system share sheet for a `share` with the fields it has (an absent one is `null`); at least one is set.
+  final void Function({String? text, String? url})? share;
 
   /// An action that was not performed, and why. `navigate.back` from the first
   /// screen and a `navigate` to a screen the document lacks arrive here too,
@@ -178,7 +204,7 @@ class HostActions {
   /// busy until it completes.
   Future<void>? handle(ButtonAction action, String nodeId, Map<String, Object?>? record) {
     final call = HostActionCall(action: action, nodeId: nodeId, record: record);
-    if (_standardTypes.contains(action.type)) {
+    if (_ownedByRunner(action)) {
       if (action.invalid != null) {
         onMiss?.call(call, HostActionMiss.invalid);
         return null;
@@ -191,6 +217,8 @@ class HostActions {
           deeplinkSchemes: deeplinkSchemes,
           openDeeplink: openDeeplink,
           close: close,
+          copy: copy,
+          share: share,
         ),
       );
       if (done == false) onMiss?.call(call, HostActionMiss.noExecutor);

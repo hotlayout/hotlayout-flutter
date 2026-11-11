@@ -301,7 +301,8 @@ void main() {
       'UiDocument', 'ScreenEntry', 'ButtonAction', 'UiNode', 'ScreenPresentationToken',
       // action catalog (9.8.0): what the host receives, the analytics event, the show event and
       // the helper that executes ONLY a verified standard action
-      'runStandardAction', 'StandardAction', 'OpenUrlAction', 'DeeplinkAction', 'CloseAction',
+      'runStandardAction', 'StandardAction', 'OpenUrlAction', 'DeeplinkAction', 'CloseAction', 'CopyAction',
+      'ShareAction',
       'InvalidActionParam', 'ActionParamProblem', 'TrackEvent', 'ScreenShown', 'ScreenShownCause',
       'SduiTrackCallback', 'SduiHapticCallback', 'HapticWord', 'SduiScreenShownCallback',
       // what the reader ignored or replaced on its own, for the host

@@ -250,7 +250,7 @@ int? _intIn(Map<String, Object?> props, String key, int min, int max) {
 /// is not a "wide grid" but broken data, and the schema default is used for it.
 ///
 /// [overridden] (9.18.0) means the number came from a `propsOn` layer: its bounds are 1..6
-/// (`widthClass.props.columns`), while the base stays 2..4. One column is a grid with one cell per row.
+/// (`widthClass.props.columns`), while the base stays 2..6. One column is a grid with one cell per row.
 int _gridColumns(Object? raw, {bool overridden = false}) {
   // A non-number gives the schema default, which is also the lower bound (2). NaN does not get through:
   // `toInt()` throws on it, so it is cut off before that.

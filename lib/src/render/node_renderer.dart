@@ -32,6 +32,7 @@ import 'screen_form.dart';
 import 'visibility_fade_scope.dart';
 import 'widgets/app_bar.dart';
 import 'widgets/button.dart';
+import 'widgets/chart.dart';
 import 'widgets/column.dart';
 import 'widgets/grid.dart';
 import 'widgets/image.dart';
@@ -391,6 +392,7 @@ class NodeRenderer {
         ListTileNode() => buildListTile(node),
         ProgressBarNode() => buildLeading(node, own, slot),
         CircularProgressNode() => buildLeading(node, own, slot),
+        ChartNode() => buildChart(node),
         BadgeNode() => buildBadge(node, own),
         TextFieldNode() => buildTextField(node),
         SwitchNode() => buildToggle(node, InputToggleKind.switchControl, node.label, node.valuePath, node.disabledIf),

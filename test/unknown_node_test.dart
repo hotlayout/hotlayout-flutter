@@ -8,12 +8,13 @@ import 'package:hotlayout_flutter/src/model/ui_document.dart';
 import 'support/fixtures.dart';
 
 /// A document with a widget this app version does not know — a routine situation for SDUI:
-/// the admin already supports `Chart`, the mobile app does not yet.
+/// the admin already supports a widget the mobile app does not know yet. `Hologram` stands for it: a made-up
+/// name that is in no catalogue.
 UiDocument _docWithUnknownWidget() => docWith([
   textNode('До невідомого', id: 'before'),
   {
-    'id': 'chart',
-    'type': 'Chart',
+    'id': 'hologram',
+    'type': 'Hologram',
     'props': {'series': 'weekly'},
     'children': [textNode('Всередині невідомого', id: 'inside')],
   },
@@ -25,7 +26,7 @@ void main() {
     test('parses into UnknownNode with the type and children preserved', () {
       final unknown = flatten(rootOf(_docWithUnknownWidget())).whereType<UnknownNode>().single;
 
-      expect(unknown.type, 'Chart');
+      expect(unknown.type, 'Hologram');
       expect(unknown.children.single, isA<TextNode>());
     });
 
@@ -38,7 +39,7 @@ void main() {
       // Children of the unknown wrapper are real content; we do not drop them.
       expect(find.text('Всередині невідомого'), findsOneWidget);
       // In debug the document author sees a conspicuous badge with the type name.
-      expect(find.textContaining('Chart'), findsOneWidget);
+      expect(find.textContaining('Hologram'), findsOneWidget);
     });
 
     testWidgets('corrupted props of a known type give defaults, not an exception', (tester) async {
@@ -112,8 +113,9 @@ void main() {
       expect(widgetOriginOf('Gauge'), WidgetOrigin.outsideContract);
     });
 
-    test('the chart is in the catalogue, though this reader does not draw it yet', () {
+    test('the chart is in the catalogue and is not from the future of this reader', () {
       expect(widgetOriginOf('Chart'), WidgetOrigin.contractual);
+      expect(widgetOriginOf('Chart', readerVersion: '9.36.0'), WidgetOrigin.fromFuture);
     });
 
     test('a catalogue type not from the future — the renderer simply lags the contract', () {

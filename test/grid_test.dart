@@ -49,6 +49,13 @@ void main() {
       expect(parse(grid(cells(3), columns: 1)).columns, kGridMinColumns);
     });
 
+    test('five and six columns are read as they are, seven is clamped to six', () {
+      expect(parse(grid(cells(3), columns: 5)).columns, 5);
+      expect(parse(grid(cells(3), columns: 6)).columns, 6);
+      expect(parse(grid(cells(3), columns: 7)).columns, 6);
+      expect(kGridMaxColumns, 6);
+    });
+
     test('a non-numeric value is bad data, and the schema default is used', () {
       expect(parse(grid(cells(3), columns: 'три')).columns, kGridDefaultColumns);
       expect(parse(grid(cells(3), columns: null)).columns, kGridDefaultColumns);
@@ -66,6 +73,23 @@ void main() {
       expect(first.width, second.width);
       // The second starts exactly where the first ends: there is no gap.
       expect(second.left, closeTo(first.right, 0.01));
+    });
+
+    testWidgets('six columns: six equal cells in one row, the seventh goes to the next row', (tester) async {
+      await pumpDocument(tester, docWith([grid(cells(7), columns: 6)]));
+
+      final first = rectOf(tester, 'К0');
+      for (var index = 1; index < 6; index += 1) {
+        final cell = rectOf(tester, 'К$index');
+        expect(cell.top, first.top, reason: 'cell $index is in the first row');
+        expect(cell.width, closeTo(first.width, 0.01));
+        expect(cell.left, closeTo(rectOf(tester, 'К${index - 1}').right, 0.01));
+      }
+      final seventh = rectOf(tester, 'К6');
+      expect(seventh.top, greaterThan(first.top));
+      expect(seventh.left, closeTo(first.left, 0.01));
+      // The cell is a sixth of the width: the formula does not change with the count.
+      expect(first.width * 6, closeTo(tester.getSize(find.byType(Scaffold)).width - 2 * first.left, 0.5));
     });
 
     testWidgets('the fourth child goes to the second row instead of squeezing the first', (tester) async {

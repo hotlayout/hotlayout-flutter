@@ -106,7 +106,7 @@ const Map<String, List<String>> kResponsiveProps = {
   'Repeater': ['direction', 'columns', 'gap', 'carousel'],
 };
 
-/// Limits of `columns` IN AN OVERRIDE (`widthClass.props.columns`): the base keeps 2..4, and a
+/// Limits of `columns` IN AN OVERRIDE (`widthClass.props.columns`): the base keeps 2..6, and a
 /// single column is a grid with one cell per row.
 const int kOverrideMinColumns = 1;
 const int kOverrideMaxColumns = 6;
@@ -118,7 +118,7 @@ final class EffectiveProps {
 
   final Map<String, Object?> props;
 
-  /// `columns` came from a layer, so its limits are 1..6, not the base's 2..4.
+  /// `columns` came from a layer, so its limits are 1..6, not the base's 2..6.
   final bool columnsFromOverride;
 }
 

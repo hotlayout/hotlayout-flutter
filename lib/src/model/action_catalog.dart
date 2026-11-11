@@ -9,7 +9,7 @@
 ///
 /// WHY THE READER OPENS NOTHING ITSELF. A document arrives over the network.
 /// A URL from it, opened without the app's say-so, is a phishing page shipped
-/// as one published file. So `openUrl`, `deeplink` and `close` reach the host
+/// as one published file. So `openUrl`, `deeplink`, `close`, `copy` and `share` reach the host
 /// the same way as any action, but PARSED AND CHECKED ([StandardAction] or
 /// [InvalidActionParam]), and the host executes them, itself or with the ready
 /// `runStandardAction` (`action.dart`).
@@ -29,10 +29,10 @@ const int kActionUrlMaxLength = 2048;
 /// Who executes an action (`x-actions.executors`).
 enum ActionExecutor { reader, host }
 
-/// Parameter value forms the catalog names (`x-actions.forms`). The reader judges only `httpsUrl` and `appLink`
-/// here: `screenId` is checked by whoever holds the document, and `dataPath`, `literal` and `valueType` (the
-/// parameters of the write actions) by the write rule itself (`write_action.dart`).
-enum ActionParamForm { screenId, httpsUrl, appLink, dataPath, literal, valueType }
+/// Parameter value forms the catalog names (`x-actions.forms`, and `x-copyShare.forms` for `text`). The reader judges
+/// only `httpsUrl`, `appLink` and `text` here: `screenId` is checked by whoever holds the document, and `dataPath`,
+/// `literal` and `valueType` (the parameters of the write actions) by the write rule itself (`write_action.dart`).
+enum ActionParamForm { screenId, httpsUrl, appLink, dataPath, literal, valueType, text }
 
 /// Why a parameter value failed its form (`x-actions.problems`).
 enum ActionParamProblem {
@@ -76,7 +76,7 @@ final class CatalogParam {
 
 /// A catalog entry.
 final class CatalogAction {
-  const CatalogAction(this.type, this.executor, [this.params = const []]);
+  const CatalogAction(this.type, this.executor, [this.params = const [], this.oneOf = const []]);
 
   /// Action type; case-sensitive.
   final String type;
@@ -86,6 +86,10 @@ final class CatalogAction {
 
   /// Parameters that have a form.
   final List<CatalogParam> params;
+
+  /// A group of parameters of which at least one must have a value after data is put in (`share`: `text` or `url`);
+  /// empty means no group.
+  final List<String> oneOf;
 }
 
 const String kSetValueActionType = 'setValue';
@@ -93,6 +97,8 @@ const String kToggleValueActionType = 'toggleValue';
 const String kOpenUrlActionType = 'openUrl';
 const String kDeeplinkActionType = 'deeplink';
 const String kCloseActionType = 'close';
+const String kCopyActionType = 'copy';
+const String kShareActionType = 'share';
 
 /// The URL parameter of `openUrl` and `deeplink`: one name for both actions.
 const String kActionUrlParam = 'url';
@@ -118,11 +124,35 @@ const List<CatalogAction> kActionCatalog = [
   CatalogAction(kToggleValueActionType, ActionExecutor.reader, [CatalogParam('path', ActionParamForm.dataPath)]),
 ];
 
+/// The second list of the catalog (schema 9.41.0, `x-copyShare.catalog`): the two host actions `copy` and `share`.
+/// A separate list so that [kActionCatalog] still equals `x-actions.catalog`; whether an action is in the catalog asks
+/// both ([catalogActionOf]).
+///
+/// `copy` needs a `text`. `share` takes a `text` and a `url`, each optional, and at least one must have a value.
+const String kShareTextParam = 'text';
+const List<CatalogAction> kCopyShareCatalog = [
+  CatalogAction(kCopyActionType, ActionExecutor.host, [
+    CatalogParam(kShareTextParam, ActionParamForm.text, bindable: true),
+  ]),
+  CatalogAction(
+    kShareActionType,
+    ActionExecutor.host,
+    [
+      CatalogParam(kShareTextParam, ActionParamForm.text, required: false, bindable: true),
+      CatalogParam(kActionUrlParam, ActionParamForm.httpsUrl, required: false, bindable: true),
+    ],
+    [kShareTextParam, kActionUrlParam],
+  ),
+];
+
 /// The catalog entry for [type]; `null` means the action is not named (an
 /// app-specific action: its parameters are not judged and neither `standard`
 /// nor `invalid` is set).
 CatalogAction? catalogActionOf(String type) {
   for (final entry in kActionCatalog) {
+    if (entry.type == type) return entry;
+  }
+  for (final entry in kCopyShareCatalog) {
     if (entry.type == type) return entry;
   }
   return null;
@@ -191,6 +221,9 @@ String? appLinkSchemeOf(String value) => kAppLinkPattern.firstMatch(value)?.grou
 /// an uppercase scheme is not a scheme.
 ActionParamProblem? paramFormProblem(ActionParamForm form, String? value) {
   if (value == null || value.isEmpty) return ActionParamProblem.missing;
+  // `text` (9.41.0): a non-empty string of at most 2048 characters and nothing else -- an address, an emoji and a line
+  // break are just text.
+  if (form == ActionParamForm.text) return value.length > kActionUrlMaxLength ? ActionParamProblem.tooLong : null;
   if (form != ActionParamForm.httpsUrl && form != ActionParamForm.appLink) return null;
   if (value.length > kActionUrlMaxLength) return ActionParamProblem.tooLong;
   if (form == ActionParamForm.httpsUrl) {
@@ -282,6 +315,32 @@ final class CloseAction extends StandardAction {
   String toString() => 'close';
 }
 
+/// `copy` (9.41.0): [text] is the STRING that passed the `text` form. The reader copies nothing; the host does.
+final class CopyAction extends StandardAction {
+  const CopyAction(this.text);
+
+  /// The checked text; this is what the executor receives.
+  final String text;
+
+  @override
+  String toString() => 'copy($text)';
+}
+
+/// `share` (9.41.0): the checked [text] and [url], and ONLY the fields that have a value; at least one is set. The
+/// reader opens no share sheet; the host does.
+final class ShareAction extends StandardAction {
+  const ShareAction({this.text, this.url});
+
+  /// The checked text; `null` when the action has none (not an empty string).
+  final String? text;
+
+  /// The checked address (the `httpsUrl` form); `null` when the action has none.
+  final String? url;
+
+  @override
+  String toString() => 'share(${[if (text != null) 'text: $text', if (url != null) 'url: $url'].join(', ')})';
+}
+
 /// A catalog action whose parameter failed its form: the host RECEIVES it (it
 /// may know more than the document), but it has no `standard`, and
 /// `runStandardAction` never executes it.
@@ -317,7 +376,23 @@ final class InvalidActionParam {
       return (standard: null, invalid: InvalidActionParam(param.name, problem));
     }
   }
+  // The group: at least one parameter has a value, otherwise the first of the group is missing (`x-copyShare.oneOf`).
+  if (entry.oneOf.isNotEmpty && !entry.oneOf.any((name) => (params[name] ?? '').isNotEmpty)) {
+    return (standard: null, invalid: InvalidActionParam(entry.oneOf.first, ActionParamProblem.missing));
+  }
   switch (type) {
+    case kCopyActionType:
+      return (standard: CopyAction(params[kShareTextParam]!), invalid: null);
+    case kShareActionType:
+      final text = params[kShareTextParam];
+      final url = params[kActionUrlParam];
+      return (
+        standard: ShareAction(
+          text: text == null || text.isEmpty ? null : text,
+          url: url == null || url.isEmpty ? null : url,
+        ),
+        invalid: null,
+      );
     case kOpenUrlActionType:
       return (standard: OpenUrlAction(params[kActionUrlParam]!), invalid: null);
     case kDeeplinkActionType:

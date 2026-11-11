@@ -76,7 +76,7 @@ final class ButtonAction {
 
   // ACTION CATALOG (9.8.0). The action the host receives is [handOver] of the
   // document's action: `standard` and `invalid` are set only there, never both.
-  /// A catalog action the HOST performs (`openUrl`, `deeplink`, `close`) whose
+  /// A catalog action the HOST performs (`openUrl`, `deeplink`, `close`, `copy`, `share`) whose
   /// parameters passed the form check. `null` for any other action, and for
   /// an invalid one. The renderer never performs it; see [runStandardAction].
   final StandardAction? standard;
@@ -243,7 +243,11 @@ final class ButtonAction {
 ///    own list of forbidden schemes is the first layer, this one is the second
 ///    and it is mandatory;
 ///  * [openDeeplink] — opens a link of one of those schemes;
-///  * [close] — closes the flow (the renderer does not touch its stack).
+///  * [close] — closes the flow (the renderer does not touch its stack);
+///  * [copy] — puts the text of a `copy` on the clipboard. The renderer never touches the clipboard, and the usual
+///    "Copied" confirmation is the host's choice (Android 13 and later shows its own);
+///  * [share] — opens the system share sheet with the `text` and the `url` of a `share`. It gets exactly the fields
+///    the action has: an absent one is `null`, never an empty string, and at least one is set.
 ///
 /// Returns `true` when an executor was called. The package has no dependency
 /// that could open an address by itself: `launchUrl` of `url_launcher` is the
@@ -254,6 +258,8 @@ bool runStandardAction(
   Iterable<String>? deeplinkSchemes,
   void Function(String url)? openDeeplink,
   VoidCallback? close,
+  void Function(String text)? copy,
+  void Function({String? text, String? url})? share,
 }) {
   // Read the action ONCE. `action.standard` is a `final` field, but the class
   // may be subclassed; values are read into locals, and those are what gets
@@ -280,6 +286,23 @@ bool runStandardAction(
     case CloseAction():
       if (close == null) return false;
       close();
+      return true;
+    case CopyAction():
+      final text = standard.text;
+      if (copy == null) return false;
+      if (paramFormProblem(ActionParamForm.text, text) != null) return false;
+      copy(text);
+      return true;
+    case ShareAction():
+      final text = standard.text;
+      final url = standard.url;
+      if (share == null) return false;
+      // The form is checked again: an action assembled by hand is not a checked one. A share with nothing to share is
+      // no share.
+      if (text == null && url == null) return false;
+      if (text != null && paramFormProblem(ActionParamForm.text, text) != null) return false;
+      if (url != null && paramFormProblem(ActionParamForm.httpsUrl, url) != null) return false;
+      share(text: text, url: url);
       return true;
     case null:
       return false;

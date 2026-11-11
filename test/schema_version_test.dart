@@ -388,8 +388,7 @@ void main() {
       ];
       // 9.5.0: the twenty-third node is `IconButtonNode`; 9.12.0: the twenty-fourth and
       // twenty-fifth are `NavBarNode` and `NavItemNode`; 9.14.0 added no nodes; 9.13.0: the twenty-sixth to
-      // twenty-eighth are `TextFieldNode`, `SwitchNode`, `CheckboxNode`; 9.37.0: the twenty-ninth is `ChartNode`
-      // (not drawn by this reader yet, but its style shape is the shared one).
+      // twenty-eighth are `TextFieldNode`, `SwitchNode`, `CheckboxNode`; 9.37.0: the twenty-ninth is `ChartNode`.
       expect(nodeDefs, hasLength(29));
       for (final def in nodeDefs) {
         // The screen has its own style shape without `margin` and sizes (`ScreenStyle`,
@@ -994,8 +993,7 @@ void main() {
       // `Screen.gap` is the only exception, and not out of laziness: `Screen` is not a
       // [ChildNode], so by type it does not fit the children table. Its default is guarded
       // by the next test.
-      // `Chart.*` is the other: the chart (9.37.0) is not drawn by this reader yet, so its fields have no row.
-      expect(declared.difference(covered).where((name) => !name.startsWith('Chart.')), {'Screen.gap'});
+      expect(declared.difference(covered), {'Screen.gap'});
       expect(covered.difference(declared), isEmpty);
     });
 
@@ -1129,6 +1127,8 @@ typedef _FieldDefault = ({String def, String prop, Object Function(ChildNode, Re
 final List<_FieldDefault> _fieldDefaults = [
   (def: 'Badge', prop: 'tone', read: (n, _) => (n as BadgeNode).tone.wire),
   (def: 'Button', prop: 'variant', read: (n, _) => (n as ButtonNode).variant.wire),
+  (def: 'Chart', prop: 'variant', read: (n, _) => (n as ChartNode).line ? 'line' : 'bars'),
+  (def: 'Chart', prop: 'color', read: (n, t) => t.fieldColor((n as ChartNode).color)),
   (def: 'ChoiceGroup', prop: 'gap', read: (n, t) => t.fieldSpacing((n as ChoiceGroupNode).gap)),
   (def: 'CircularProgress', prop: 'color', read: (n, t) => t.fieldColor((n as CircularProgressNode).color)),
   (def: 'CircularProgress', prop: 'size', read: (n, _) => (n as CircularProgressNode).size.wire),

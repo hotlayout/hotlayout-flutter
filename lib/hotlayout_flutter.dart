@@ -30,17 +30,19 @@ library;
 
 // The document and the actions it carries.
 export 'src/model/action.dart' show ButtonAction, runStandardAction;
-// The action catalog (9.8.0): what the host gets for `openUrl`, `deeplink` and
-// `close`, the analytics event of a press and the "screen shown" event.
+// The action catalog (9.8.0, `copy` and `share` from 9.41.0): what the host gets for `openUrl`, `deeplink`,
+// `close`, `copy` and `share`, the analytics event of a press and the "screen shown" event.
 export 'src/model/action_catalog.dart'
     show
         ActionParamProblem,
         CloseAction,
+        CopyAction,
         DeeplinkAction,
         InvalidActionParam,
         OpenUrlAction,
         ScreenShown,
         ScreenShownCause,
+        ShareAction,
         StandardAction,
         TrackEvent;
 // The haptic request of a press (9.25.0): the words the host gets in `onHaptic`.

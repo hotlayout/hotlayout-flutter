@@ -130,6 +130,8 @@ const List<String> fixtureIds = [
   'radial-gradient-screens',
   // 9.39.0: inner shadows (a pressed title, tactile tiles, a well), the shadow of the glyphs.
   'shadow-effects-screens',
+  // 9.37.0: bars and lines over a row of points, from literals and from a collection.
+  'chart-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on
@@ -576,6 +578,7 @@ String contractType(UiNode node) => switch (node) {
   ListTileNode() => 'ListTile',
   ProgressBarNode() => 'ProgressBar',
   CircularProgressNode() => 'CircularProgress',
+  ChartNode() => 'Chart',
   BadgeNode() => 'Badge',
   NavBarNode() => 'NavBar',
   NavItemNode() => 'NavItem',

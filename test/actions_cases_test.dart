@@ -88,6 +88,8 @@ _Json _handedJson(ButtonAction action) {
         OpenUrlAction() => {'type': 'openUrl', 'url': standard.url},
         DeeplinkAction() => {'type': 'deeplink', 'url': standard.url, 'scheme': standard.scheme},
         CloseAction() => {'type': 'close'},
+        CopyAction() => {'type': 'copy', 'text': standard.text},
+        ShareAction() => {'type': 'share', 'text': ?standard.text, 'url': ?standard.url},
       },
     if (action.invalid != null) 'invalid': {'param': action.invalid!.param, 'problem': action.invalid!.problem.wire},
   };
@@ -167,6 +169,103 @@ void main() {
         expect(handed.carryRecord, isFalse);
       });
     }
+  });
+
+  group('copy and share (schema 9.41.0): copyShare tables', () {
+    test('the groups are there and the names within a group are unique', () {
+      expect(_rows('copyShareFormCases'), hasLength(8));
+      expect(_rows('copyShareDocumentCases'), hasLength(16));
+      expect(_rows('copyShareHandedCases'), hasLength(16));
+      for (final key in ['copyShareFormCases', 'copyShareDocumentCases', 'copyShareHandedCases']) {
+        final names = _rows(key).map((row) => row['name']).toList();
+        expect(names.toSet(), hasLength(names.length), reason: key);
+      }
+    });
+
+    for (final row in _rows('copyShareFormCases')) {
+      test('form: ${row['name']}', () {
+        final value = row.containsKey('repeat') ? _materialize({'repeat': row['repeat']}) as String : row['value'] as String?;
+        expect(paramFormProblem(_formOf(row['form']! as String), value)?.wire, row['problem']);
+      });
+    }
+
+    for (final row in _rows('copyShareDocumentCases')) {
+      test('document, no crash: ${row['name']}', () {
+        final action = ButtonAction.parse(_materialize(row['action']));
+        expect(action.handOver((_) => null).type, action.type);
+      });
+    }
+
+    for (final row in _rows('copyShareHandedCases')) {
+      test('handed: ${row['name']}', () {
+        final action = ButtonAction.parse(_materialize(row['action']));
+        final data = _obj(_materialize(row['data']));
+        final handed = action.handOver((path) => data[path]);
+        expect(_handedJson(handed), _materialize(row['handed']));
+        expect(handed.standard == null || handed.invalid == null, isTrue);
+        expect(handed.track, isNull);
+        expect(handed.paramBindings, isEmpty);
+        // The address of a share that is handed over always passes its form, and a share has at least one field.
+        final standard = handed.standard;
+        if (standard is ShareAction) {
+          expect(standard.text != null || standard.url != null, isTrue);
+          if (standard.url != null) expect(paramFormProblem(ActionParamForm.httpsUrl, standard.url), isNull);
+        }
+      });
+
+      testWidgets('real press: ${row['name']}', (tester) async {
+        final seen = <ButtonAction>[];
+        final data = _obj(_materialize(row['data']));
+        await pumpDocument(
+          tester,
+          docWith([
+            {
+              'id': 'go',
+              'type': 'Button',
+              'props': {
+                'label': {'kind': 'literal', 'value': 'Go'},
+                'variant': 'primary',
+                'action': _materialize(row['action']),
+              },
+            },
+          ]),
+          data: data,
+          onAction: (action, nodeId) => seen.add(action),
+        );
+        await tester.tap(find.text('Go'));
+        await tester.pump();
+        expect(seen, hasLength(1));
+        expect(_handedJson(seen.single), _materialize(row['handed']));
+      });
+    }
+
+    test('runStandardAction: copy and share go to the executors of the host, checked once more', () {
+      final copied = <String>[];
+      final shared = <({String? text, String? url})>[];
+      bool run(ButtonAction action, {bool withCopy = true, bool withShare = true}) => runStandardAction(
+        action,
+        copy: withCopy ? copied.add : null,
+        share: withShare ? ({text, url}) => shared.add((text: text, url: url)) : null,
+      );
+      ButtonAction handed(Map<String, Object?> action) => ButtonAction.parse(action).handOver((_) => null);
+
+      expect(run(handed({'type': 'copy', 'params': {'text': 'A-1'}})), isTrue);
+      expect(copied, ['A-1']);
+      expect(run(handed({'type': 'copy', 'params': {'text': 'A-2'}}), withCopy: false), isFalse);
+      expect(run(handed({'type': 'copy'})), isFalse, reason: 'invalid is never run');
+      expect(copied, ['A-1']);
+
+      expect(run(handed({'type': 'share', 'params': {'text': 'Hi', 'url': 'https://example.com/p'}})), isTrue);
+      expect(run(handed({'type': 'share', 'params': {'url': 'https://example.com/q'}})), isTrue);
+      expect(run(handed({'type': 'share', 'params': {'text': 'Hi'}}), withShare: false), isFalse);
+      expect(shared, [
+        (text: 'Hi', url: 'https://example.com/p'),
+        (text: null, url: 'https://example.com/q'),
+      ]);
+      // The text of a share alone is not shared when the address next to it fails its form.
+      expect(run(handed({'type': 'share', 'params': {'text': 'Hi', 'url': 'http://example.com'}})), isFalse);
+      expect(shared, hasLength(2));
+    });
   });
 
   group('action from the document (schemaCases, documentCases): the reader does not crash', () {
@@ -484,7 +583,9 @@ void main() {
       await tap(tester, 'Share the code');
       expect(seen.handed.last.type, 'share');
       expect(seen.handed.last.params, {'text': 'WEEKEND20'});
-      expect(seen.handed.last.standard, isNull);
+      final shared = seen.handed.last.standard! as ShareAction;
+      expect(shared.text, 'WEEKEND20');
+      expect(shared.url, isNull, reason: 'a field without a value is left out, not an empty string');
       expect(seen.handed.last.invalid, isNull);
 
       await tap(tester, 'Partner page');
@@ -779,6 +880,37 @@ void main() {
           expect(params[p]['bindable'], mine.params[p].bindable);
         }
       }
+    });
+
+    test('x-copyShare: the second list of the catalog, the form text, what is handed -- verbatim from the artifact', () {
+      final block = _obj(_schema['x-copyShare']);
+      final catalog = (block['catalog']! as List<Object?>).cast<_Json>();
+      expect(catalog.map((entry) => entry['type']), kCopyShareCatalog.map((entry) => entry.type));
+      for (var index = 0; index < kCopyShareCatalog.length; index += 1) {
+        final artifact = catalog[index];
+        final mine = kCopyShareCatalog[index];
+        expect(artifact['executor'], mine.executor.name, reason: mine.type);
+        expect(artifact['oneOf'] ?? const <Object?>[], mine.oneOf, reason: mine.type);
+        final params = (artifact['params']! as List<Object?>).cast<_Json>();
+        expect(params, hasLength(mine.params.length), reason: mine.type);
+        for (var p = 0; p < params.length; p += 1) {
+          expect(params[p]['name'], mine.params[p].name);
+          expect(params[p]['form'], mine.params[p].form.name);
+          expect(params[p]['required'], mine.params[p].required);
+          expect(params[p]['bindable'], mine.params[p].bindable);
+        }
+      }
+      final text = _obj(_obj(block['forms'])['text']);
+      expect(text['minLength'], 1);
+      expect(text['maxLength'], kActionUrlMaxLength);
+      expect(text['otherForm'], 'none');
+      expect(_obj(block['handed'])['standardTypes'], [kCopyActionType, kShareActionType]);
+      expect(block['cases'], 'contract/fixtures/actions/action-cases.json');
+      // The old catalog is untouched: the two new actions are not in it.
+      expect(
+        (actions['catalog']! as List<Object?>).cast<_Json>().map((entry) => entry['type']),
+        isNot(containsAll([kCopyActionType, kShareActionType])),
+      );
     });
 
     test('form expressions and forbidden schemes -- verbatim from the artifact', () {
