@@ -150,6 +150,7 @@ const Map<String, String> kFixtureThemeAssets = {
   'sunny': 'assets/showcase/sunny/theme.json',
   'orbit': 'assets/showcase/orbit/theme.json',
   'rewards-showcase-screens': 'assets/contract/fixtures/themes/rewards-showcase-theme.json',
+  'radial-gradient-screens': 'assets/contract/fixtures/themes/radial-gradient-theme.json',
 };
 
 /// Fixtures in assets. They stay after the network was added: they are the fallback
@@ -215,6 +216,14 @@ final List<({String id, String title})> kFixtures = [
   // 9.34.0. Slide-to-confirm buttons: the fill follows the thumb, the button collapses into a circle, and the circle
   // fills the screen before it changes.
   (id: 'swipe-motion-screens', title: 'Swipe to confirm: motion'),
+  // 9.35.0. Display typography: a number of 240 and a title of 128 with tracking in shares of the font size; on a
+  // larger system text scale the large sizes do not grow, the line under them does.
+  (id: 'display-typography-screens', title: 'Display typography'),
+  // 9.36.0. Radial gradients: circles in the corners of a card, a glow from the middle of an edge, a radial token of
+  // the fixture's own theme.
+  (id: 'radial-gradient-screens', title: 'Radial gradient'),
+  // 9.39.0. Inner shadows (a pressed title, tactile tiles, a well) and the shadow of the letters.
+  (id: 'shadow-effects-screens', title: 'Inner shadow and text shadow'),
   // 9.12.0. Bottom zone: a navigation bar with three sections (`navigate.section`), a button
   // pinned to the bottom above the bar, and a sheet with two pinned buttons; `en`, `uk`, `ar`.
   (id: 'bottom-zone-screens', title: 'Navigation bar and pinned block'),

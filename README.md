@@ -70,7 +70,7 @@ or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hotlayout_flutter: ^0.34.1
+  hotlayout_flutter: ^0.35.0
 ```
 
 Requires Dart `^3.11.5`. Everything you need is in one import; nothing under `src/` is public.
@@ -112,9 +112,9 @@ Three numbers describe what this package reads, and the package version is a fou
 
 | What | Version | Constant |
 |---|---|---|
-| Package | `0.34.1` | — |
-| Document contract (schema) | `9.34.0` | `kSupportedSchemaVersion` |
-| Theme contract | `4.0.1` | `kSupportedThemeContractVersion` |
+| Package | `0.35.0` | — |
+| Document contract (schema) | `9.42.0` | `kSupportedSchemaVersion` |
+| Theme contract | `4.1.0` | `kSupportedThemeContractVersion` |
 | Built-in icon set | `1.0.0` | `kIconSetVersion` |
 
 **The major version must match; a newer minor is readable.** A document of the same major is drawn, and parts this package does not know degrade: an unknown widget is skipped and its children are still drawn, an unknown token is not applied. A document of another major is not drawn; the user sees a notice, or the copy bundled with your app when the document came from the network. Only a newer document is cured by updating the app; an older one has to be republished from the builder. The theme follows the same rule. The full table of verdicts is in the [reference](https://hotlayout.com/docs/integrator/flutter-reference#version-compatibility); what each schema minor added is in the [contract changelog](https://hotlayout.com/docs/integrator/changelog), and what changed in each package version is in [CHANGELOG.md](CHANGELOG.md).
