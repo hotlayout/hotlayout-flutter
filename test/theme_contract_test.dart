@@ -48,7 +48,7 @@ void main() {
   /// `gradientAngleSpace: 'axis-aligned-only'` promises, so tests compare against it.
   final artifactAngleEnum =
       ((((((artifact['x-schema'] as Map<String, Object?>)[r'$defs']
-                              as Map<String, Object?>)['ThemeGradient']
+                              as Map<String, Object?>)['ThemeLinearGradient']
                           as Map<String, Object?>)['properties']
                       as Map<String, Object?>)['angle']
                   as Map<String, Object?>)['enum']!
@@ -278,7 +278,7 @@ void main() {
       // The contract angle is 'CSS-like': 0 degrees bottom to top, 90 degrees left
       // to right. Flutter has no direction as such, only a pair of `Alignment`s, so
       // this translation is the one place where the convention lives.
-      final gradient = theme.gradient(GradientToken.brandBackdrop)!;
+      final gradient = theme.gradient(GradientToken.brandBackdrop)! as LinearGradient;
 
       expect(gradient.begin, isA<Alignment>());
       expect((gradient.begin as Alignment).x, closeTo(-1, 1e-9));
@@ -289,7 +289,7 @@ void main() {
 
     test('the remaining axis-aligned angles translate like 90 degrees', () {
       ({double x, double y}) beginOf(num angle) {
-        final gradient = _gradientTheme(angle).gradient(GradientToken.brandBackdrop)!;
+        final gradient = _gradientTheme(angle).gradient(GradientToken.brandBackdrop)! as LinearGradient;
         final begin = gradient.begin as Alignment;
         return (x: begin.x, y: begin.y);
       }
@@ -307,7 +307,7 @@ void main() {
       // end before the edge and leave a visible seam. An axis-aligned angle must
       // give exactly +-1.
       for (final angle in [0, 90, 180, 270]) {
-        final gradient = _gradientTheme(angle).gradient(GradientToken.brandBackdrop)!;
+        final gradient = _gradientTheme(angle).gradient(GradientToken.brandBackdrop)! as LinearGradient;
         final begin = gradient.begin as Alignment;
         final end = gradient.end as Alignment;
 
@@ -1377,7 +1377,7 @@ void main() {
       };
 
       for (final value in angles) {
-        final gradient = _gradientTheme(value).gradient(GradientToken.brandBackdrop);
+        final gradient = _gradientTheme(value).gradient(GradientToken.brandBackdrop) as LinearGradient?;
         expect(
           gradient,
           isNotNull,
@@ -1394,13 +1394,13 @@ void main() {
 
       // A diagonal goes exactly from a corner: both coordinates on the edge.
       for (final value in kCornerGradientAngles) {
-        final begin = _gradientTheme(value).gradient(GradientToken.brandBackdrop)!.begin as Alignment;
+        final begin = (_gradientTheme(value).gradient(GradientToken.brandBackdrop)! as LinearGradient).begin as Alignment;
         expect((begin.x.abs(), begin.y.abs()), (1, 1), reason: '$value°');
       }
 
       // Angles are PHYSICAL: the type is `Alignment`, not `AlignmentDirectional`, so
       // the gradient is not mirrored in right-to-left writing.
-      expect(_gradientTheme(135).gradient(GradientToken.brandBackdrop)!.begin, isA<Alignment>());
+      expect((_gradientTheme(135).gradient(GradientToken.brandBackdrop)! as LinearGradient).begin, isA<Alignment>());
 
       // An angle outside the list is a theme from the future or a corrupt one: no gradient.
       for (final value in [30, 60, 360, -45, 44.9]) {

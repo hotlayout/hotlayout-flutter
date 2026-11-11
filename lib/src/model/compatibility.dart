@@ -40,7 +40,7 @@ const int kGridDefaultColumns = 2;
 /// capability or a field's shape without showing in the catalog at all, so the
 /// only thing that stops a document of another major version before this code
 /// is the version rule below.
-const String kSupportedSchemaVersion = '9.34.0';
+const String kSupportedSchemaVersion = '9.42.0';
 
 /// The document semver: exactly three numbers as in the schema, with no suffixes or pre-releases.
 @immutable
@@ -211,6 +211,8 @@ const Map<String, String> kWidgetCatalog = {
   'TextField': '9.13.0',
   'Switch': '9.13.0',
   'Checkbox': '9.13.0',
+  // The chart (9.37.0). Not drawn by this reader yet: it is an unknown widget with nothing to draw.
+  'Chart': '9.37.0',
 };
 
 /// Mirror of `x-compatibility.features`: capability to the schema version it
@@ -497,6 +499,27 @@ const Map<String, String> kFeatureCatalog = {
   // 9.34.0: a swipe button collapses into a circle and, with `confirmTransition: 'ripple'`, fills the screen before it
   // changes; an older reader shows the look of 9.24 and changes the screen at once.
   'swipeMotion': '9.34.0',
+  // 9.35.0: a font size up to 400 in an override, the text scale rule for a large size, tracking in shares of
+  // the font size. An older reader clamps the size to 96 and keeps the tracking of the token.
+  'displayTypography': '9.35.0',
+  // 9.36.0: an own gradient may be radial; an older reader omits the background.
+  'radialGradient': '9.36.0',
+  // 9.37.0: the chart. Not drawn by this reader yet: a `Chart` is an unknown widget with no children.
+  'chart': '9.37.0',
+  // 9.38.0: default transitions between screens. Not performed by this reader yet: a screen change keeps its motion.
+  'screenTransition': '9.38.0',
+  // 9.39.0: an inner layer of an own shadow and the shadow of a text. An older reader draws the inner layer as an
+  // outer one and shows the text without a shadow.
+  'insetShadow': '9.39.0',
+  'textShadow': '9.39.0',
+  // 9.40.0: spin and sway of a node and its appearance. Not performed by this reader yet: the node stands at rest.
+  'motionTurn': '9.40.0',
+  'nodeAppear': '9.40.0',
+  // 9.41.0: the host actions `copy` and `share`, up to six grid columns. Not performed by this reader yet.
+  'copyShareActions': '9.41.0',
+  'gridSixColumns': '9.41.0',
+  // 9.42.0: a carousel that advances by time. Not performed by this reader yet: only a person moves it.
+  'carouselAutoAdvance': '9.42.0',
 };
 
 /// Whether THIS code supports a capability the document names.

@@ -75,7 +75,7 @@ extension TransitionWidgets on NodeRenderer {
 
   /// A node whose numbers run: it is MEASURED with the final numbers and the shown ones are only painted over
   /// its place, so the layout changes once, when the data change, and never on a frame of the motion. The text
-  /// between is painted from the same start, with the same width and alignment, in figures of equal width.
+  /// between is painted from the same start, with the same width and alignment.
   Widget _held(ChildNode node, NodeRenderer shownRenderer, NodeStyle? own, Slot slot, TransitionLeads leads) {
     switch (node) {
       case TextNode():
@@ -86,12 +86,9 @@ extension TransitionWidgets on NodeRenderer {
           children: [
             Opacity(opacity: 0, child: buildText(node, own)),
             Positioned.fill(
-              child: ExcludeSemantics(
-                child: DefaultTextStyle.merge(
-                  style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
-                  child: shownRenderer.buildText(node, own),
-                ),
-              ),
+              // Both layers are written in figures of equal width by `buildText` (the node asks for them), so the
+              // number painted over the place of the final one is never wider than it.
+              child: ExcludeSemantics(child: shownRenderer.buildText(node, own)),
             ),
           ],
         );

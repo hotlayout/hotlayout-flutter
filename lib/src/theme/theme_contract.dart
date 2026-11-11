@@ -29,8 +29,9 @@ import 'render_theme.dart';
 // `radius`, `elevation`, `typography`) carry a mandatory CORE and any number of the project's
 // OWN names. Colours gained alpha (`#rrggbbaa`), gradients gained four corner-to-corner
 // diagonals, and roles may reference any colour of the theme.
+// 4.1.0 added the radial gradient: a token of `gradient` may be `{ shape: 'radial', center, radius, stops }`.
 /// The theme contract version this renderer understands.
-const String kSupportedThemeContractVersion = '4.0.1';
+const String kSupportedThemeContractVersion = '4.1.0';
 
 /// WHAT TO DRAW A COLOUR WITH WHEN THE THEME LACKS IT.
 ///

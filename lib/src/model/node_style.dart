@@ -47,6 +47,7 @@ final class NodeStyle {
     this.opacity,
     this.backdropBlur,
     this.textGradient,
+    this.textShadow,
   });
 
   /// Foreground color. INHERITED down the tree.
@@ -93,6 +94,10 @@ final class NodeStyle {
   /// by `Text` only; `color` stays the fallback when it does not resolve.
   final GradientRef? textGradient;
 
+  /// The shadow of the glyphs of a text (9.39.0): one or two layers. NOT inherited and read by `Text` only; it
+  /// does not touch the measurement of the text.
+  final TextShadowRef? textShadow;
+
   /// `null` if there is no style or no understandable field is left in it.
   ///
   /// Implements `unknownStyleField: 'ignore-field'`: a field this code does not know (a later minor will
@@ -122,6 +127,7 @@ final class NodeStyle {
       opacity: _boundedOpacity(raw),
       backdropBlur: backdropBlurOf(raw['backdropBlur']),
       textGradient: GradientRef.tryParse(raw['textGradient']),
+      textShadow: TextShadowRef.tryParse(raw['textShadow']),
     );
 
     return style.isEmpty ? null : style;
@@ -157,7 +163,8 @@ final class NodeStyle {
       shadowColor == null &&
       opacity == null &&
       backdropBlur == null &&
-      textGradient == null;
+      textGradient == null &&
+      textShadow == null;
 
   /// This style over [base], FIELD BY FIELD AT THE TOP LEVEL (`x-style.caseMerge: 'top-level-fields'`).
   ///
@@ -187,6 +194,7 @@ final class NodeStyle {
       opacity: opacity ?? base.opacity,
       backdropBlur: backdropBlur ?? base.backdropBlur,
       textGradient: textGradient ?? base.textGradient,
+      textShadow: textShadow ?? base.textShadow,
     );
   }
 
@@ -216,6 +224,7 @@ final class NodeStyle {
       opacity: keep('opacity') ? opacity : null,
       backdropBlur: keep('backdropBlur') ? backdropBlur : null,
       textGradient: keep('textGradient') ? textGradient : null,
+      textShadow: keep('textShadow') ? textShadow : null,
     );
     return rest.isEmpty ? null : rest;
   }
@@ -243,6 +252,7 @@ final class NodeStyle {
     opacity: opacity,
     backdropBlur: backdropBlur,
     textGradient: textGradient,
+    textShadow: textShadow,
   );
 
   /// The style of a screen root: without `margin` and sizes (`screenBoxFields: 'ignore'`). Schema 9.0.0

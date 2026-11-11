@@ -58,7 +58,7 @@ extension ListTilePartsWidgets on NodeRenderer {
   Widget trailingTextSlot(TrailingText trailing) {
     final style = _partStyle(trailing.style, trailing.styleWhen);
     final color = (style?.color == null ? null : theme.resolveColor(style!.color!)) ?? partColor(kListTileTrailingColor);
-    final font = (style?.typography == null ? null : theme.resolveTypography(style!.typography!)) ?? theme.text(TypographyToken.bodyM);
+    final font = (style?.typography == null ? null : theme.resolveTypography(style!.typography!, textScaler: textScaler)) ?? theme.text(TypographyToken.bodyM);
     final line = buildIconBesideText(
       Text(text(trailing.text), style: font.copyWith(color: color), softWrap: false),
       icon: trailing.icon,
@@ -74,7 +74,7 @@ extension ListTilePartsWidgets on NodeRenderer {
         (captionStyle?.color == null ? null : theme.resolveColor(captionStyle!.color!)) ??
         partColor(ColorToken.muted, secondary: true);
     final captionFont =
-        (captionStyle?.typography == null ? null : theme.resolveTypography(captionStyle!.typography!)) ??
+        (captionStyle?.typography == null ? null : theme.resolveTypography(captionStyle!.typography!, textScaler: textScaler)) ??
         theme.text(TypographyToken.bodyS);
     return QuietColumn(
       crossAxisAlignment: CrossAxisAlignment.end,

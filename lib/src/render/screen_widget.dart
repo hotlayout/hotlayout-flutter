@@ -14,6 +14,7 @@ import '../model/ui_document.dart';
 import '../theme/render_theme.dart';
 import 'carousel.dart';
 import 'countdown_clock.dart';
+import 'display_text_scaler.dart';
 import 'host_callbacks.dart';
 import 'inputs.dart';
 import 'labels.dart';
@@ -83,7 +84,11 @@ Widget screenWidget(
             'the list budget of $kListBudgetPerScreen instances was reached: ${budget.notDrawn} instances of list templates were not drawn',
           );
         }
+        // The system text scale with the rule for a large font size (9.35.0): everything under the screen, the modal
+        // layers it opens included, asks this scaler through its `MediaQuery`.
+        final textScaler = DisplayTextScaler(MediaQuery.textScalerOf(context));
         final renderer = NodeRenderer(
+          textScaler: textScaler,
           budget: budget,
           theme: theme,
           data: screenData,
@@ -105,13 +110,16 @@ Widget screenWidget(
         );
         // Root of THIS screen's input fields: the registry for the "next" key and the host's
         // `autofill` parameter. One per screen, so "next" does not jump to the screen under a modal.
-        return InputScope(
-          autofill: autofill,
-          child: renderer.renderRoot(
-            root,
-            presentation: presentation ?? screen.presentation,
-            placement: screen.placement,
-            widthClass: widthClass,
+        return _WithTextScaler(
+          scaler: textScaler,
+          child: InputScope(
+            autofill: autofill,
+            child: renderer.renderRoot(
+              root,
+              presentation: presentation ?? screen.presentation,
+              placement: screen.placement,
+              widthClass: widthClass,
+            ),
           ),
         );
       },
@@ -122,4 +130,17 @@ Widget screenWidget(
   // seconds part) while it is shown. A host that pinned the moment (`now`) drives the time itself.
   final every = now == null ? screen.countdownTick : null;
   return every == null ? drawn(null) : CountdownClock(every: every, builder: (context, clock) => drawn(clock));
+}
+
+/// Gives the subtree [scaler] as the text scaler of its `MediaQuery`. The subtree is the same widget on every rebuild
+/// of this one, so a change of the media (the keyboard, say) rebuilds only what depends on it.
+class _WithTextScaler extends StatelessWidget {
+  const _WithTextScaler({required this.scaler, required this.child});
+
+  final TextScaler scaler;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: scaler), child: child);
 }

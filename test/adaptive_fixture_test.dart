@@ -11,6 +11,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/model/compatibility.dart';
 import 'package:hotlayout_flutter/src/model/ui_document.dart';
 import 'package:hotlayout_flutter/src/model/tokens.dart' show ScreenPresentationToken;
 import 'package:hotlayout_flutter/src/render/app_bar_layout.dart';
@@ -40,7 +41,7 @@ Future<void> _pump(WidgetTester tester, double width, String screen, {String? lo
 void main() {
   test('fixture: schema version, catalog and three languages', () {
     final doc = loadFixture('adaptive-screens');
-    expect(doc.schemaVersion, '9.34.0');
+    expect(doc.schemaVersion, kSupportedSchemaVersion);
     expect(fixtureIds, contains('adaptive-screens'));
     expect(doc.screens.map((s) => s.screenId), ['home', 'lab', 'rewards', 'bonus']);
     expect(doc.screens.last.presentation, ScreenPresentationToken.modal);

@@ -70,7 +70,7 @@ void main() {
   test('x-valueLayout: the artifact block refines both transition blocks and names the table', () {
     final block = _schema['x-valueLayout']! as _Json;
     expect(block['refines'], ['x-valueTransition.shown', 'x-valueAppear.shown']);
-    expect(block['cases'], 'contract/fixtures/value-transition/value-transition-cases.json (layoutCases)');
+    expect(block['cases'], 'contract/fixtures/value-transition/value-transition-cases.json (layoutCases, figureCases)');
   });
 
   group('layoutCases: what the node measures and what it paints', () {
@@ -147,8 +147,10 @@ void main() {
       final painted = tester.getRect(find.byWidget(texts.last));
       expect(painted, held, reason: 'same start, same width, same height');
       expect(tester.widget<Opacity>(find.ancestor(of: find.byWidget(texts.first), matching: find.byType(Opacity)).first).opacity, 0);
-      final context = tester.element(find.byWidget(texts.last));
-      expect(DefaultTextStyle.of(context).style.fontFeatures, contains(const FontFeature.tabularFigures()));
+      // Both layers are written in figures of equal width: the place that is held and the number painted over it.
+      for (final text in texts) {
+        expect(text.style?.fontFeatures, contains(const FontFeature.tabularFigures()));
+      }
       expect(texts.first.data, contains('78'));
       expect(texts.last.data, isNot(contains('78')));
       await tester.pump(const Duration(milliseconds: 1000));

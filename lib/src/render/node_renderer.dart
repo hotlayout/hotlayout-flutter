@@ -70,6 +70,7 @@ class NodeRenderer {
     this.links = const [],
     this.budget,
     this.fades,
+    this.textScaler = TextScaler.noScaling,
   });
 
   /// The list budget of this screen (`x-listBudget`), made once before drawing; `null` draws every record.
@@ -77,6 +78,10 @@ class NodeRenderer {
 
   /// The fades of this screen (9.33.0, `visibilityTransition`); `null` means every condition acts at once.
   final FadeBook? fades;
+
+  /// The text scaler the screen is drawn with (the system one, with the rule for a large font size). Letter spacing in
+  /// shares of the font size is counted against it.
+  final TextScaler textScaler;
 
   /// The `Repeater` instances this node is drawn in, over the links of its screen's frame, outer first (9.27.0). An
   /// action carries them to the stack, which keeps them so the record of the page it opens follows the data.
@@ -188,6 +193,7 @@ class NodeRenderer {
     links: links ?? this.links,
     budget: budget,
     fades: fades,
+    textScaler: textScaler,
   );
 
   /// The same renderer, but with a LIST RECORD in scope.
@@ -252,7 +258,7 @@ class NodeRenderer {
   /// captions in it.
   NodeRenderer inheriting(NodeStyle? own) {
     final color = own?.color == null ? null : theme.resolveColor(own!.color!);
-    final style = own?.typography == null ? null : theme.resolveTypography(own!.typography!);
+    final style = own?.typography == null ? null : theme.resolveTypography(own!.typography!, textScaler: textScaler);
     final parent = currentForeground;
     // Slant and line (schema 9.17.0) need no theme words; a named field replaces the inherited
     // one, an unread one (`null`) leaves the parent's.

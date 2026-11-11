@@ -109,7 +109,11 @@ void main() {
 
     test('a type absent from the catalogue — not the future but a broken document', () {
       expect(widgetOriginOf('Colunm'), WidgetOrigin.outsideContract);
-      expect(widgetOriginOf('Chart'), WidgetOrigin.outsideContract);
+      expect(widgetOriginOf('Gauge'), WidgetOrigin.outsideContract);
+    });
+
+    test('the chart is in the catalogue, though this reader does not draw it yet', () {
+      expect(widgetOriginOf('Chart'), WidgetOrigin.contractual);
     });
 
     test('a catalogue type not from the future — the renderer simply lags the contract', () {

@@ -116,6 +116,7 @@ extension ButtonWidgets on NodeRenderer {
         image: surface.image,
         radius: surface.radius ?? theme.borderRadius(RadiusToken.md),
         shadow: surface.shadow,
+        inner: surface.inner,
         border: surface.border,
         blur: surface.blur,
         child: content,
@@ -326,7 +327,8 @@ extension ButtonWidgets on NodeRenderer {
      * `backgroundColor`, so a button without a style of its own is built exactly as before schema
      * 9.0.0.
      */
-    final decorated = surface.gradient != null || surface.image != null || surface.hasShadow || surface.blur != null;
+    final decorated =
+        surface.gradient != null || surface.image != null || surface.hasShadow || surface.hasInner || surface.blur != null;
     final backgroundBuilder = decorated
         ? (BuildContext context, Set<WidgetState> states, Widget? child) => nodeSurface(
             color: surface.color,
@@ -334,6 +336,8 @@ extension ButtonWidgets on NodeRenderer {
             image: surface.image,
             radius: radius ?? fallbackRadius,
             shadow: surface.shadow,
+            inner: surface.inner,
+            innerBorderWidth: border?.width,
             blur: surface.blur,
             child: child ?? const SizedBox.shrink(),
           )
@@ -455,8 +459,9 @@ extension ButtonWidgets on NodeRenderer {
           (roleBorder == null ? null : BorderSide(color: roleBorder, width: kRoleBorderWidth)),
       radius: theme.resolveBoxRadius(own?.radius),
       shadow: own == null ? null : theme.resolveNodeShadow(own),
+      inner: own == null ? null : theme.resolveNodeInnerShadow(own),
       padding: theme.resolveBoxSpacing(own?.padding),
-      typography: own?.typography == null ? null : theme.resolveTypography(own!.typography!),
+      typography: own?.typography == null ? null : theme.resolveTypography(own!.typography!, textScaler: textScaler),
       blur: own?.backdropBlur,
     );
   }
@@ -480,6 +485,7 @@ extension ButtonWidgets on NodeRenderer {
       image: surface.image,
       radius: surface.radius ?? theme.borderRadius(RadiusToken.pill),
       shadow: surface.shadow,
+      inner: surface.inner,
       border: surface.border,
       blur: surface.blur,
       child: Padding(

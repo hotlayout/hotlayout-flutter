@@ -15,6 +15,7 @@ import '../../model/style_values.dart';
 import '../../model/tokens.dart';
 import '../../model/visibility_fade.dart';
 import '../dashed_border.dart';
+import '../inner_shadow.dart';
 import '../layout/styled_size.dart';
 import '../node_motion.dart';
 import '../visibility_fade_scope.dart';
@@ -202,6 +203,7 @@ extension NodeBoxWidgets on NodeRenderer {
       image: background is ImageBackground ? background : null,
       radius: radius,
       shadow: theme.resolveNodeShadow(style),
+      inner: theme.resolveNodeInnerShadow(style),
       border: border,
       blur: style.backdropBlur,
       clipsContent: clipsContent,
@@ -250,6 +252,9 @@ extension NodeBoxWidgets on NodeRenderer {
   /// radius, the background lies over the blur, and the content stays sharp. The shadow lies OUTSIDE the clip that
   /// bounds the blur, or it would vanish with what is past the edge.
   ///
+  /// [inner] are the INNER layers of the shadow (9.39.0), in paint order: they lie inside the border, over the background
+  /// and the glass, under the content and the border. They are painted with no background too.
+  ///
   /// [clipsContent] false leaves the content to overflow the box (the radius still rounds the background): a scale
   /// with a glow.
   Widget nodeSurface({
@@ -258,7 +263,9 @@ extension NodeBoxWidgets on NodeRenderer {
     ImageBackground? image,
     BorderRadiusGeometry? radius,
     List<BoxShadow>? shadow,
+    List<InnerShadow>? inner,
     BorderSide? border,
+    double? innerBorderWidth,
     int? blur,
     bool clipsContent = true,
     required Widget child,
@@ -270,6 +277,19 @@ extension NodeBoxWidgets on NodeRenderer {
 
     // The content is clipped by the INNER edge of the border (the padding box, as in CSS): the inner radius is the
     // outer one minus the border width. Without a border it is the outer edge.
+    final hasInner = inner != null && inner.isNotEmpty;
+    // The inner layers lie over the background (an image included) and under the content; the border is over both.
+    Widget paintInner(Widget? under) => Builder(
+      builder: (context) => CustomPaint(
+        painter: InnerShadowPainter(
+          shadows: inner ?? const [],
+          radius: hasRadius ? radius.resolve(Directionality.of(context)) : BorderRadius.zero,
+          borderWidth: innerBorderWidth ?? border?.width ?? 0,
+        ),
+        child: under,
+      ),
+    );
+
     Widget content = child;
     if (clipsContent && hasRadius && border != null) {
       final inside = content;
@@ -293,6 +313,7 @@ extension NodeBoxWidgets on NodeRenderer {
           // `compact`: the "loading" and "unavailable" states here are an icon, not a caption. A
           // background can be as tall as one line of text, and an error message does not fit.
           Positioned.fill(child: imageContent(image.source, compact: true, fit: image.fit)),
+          if (hasInner) Positioned.fill(child: paintInner(null)),
           content,
         ],
       );
@@ -300,6 +321,7 @@ extension NodeBoxWidgets on NodeRenderer {
     } else if (clipsContent && hasRadius && border == null) {
       content = ClipRRect(borderRadius: radius, child: content);
     }
+    if (hasInner && image == null) content = paintInner(content);
     // The border goes over the content, not under it: the background layer would be covered by what lies in the corners.
     if (frame != null) {
       content = DecoratedBox(

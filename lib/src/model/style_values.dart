@@ -27,21 +27,33 @@ import 'tokens.dart';
 const double kMaxSpacingPx = 128;
 const double kMaxRadiusPx = 256;
 const double kMinFontSizePx = 8;
-const double kMaxFontSizePx = 96;
+
+/// The largest font size of an OVERRIDE on a node. The theme keeps its own, smaller bound for the tokens (8 to 96):
+/// the theme names the roles of text, a poster size is the decision of one node.
+const double kMaxFontSizePx = 400;
 const double kMinLetterSpacingPx = -2;
 const double kMaxLetterSpacingPx = 8;
+
+/// Letter spacing as a share of the font size (`letterSpacingEm`).
+const double kMinLetterSpacingEm = -0.1;
+const double kMaxLetterSpacingEm = 0.5;
 const double kMinLineHeight = 0.8;
 const double kMaxLineHeight = 3;
 const double kMaxShadowOffsetPx = 64;
 const double kMaxShadowBlurPx = 128;
 const double kMaxShadowSpreadPx = 64;
 const int kMaxShadowLayers = 4;
+const int kMaxTextShadowLayers = 2;
 const double kStyleSizeMin = 1;
 const double kStyleSizeMax = 1200;
 const double kMinBorderWidthPx = 0.5;
 const double kMaxBorderWidthPx = 16;
 const int kMinGradientStops = 2;
 const int kMaxGradientStops = 8;
+
+/// The radius of a radial gradient, as a share of the distance from its centre to the farthest corner of the box.
+const double kMinRadialRadius = 0.05;
+const double kMaxRadialRadius = 2;
 
 /// Gradient angles: axis-aligned ("as in CSS") and "corner to corner".
 const List<int> kAxisGradientAngles = [0, 90, 180, 270];
@@ -366,7 +378,14 @@ final class BoxRadius {
 /// change of the brand font remains one edit of the theme.
 @immutable
 final class TypographyRef {
-  const TypographyRef(this.token, {this.fontSize, this.fontWeight, this.lineHeight, this.letterSpacing});
+  const TypographyRef(
+    this.token, {
+    this.fontSize,
+    this.fontWeight,
+    this.lineHeight,
+    this.letterSpacing,
+    this.letterSpacingEm,
+  });
 
   final String token;
   final double? fontSize;
@@ -378,15 +397,22 @@ final class TypographyRef {
   final double? lineHeight;
   final double? letterSpacing;
 
+  /// The letter spacing as a share of the EFFECTIVE font size (after the system text scale). It replaces the
+  /// spacing of the token, and when the document names both fields it wins over [letterSpacing].
+  final double? letterSpacingEm;
+
   static TypographyRef? tryParse(Object? raw) {
     if (raw is String) return isTokenName(raw) ? TypographyRef(raw) : null;
     if (raw is! Map || !isTokenName(raw['token'])) return null;
+    final em = _optionalAt(raw, 'letterSpacingEm', kMinLetterSpacingEm, kMaxLetterSpacingEm);
     return TypographyRef(
       raw['token'] as String,
       fontSize: _optionalAt(raw, 'fontSize', kMinFontSizePx, kMaxFontSizePx),
       fontWeight: _optionalAt(raw, 'fontWeight', 100, 900)?.round(),
       lineHeight: _optionalAt(raw, 'lineHeight', kMinLineHeight, kMaxLineHeight),
-      letterSpacing: _optionalAt(raw, 'letterSpacing', kMinLetterSpacingPx, kMaxLetterSpacingPx),
+      // Both fields in one document do not publish; a reader that gets them takes the share.
+      letterSpacing: em == null ? _optionalAt(raw, 'letterSpacing', kMinLetterSpacingPx, kMaxLetterSpacingPx) : null,
+      letterSpacingEm: em,
     );
   }
 
@@ -397,10 +423,11 @@ final class TypographyRef {
       other.fontSize == fontSize &&
       other.fontWeight == fontWeight &&
       other.lineHeight == lineHeight &&
-      other.letterSpacing == letterSpacing;
+      other.letterSpacing == letterSpacing &&
+      other.letterSpacingEm == letterSpacingEm;
 
   @override
-  int get hashCode => Object.hash(token, fontSize, fontWeight, lineHeight, letterSpacing);
+  int get hashCode => Object.hash(token, fontSize, fontWeight, lineHeight, letterSpacing, letterSpacingEm);
 
   @override
   String toString() => 'TypographyRef($token)';
@@ -466,10 +493,18 @@ sealed class GradientRef {
   static GradientRef? tryParse(Object? raw) {
     if (raw is String) return isTokenName(raw) ? TokenGradientRef(raw) : null;
     if (raw is! Map) return null;
-    final angle = _number(raw['angle']);
     final rawStops = raw['stops'];
-    if (angle == null || rawStops is! List) return null;
+    if (rawStops is! List) return null;
     if (rawStops.length < kMinGradientStops || rawStops.length > kMaxGradientStops) return null;
+
+    // The form first: a radial gradient names its `shape`, a linear one does not and has an `angle`. An unknown
+    // shape, a linear gradient with the fields of a radial one, a radial one with an angle: no gradient.
+    final linear = !raw.containsKey('shape');
+    final radial = linear ? null : _radialGeometry(raw);
+    if (linear && (raw['center'] != null || raw['radius'] != null)) return null;
+    if (!linear && radial == null) return null;
+    final angle = linear ? _number(raw['angle']) : null;
+    if (linear && angle == null) return null;
 
     final stops = <GradientStopRef>[];
     for (final item in rawStops) {
@@ -483,7 +518,24 @@ sealed class GradientRef {
       if (color == null || position == null) return null;
       stops.add((color: color, position: position));
     }
-    return CustomGradientRef(angle: angle, stops: List.unmodifiable(stops));
+    if (radial != null) {
+      return RadialGradientRef(centerX: radial.x, centerY: radial.y, radius: radial.radius, stops: List.unmodifiable(stops));
+    }
+    return CustomGradientRef(angle: angle!, stops: List.unmodifiable(stops));
+  }
+
+  /// The centre and radius of an own radial gradient, each inside its bounds; `null` when the shape is not the word
+  /// `radial`, the gradient carries an `angle`, or the centre or the radius is missing. A non-number inside the
+  /// bounds' field is the lower bound, like any literal.
+  static ({double x, double y, double radius})? _radialGeometry(Map raw) {
+    if (raw['shape'] != 'radial' || raw.containsKey('angle')) return null;
+    final center = raw['center'];
+    if (center is! Map || !center.containsKey('x') || !center.containsKey('y') || !raw.containsKey('radius')) return null;
+    return (
+      x: _bounded(center['x'], 0, 1),
+      y: _bounded(center['y'], 0, 1),
+      radius: _bounded(raw['radius'], kMinRadialRadius, kMaxRadialRadius),
+    );
   }
 }
 
@@ -527,6 +579,37 @@ final class CustomGradientRef extends GradientRef {
   int get hashCode => Object.hash(angle, Object.hashAll(stops));
 }
 
+/// An own RADIAL gradient (9.36.0): a CIRCLE whose radius is a share of the distance from its centre to the farthest
+/// corner of the box. The centre is in the box (0, 0 the top left, y grows downwards, never mirrored in right-to-left
+/// writing), the stop positions are shares of the radius.
+final class RadialGradientRef extends GradientRef {
+  const RadialGradientRef({required this.centerX, required this.centerY, required this.radius, required this.stops});
+
+  final double centerX;
+  final double centerY;
+  final double radius;
+  final List<GradientStopRef> stops;
+
+  /// Whether the stops are in ascending order; an unordered gradient is not drawn.
+  bool get isOrdered {
+    for (var index = 1; index < stops.length; index += 1) {
+      if (stops[index].position < stops[index - 1].position) return false;
+    }
+    return true;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is RadialGradientRef &&
+      other.centerX == centerX &&
+      other.centerY == centerY &&
+      other.radius == radius &&
+      listEquals(other.stops, stops);
+
+  @override
+  int get hashCode => Object.hash(centerX, centerY, radius, Object.hashAll(stops));
+}
+
 /// One layer of an own shadow. The opacity lives in the color REFERENCE, not in a separate field next
 /// to it as in the theme.
 @immutable
@@ -537,6 +620,7 @@ final class ShadowLayerRef {
     required this.blur,
     required this.spread,
     required this.color,
+    this.inset = false,
   });
 
   final double offsetX;
@@ -544,6 +628,10 @@ final class ShadowLayerRef {
   final double blur;
   final double spread;
   final ColorRef color;
+
+  /// An INNER layer (9.39.0): inside the border, over the background, under the content. Only the flag `true` makes
+  /// a layer inner; any other value of the field leaves it an outer one, as when the field is absent.
+  final bool inset;
 
   static ShadowLayerRef? tryParse(Object? raw) {
     if (raw is! Map) return null;
@@ -556,6 +644,7 @@ final class ShadowLayerRef {
       blur: _optionalAt(raw, 'blur', 0, kMaxShadowBlurPx) ?? 0,
       spread: _optionalAt(raw, 'spread', -kMaxShadowSpreadPx, kMaxShadowSpreadPx) ?? 0,
       color: color,
+      inset: raw['inset'] == true,
     );
   }
 
@@ -566,10 +655,71 @@ final class ShadowLayerRef {
       other.offsetY == offsetY &&
       other.blur == blur &&
       other.spread == spread &&
+      other.color == color &&
+      other.inset == inset;
+
+  @override
+  int get hashCode => Object.hash(offsetX, offsetY, blur, spread, color, inset);
+}
+
+/// One layer of the shadow of a text (9.39.0): no spread, no inner form.
+@immutable
+final class TextShadowLayerRef {
+  const TextShadowLayerRef({required this.offsetX, required this.offsetY, required this.blur, required this.color});
+
+  final double offsetX;
+  final double offsetY;
+  final double blur;
+  final ColorRef color;
+
+  static TextShadowLayerRef? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final color = ColorRef.tryParse(raw['color']);
+    if (color == null) return null;
+    return TextShadowLayerRef(
+      offsetX: _optionalAt(raw, 'offsetX', -kMaxShadowOffsetPx, kMaxShadowOffsetPx) ?? 0,
+      offsetY: _optionalAt(raw, 'offsetY', -kMaxShadowOffsetPx, kMaxShadowOffsetPx) ?? 0,
+      blur: _optionalAt(raw, 'blur', 0, kMaxShadowBlurPx) ?? 0,
+      color: color,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is TextShadowLayerRef &&
+      other.offsetX == offsetX &&
+      other.offsetY == offsetY &&
+      other.blur == blur &&
       other.color == color;
 
   @override
-  int get hashCode => Object.hash(offsetX, offsetY, blur, spread, color);
+  int get hashCode => Object.hash(offsetX, offsetY, blur, color);
+}
+
+/// The shadow of the glyphs of a text (`style.textShadow`): one or two layers, the first nearest to the text and on
+/// top. An empty list, more than two layers or a layer that does not read is no shadow.
+@immutable
+final class TextShadowRef {
+  const TextShadowRef(this.layers);
+
+  final List<TextShadowLayerRef> layers;
+
+  static TextShadowRef? tryParse(Object? raw) {
+    if (raw is! List || raw.isEmpty || raw.length > kMaxTextShadowLayers) return null;
+    final layers = <TextShadowLayerRef>[];
+    for (final item in raw) {
+      final layer = TextShadowLayerRef.tryParse(item);
+      if (layer == null) return null;
+      layers.add(layer);
+    }
+    return TextShadowRef(List.unmodifiable(layers));
+  }
+
+  @override
+  bool operator ==(Object other) => other is TextShadowRef && listEquals(other.layers, layers);
+
+  @override
+  int get hashCode => Object.hashAll(layers);
 }
 
 /// A shadow: a shadow token or an own list of layers (the first is the nearest).

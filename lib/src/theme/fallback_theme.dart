@@ -16,7 +16,7 @@
 
 /// The last theme known to the renderer: a snapshot of the theme contract at build time.
 const Map<String, Object?> kFallbackThemeContractJson = {
-  'themeContractVersion': '4.0.1',
+  'themeContractVersion': '4.1.0',
   'defaultThemeId': 'light',
   'themes': {
     'light': {

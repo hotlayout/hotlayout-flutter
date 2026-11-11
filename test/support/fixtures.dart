@@ -124,6 +124,12 @@ const List<String> fixtureIds = [
   'visibility-fade-screens',
   // 9.34.0: swipe-to-confirm buttons: the fill behind the thumb, the collapse into a circle, the fill over the screen.
   'swipe-motion-screens',
+  // 9.35.0: a poster number and a title far above the old bound, tracking in shares of the font size.
+  'display-typography-screens',
+  // 9.36.0 and theme 4.1.0: circles of radial gradients, a radial token of the theme (own theme).
+  'radial-gradient-screens',
+  // 9.39.0: inner shadows (a pressed title, tactile tiles, a well), the shadow of the glyphs.
+  'shadow-effects-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on
@@ -153,6 +159,7 @@ UiDocument loadFixture(String id) => UiDocument.fromJsonString(readFixture(id));
 /// `color: 'brandText'` reads only against a theme that declares that name.
 const Map<String, String> fixtureThemeFiles = {
   'rewards-showcase-screens': 'themes/rewards-showcase-theme',
+  'radial-gradient-screens': 'themes/radial-gradient-theme',
 };
 
 /// The fixture's theme contract; for the rest, the built-in snapshot.

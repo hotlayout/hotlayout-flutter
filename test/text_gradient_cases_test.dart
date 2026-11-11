@@ -46,7 +46,7 @@ Map<String, Object?> _node(_Row row, {String label = 'hello'}) {
 }
 
 /// The gradient the table says paints the letters, as the theme resolves it.
-LinearGradient? _expected(RenderTheme theme, Object? gradient) =>
+Gradient? _expected(RenderTheme theme, Object? gradient) =>
     gradient == null ? null : theme.resolveGradient(GradientRef.tryParse(gradient)!);
 
 void main() {

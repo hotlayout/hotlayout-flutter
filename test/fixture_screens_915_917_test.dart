@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/model/compatibility.dart';
 import 'package:hotlayout_flutter/src/model/ui_document.dart';
 import 'package:hotlayout_flutter/src/render/icon_glyph.dart';
 import 'package:hotlayout_flutter/src/render/render_document.dart';
@@ -36,7 +37,7 @@ final Finder _anyButton = find.byWidgetPredicate((w) => w is ButtonStyleButton);
 
 void main() {
   test('fixtures: schema versions and catalogue', () {
-    expect(loadFixture('alignment-screens').schemaVersion, '9.34.0');
+    expect(loadFixture('alignment-screens').schemaVersion, kSupportedSchemaVersion);
     expect(loadFixture('app-bar-screens').schemaVersion, '9.16.0');
     expect(loadFixture('text-emphasis-screens').schemaVersion, '9.17.0');
     for (final id in ['alignment-screens', 'app-bar-screens', 'text-emphasis-screens']) {

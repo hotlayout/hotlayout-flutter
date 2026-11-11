@@ -279,7 +279,7 @@ void main() {
 
   group('gradient', () {
     test('a theme token', () {
-      final gradient = theme.resolveGradient(const TokenGradientRef('missionSunset'))!;
+      final gradient = theme.resolveGradient(const TokenGradientRef('missionSunset'))! as LinearGradient;
 
       expect(gradient.colors, [const Color(0xFFFF7A59), const Color(0xFFC13584)]);
       expect(gradient.begin, Alignment.topLeft);
@@ -296,7 +296,7 @@ void main() {
             (color: CustomColorRef(Color(0xFF000000)), position: 1),
           ],
         ),
-      )!;
+      )! as LinearGradient;
 
       expect(gradient.begin, Alignment.centerLeft);
       expect(gradient.end, Alignment.centerRight);
@@ -328,7 +328,7 @@ void main() {
               (color: ColorRef.token('accent'), position: 1),
             ],
           ),
-        )!;
+        )! as LinearGradient;
         expect((gradient.begin, gradient.end), entry.value, reason: '${entry.key}°');
         // The diagonal - with exact CSS geometry, the axial one - an ordinary gradient.
         expect(

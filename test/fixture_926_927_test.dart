@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/model/compatibility.dart';
 import 'package:hotlayout_flutter/hotlayout_flutter.dart' show ScreenFlowController, ScreenShownCause;
 import 'package:hotlayout_flutter/src/model/ui_document.dart';
 import 'package:hotlayout_flutter/src/render/modal_layer.dart';
@@ -53,7 +54,7 @@ void main() {
   test('the fixtures are in the catalogue, at 9.27.0, in two languages', () {
     for (final id in [_history, _tasks]) {
       final doc = loadFixture(id);
-      expect(doc.schemaVersion, '9.34.0', reason: id);
+      expect(doc.schemaVersion, kSupportedSchemaVersion, reason: id);
       expect(fixtureIds, contains(id));
       expect(doc.locales, ['en', 'uk'], reason: id);
     }

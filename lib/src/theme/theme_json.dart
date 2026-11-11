@@ -341,11 +341,17 @@ FontWeight? themeFontWeight(Object? raw) {
 /// duplicate the validator but because Skia draws unordered stops unpredictably, and a silently
 /// wrong gradient is worse than a missing one. An unusable gradient yields `null` and follows the
 /// same path as an unknown token: it is not drawn.
-LinearGradient? _gradient(Object? raw, String name, _NumberFit fit) {
+Gradient? _gradient(Object? raw, String name, _NumberFit fit) {
   if (raw is! Map) return null;
-  final angle = _number(raw['angle']);
   final rawStops = raw['stops'];
-  if (angle == null || rawStops is! List) return null;
+  if (rawStops is! List) return null;
+  // The form first (theme 4.1.0): a radial token names its `shape` and has a centre and a radius, a linear one has an
+  // `angle`. An unknown shape or a mixture of the two forms is an entry of the wrong shape: dropped like any other.
+  final radial = _radialGeometry(raw, name, fit);
+  final isRadial = raw.containsKey('shape');
+  if (isRadial && radial == null) return null;
+  final angle = isRadial ? null : _number(raw['angle']);
+  if (!isRadial && (angle == null || raw.containsKey('center') || raw.containsKey('radius'))) return null;
 
   final colors = <Color>[];
   final stops = <double>[];
@@ -368,7 +374,16 @@ LinearGradient? _gradient(Object? raw, String name, _NumberFit fit) {
   // makes no sense.
   if (colors.length < 2) return null;
 
-  final direction = RenderTheme.gradientDirection(angle);
+  if (radial != null) {
+    return RadialBoxGradient(
+      centerX: radial.x,
+      centerY: radial.y,
+      share: radial.radius,
+      colors: List.unmodifiable(colors),
+      stops: List.unmodifiable(stops),
+    );
+  }
+  final direction = RenderTheme.gradientDirection(angle!);
   if (direction == null) {
     ReportHub.emit(InvalidThemeValuesReport(paths: ['gradient.$name (angle is not one of the eight allowed)']));
     return null;
@@ -380,6 +395,19 @@ LinearGradient? _gradient(Object? raw, String name, _NumberFit fit) {
     colors: List.unmodifiable(colors),
     stops: List.unmodifiable(stops),
   );
+}
+
+/// The centre and the radius of a radial theme gradient, or `null` when the entry is not a radial one of the right
+/// shape: the shape is not the word `radial`, an `angle` is there too, or the centre or the radius is missing.
+({double x, double y, double radius})? _radialGeometry(Map raw, String name, _NumberFit fit) {
+  if (raw['shape'] != 'radial' || raw.containsKey('angle')) return null;
+  final center = raw['center'];
+  if (center is! Map) return null;
+  final x = fit.number(center['x'], 'gradient.$name.center.x', 0, 1, null);
+  final y = fit.number(center['y'], 'gradient.$name.center.y', 0, 1, null);
+  final radius = fit.number(raw['radius'], 'gradient.$name.radius', kMinRadialRadius, kMaxRadialRadius, null);
+  if (x == null || y == null || radius == null) return null;
+  return (x: x, y: y, radius: radius);
 }
 
 /// An axis-aligned angle gives a plain [LinearGradient]; a diagonal one gives a [CornerGradient]

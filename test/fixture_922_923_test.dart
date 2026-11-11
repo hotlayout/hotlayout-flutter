@@ -12,6 +12,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/model/compatibility.dart';
 import 'package:hotlayout_flutter/src/render/swipe_confirm_paint.dart';
 import 'package:hotlayout_flutter/src/model/ui_document.dart';
 import 'package:hotlayout_flutter/src/render/dashed_border.dart';
@@ -40,7 +41,7 @@ void main() {
   test('the fixtures are in the catalogue, at 9.27.0, in two languages', () {
     for (final id in ['float-nav-swipe-screens', 'filter-gradient-compact-screens']) {
       final doc = loadFixture(id);
-      expect(doc.schemaVersion, '9.34.0');
+      expect(doc.schemaVersion, kSupportedSchemaVersion);
       expect(fixtureIds, contains(id));
       expect(doc.locales, ['en', 'uk']);
     }

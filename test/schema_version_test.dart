@@ -243,6 +243,10 @@ void main() {
         'backdropBlur': 12,
         // 9.23.0: a gradient on the glyphs of a text.
         'textGradient': 'brandBackdrop',
+        // 9.39.0: the shadow of the glyphs of a text.
+        'textShadow': [
+          {'offsetX': 0, 'offsetY': 2, 'blur': 4, 'color': 'onSurface'},
+        ],
       };
       expect(propertiesOf('NodeStyle').keys.toSet(), sample.keys.toSet());
 
@@ -384,8 +388,9 @@ void main() {
       ];
       // 9.5.0: the twenty-third node is `IconButtonNode`; 9.12.0: the twenty-fourth and
       // twenty-fifth are `NavBarNode` and `NavItemNode`; 9.14.0 added no nodes; 9.13.0: the twenty-sixth to
-      // twenty-eighth are `TextFieldNode`, `SwitchNode`, `CheckboxNode`.
-      expect(nodeDefs, hasLength(28));
+      // twenty-eighth are `TextFieldNode`, `SwitchNode`, `CheckboxNode`; 9.37.0: the twenty-ninth is `ChartNode`
+      // (not drawn by this reader yet, but its style shape is the shared one).
+      expect(nodeDefs, hasLength(29));
       for (final def in nodeDefs) {
         // The screen has its own style shape without `margin` and sizes (`ScreenStyle`,
         // `x-style.screenExcluded`); the other nodes have the shared one.
@@ -544,8 +549,16 @@ void main() {
       expect((border['width'] as Map<String, Object?>)['minimum'], kMinBorderWidthPx);
       expect((border['width'] as Map<String, Object?>)['maximum'], kMaxBorderWidthPx);
 
-      final gradient =
-          (defs['CustomGradient'] as Map<String, Object?>)['properties'] as Map<String, Object?>;
+      final gradient = (defs['LinearGradient'] as Map<String, Object?>)['properties'] as Map<String, Object?>;
+      final radial = (defs['RadialGradient'] as Map<String, Object?>)['properties'] as Map<String, Object?>;
+      expect((radial['radius'] as Map<String, Object?>)['minimum'], kMinRadialRadius);
+      expect((radial['radius'] as Map<String, Object?>)['maximum'], kMaxRadialRadius);
+      final radialCenter =
+          (defs['RadialGradientCenter'] as Map<String, Object?>)['properties'] as Map<String, Object?>;
+      for (final axis in ['x', 'y']) {
+        expect((radialCenter[axis] as Map<String, Object?>)['minimum'], 0);
+        expect((radialCenter[axis] as Map<String, Object?>)['maximum'], 1);
+      }
       expect(
         ((gradient['angle'] as Map<String, Object?>)['enum'] as List<Object?>).toSet(),
         {...kAxisGradientAngles, ...kCornerGradientAngles},
@@ -566,6 +579,14 @@ void main() {
       expect((typography['lineHeight'] as Map<String, Object?>)['maximum'], kMaxLineHeight);
       expect((typography['letterSpacing'] as Map<String, Object?>)['minimum'], kMinLetterSpacingPx);
       expect((typography['letterSpacing'] as Map<String, Object?>)['maximum'], kMaxLetterSpacingPx);
+      expect((typography['letterSpacingEm'] as Map<String, Object?>)['minimum'], kMinLetterSpacingEm);
+      expect((typography['letterSpacingEm'] as Map<String, Object?>)['maximum'], kMaxLetterSpacingEm);
+
+      final textShadow = (defs['TextShadow'] as Map<String, Object?>);
+      expect(textShadow['maxItems'], kMaxTextShadowLayers);
+      final textLayer = (defs['TextShadowLayer'] as Map<String, Object?>)['properties'] as Map<String, Object?>;
+      expect((textLayer['offsetX'] as Map<String, Object?>)['maximum'], kMaxShadowOffsetPx);
+      expect((textLayer['blur'] as Map<String, Object?>)['maximum'], kMaxShadowBlurPx);
     });
   });
 
@@ -973,7 +994,8 @@ void main() {
       // `Screen.gap` is the only exception, and not out of laziness: `Screen` is not a
       // [ChildNode], so by type it does not fit the children table. Its default is guarded
       // by the next test.
-      expect(declared.difference(covered), {'Screen.gap'});
+      // `Chart.*` is the other: the chart (9.37.0) is not drawn by this reader yet, so its fields have no row.
+      expect(declared.difference(covered).where((name) => !name.startsWith('Chart.')), {'Screen.gap'});
       expect(covered.difference(declared), isEmpty);
     });
 

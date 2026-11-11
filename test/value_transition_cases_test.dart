@@ -68,6 +68,8 @@ void main() {
       'appearNote', 'appearStepCases', 'appearDecisionCases', 'appearTargetCases', 'appearFlowCases',
       // The layout held by the final value: `value_layout_cases_test.dart`.
       'layoutNote', 'layoutCases',
+      // Figures of equal width on a text that runs its numbers: `value_layout_cases_test.dart`.
+      'figureNote', 'figureCases',
     });
     expect(_table['durationMs'], kValueTransitionMs);
     expect(_rows('curveCases'), hasLength(7));

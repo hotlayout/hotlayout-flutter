@@ -128,7 +128,12 @@ extension ProgressWidgets on NodeRenderer {
   }
 
   Widget _barLabel(ProgressBarNode node, String label, ScreenData? finalData) {
-    final style = theme.text(TypographyToken.caption).copyWith(color: theme.color(ColorToken.muted));
+    var style = theme.text(TypographyToken.caption).copyWith(color: theme.color(ColorToken.muted));
+    // The label of a bar whose value runs is written in figures of equal width ALWAYS, at rest and between values, so
+    // the label that holds the place and the one painted over it never differ in width.
+    if (node.animateIn || node.animateChanges) {
+      style = style.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    }
     if (finalData == null) return Text(label, style: style);
     final held = copy(data: finalData);
     final heldLabel = held._progressLabel(
@@ -143,11 +148,7 @@ extension ProgressWidgets on NodeRenderer {
       clipBehavior: Clip.none,
       children: [
         Opacity(opacity: 0, child: Text(heldLabel, style: style)),
-        Positioned.fill(
-          child: ExcludeSemantics(
-            child: Text(label, style: style.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
-          ),
-        ),
+        Positioned.fill(child: ExcludeSemantics(child: Text(label, style: style))),
       ],
     );
   }
@@ -233,7 +234,7 @@ extension ProgressWidgets on NodeRenderer {
   /// nothing, neither the node's `style.color` / `typography` nor its emphasis, so it is taken
   /// from the theme and not from [currentForeground]. It has no italics or line.
   TextStyle _ringLabelStyle(CircularProgressNode node) {
-    final named = node.labelTypography == null ? null : theme.resolveTypography(node.labelTypography!);
+    final named = node.labelTypography == null ? null : theme.resolveTypography(node.labelTypography!, textScaler: textScaler);
     final color = node.labelColor == null ? null : theme.resolveColor(node.labelColor!);
     // Tabular figures: a label like "74 / 119" keeps its width when the digits change and does
     // not push the slash.

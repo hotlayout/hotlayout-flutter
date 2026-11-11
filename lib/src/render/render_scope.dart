@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../model/node.dart';
 import '../model/style_values.dart';
 import '../model/text_emphasis.dart';
+import '../theme/inner_shadow_layer.dart';
 
 /// Foreground at a point of the tree: colour and font, already resolved against the theme.
 ///
@@ -58,6 +59,7 @@ final class RoleSurface {
     this.border,
     this.radius,
     this.shadow,
+    this.inner,
     this.padding,
     this.typography,
     this.blur,
@@ -70,6 +72,9 @@ final class RoleSurface {
   final BorderSide? border;
   final BorderRadiusGeometry? radius;
   final List<BoxShadow>? shadow;
+
+  /// The inner layers of the shadow (9.39.0), in paint order.
+  final List<InnerShadow>? inner;
   final EdgeInsetsGeometry? padding;
   final TextStyle? typography;
 
@@ -78,5 +83,6 @@ final class RoleSurface {
 
   bool get hasBackground => color != null || gradient != null || image != null;
   bool get hasShadow => shadow != null && shadow!.isNotEmpty;
+  bool get hasInner => inner != null && inner!.isNotEmpty;
 }
 

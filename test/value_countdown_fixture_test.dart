@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotlayout_flutter/src/model/compatibility.dart';
 import 'package:hotlayout_flutter/src/model/ui_document.dart';
 import 'package:hotlayout_flutter/src/render/countdown_clock.dart';
 import 'package:hotlayout_flutter/src/render/progress_paint.dart';
@@ -48,7 +49,7 @@ void main() {
 
   test('the fixture is in the catalogue, at 9.21.0, in two languages', () {
     final doc = loadFixture('value-countdown-screens');
-    expect(doc.schemaVersion, '9.34.0');
+    expect(doc.schemaVersion, kSupportedSchemaVersion);
     expect(fixtureIds, contains('value-countdown-screens'));
     expect(doc.screens.map((screen) => screen.screenId), ['balance', 'mission']);
     expect(doc.locales, ['en', 'uk']);

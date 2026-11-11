@@ -41,7 +41,15 @@ extension TextWidgets on NodeRenderer {
     // `textAlign` works within the widget's width. In a column text is always stretched (it is
     // not in `naturalWidth`), so there is no stretching of its own here: the parent gives the
     // width (`columnChildWidth`).
-    final base = foreground.style.copyWith(color: foreground.color);
+    // A text that runs its numbers (`animateIn`, `animateChanges`) is written in figures of equal width ALWAYS, at rest
+    // and between values: the place it holds and the number painted over it never differ in width.
+    final tabular = node.animateIn || node.animateChanges;
+    final base = _figures(foreground.style.copyWith(color: foreground.color), tabular);
+    // The shadow of the glyphs (9.39.0): one text, parts and marker included; it takes no room.
+    final shadowRef = own?.textShadow;
+    final shadows = shadowRef == null ? null : theme.resolveTextShadow(shadowRef);
+    final plainBase = base;
+    final shadowed = shadows == null ? base : base.copyWith(shadows: shadows);
     final overflow = node.maxLines == null ? TextOverflow.clip : textOverflowOf(node.overflow);
 
     // COMPOSED TEXT (schema 9.6.0): only the styles of places that `content` declares apply. With
@@ -49,6 +57,8 @@ extension TextWidgets on NodeRenderer {
     final content = node.content;
     final active = activeTextSpans(content, node.spans);
     Widget draw(_Ink ink) {
+      // Only the layer that shows the glyphs themselves carries the shadow; the mask and the overlay of a gradient do not.
+      final base = ink == _Ink.plain || ink == _Ink.shadow ? shadowed : plainBase;
       if (active.isEmpty || content is! TemplateString) {
         // Text without parts is one run with the node's emphasis (schema 9.17.0). The line sits on
         // the run itself: here the paragraph is the run.
@@ -69,6 +79,7 @@ extension TextWidgets on NodeRenderer {
         maxLines: node.maxLines,
         overflow: overflow,
         ink: ink,
+        tabular: tabular,
       );
     }
 
@@ -81,14 +92,23 @@ extension TextWidgets on NodeRenderer {
     if (gradient == null) {
       body = draw(_Ink.plain);
     } else {
-      body = _gradientBody(
+      final painted = _gradientBody(
         draw,
         gradient,
         overlay: _needsOverlay(active, foreground.emphasis),
       );
+      // The shadow is taken from the SHAPE of the letters, in the colour of its layers, and an opaque gradient over the
+      // letters hides it as a solid colour would: a silent copy of the lines lies UNDER the gradient.
+      body = shadows == null
+          ? painted
+          : Stack(
+              fit: StackFit.passthrough,
+              clipBehavior: Clip.none,
+              children: [ExcludeSemantics(child: draw(_Ink.shadow)), painted],
+            );
     }
     final marker = drawnMarkerOf(node.marker);
-    final drawn = marker == null ? body : _listItem(node, marker, body, base);
+    final drawn = marker == null ? body : _listItem(node, marker, body, shadowed);
     // A TEXT THAT PAINTS NOTHING SAYS NOTHING (`x-silentText`): the colour it is drawn in, its own or inherited,
     // is fully transparent, so it is not part of the name of a card or of the screen. Exactly zero: 0.01 is seen.
     return textPaintsNothing(opacities: const [], colorOpacity: foreground.color.a) ? ExcludeSemantics(child: drawn) : drawn;
@@ -98,7 +118,7 @@ extension TextWidgets on NodeRenderer {
   /// what must keep its own look -- a part with a colour of its own, the line of an underline or strike-through,
   /// which take the colour of the text, not the gradient -- is drawn over it by [_Ink.overlay]. Both layers are the
   /// same paragraph, so they lie exactly one over the other.
-  Widget _gradientBody(Widget Function(_Ink ink) draw, LinearGradient gradient, {required bool overlay}) {
+  Widget _gradientBody(Widget Function(_Ink ink) draw, Gradient gradient, {required bool overlay}) {
     final masked = ShaderMask(
       blendMode: BlendMode.srcIn,
       shaderCallback: (bounds) => gradient.createShader(bounds),
@@ -123,6 +143,7 @@ extension TextWidgets on NodeRenderer {
   TextStyle _inked(TextStyle style, _Ink ink, {required bool own, required Color? fallback}) => switch (ink) {
     _Ink.plain => style,
     _Ink.mask => style.copyWith(color: own ? Colors.transparent : Colors.white),
+    _Ink.shadow => style.copyWith(color: Colors.transparent),
     _Ink.overlay => own ? style : style.copyWith(color: Colors.transparent),
   };
 
@@ -135,7 +156,7 @@ extension TextWidgets on NodeRenderer {
   /// colour of the text, not the gradient.
   TextStyle _withEmphasis(TextStyle style, TextEmphasis emphasis, [_Ink ink = _Ink.plain, Color? lineColor]) {
     if (emphasis.isRoot) return style;
-    final decoration = ink == _Ink.mask ? null : _decorationOf(emphasis.textDecoration);
+    final decoration = ink == _Ink.mask || ink == _Ink.shadow ? null : _decorationOf(emphasis.textDecoration);
     return style.copyWith(
       fontStyle: emphasis.fontStyle == EmphasisFontStyle.italic ? FontStyle.italic : null,
       decoration: decoration,
@@ -228,6 +249,7 @@ extension TextWidgets on NodeRenderer {
     required TextAlign textAlign,
     required int? maxLines,
     required TextOverflow overflow,
+    required bool tabular,
     _Ink ink = _Ink.plain,
   }) {
     // The style of each effective part: layered over the text's style by the inheritance rule. A
@@ -241,17 +263,18 @@ extension TextWidgets on NodeRenderer {
     for (final entry in all.entries) {
       final color = entry.value.color == null ? null : theme.resolveColor(entry.value.color!);
       if (color != null) ownColour.add(entry.key);
-      final font = entry.value.typography == null ? null : theme.resolveTypography(entry.value.typography!);
+      final font = entry.value.typography == null ? null : theme.resolveTypography(entry.value.typography!, textScaler: textScaler);
       // A part's font style replaces the base WHOLE: a field the token lacks (tracking) is not
       // inherited from the text but reset.
       final whole = font == null ? base : font.copyWith(color: base.color, letterSpacing: font.letterSpacing ?? 0);
-      styles[entry.key] = whole.copyWith(color: color ?? base.color);
+      styles[entry.key] = _figures(whole.copyWith(color: color ?? base.color), tabular);
     }
 
     // The strut: the line of every EFFECTIVE style, whether or not this locale's string mentions
     // it (`unusedSpan`: not drawn, but counted in the height).
     LineMetric metricOf(TextStyle style) =>
-        (fontSize: style.fontSize ?? 14, lineHeight: style.height ?? 1);
+        // The part that makes the line is chosen by the EFFECTIVE size: past 96 the system scale is not linear.
+        (fontSize: textScaler.scale(style.fontSize ?? 14), lineHeight: style.height ?? 1);
     final strut = richTextStrut(metricOf(base), {
       for (final entry in styles.entries) entry.key: metricOf(entry.value),
     });
@@ -271,7 +294,7 @@ extension TextWidgets on NodeRenderer {
       if (weight != null) style = (style ?? const TextStyle()).copyWith(fontWeight: _weightOf(weight));
       final folded = TextEmphasis(
         fontStyle: run.fontStyle,
-        textDecoration: ink == _Ink.mask ? EmphasisDecoration.none : run.textDecoration,
+        textDecoration: ink == _Ink.mask || ink == _Ink.shadow ? EmphasisDecoration.none : run.textDecoration,
       );
       if (folded.isRoot) return style;
       // The line of a part with its own colour is that colour; any other line is the colour of the text.
@@ -317,5 +340,13 @@ extension TextWidgets on NodeRenderer {
 
 /// Which layer of a text is being drawn. A text without a gradient has one layer, [plain]; a text with a gradient
 /// on its glyphs has the [mask] (white glyphs, replaced by the gradient) and, where something keeps its own look,
-/// the [overlay] over it.
-enum _Ink { plain, mask, overlay }
+/// the [overlay] over it. With a shadow as well, a [shadow] layer (transparent glyphs that cast it) lies under all.
+enum _Ink { plain, mask, overlay, shadow }
+
+/// [style] in figures of equal width when [tabular] (the figures of the font otherwise), keeping the features it has.
+TextStyle _figures(TextStyle style, bool tabular) {
+  if (!tabular) return style;
+  const equal = FontFeature.tabularFigures();
+  final features = style.fontFeatures ?? const <FontFeature>[];
+  return features.contains(equal) ? style : style.copyWith(fontFeatures: [...features, equal]);
+}

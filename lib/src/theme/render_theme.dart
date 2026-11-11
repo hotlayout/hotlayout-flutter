@@ -7,13 +7,17 @@ import '../model/style_values.dart';
 import '../model/tokens.dart';
 import '../report/hotlayout_report.dart';
 import '../report/report_hub.dart';
+import '../model/display_typography.dart';
 import 'corner_gradient.dart';
+import 'inner_shadow_layer.dart';
+import 'radial_gradient.dart';
 import 'fallback_theme.dart';
 import 'theme_contract.dart';
 import 'theme_json.dart';
 import 'theme_roles.dart';
 
 export 'corner_gradient.dart' show CornerGradient;
+export 'radial_gradient.dart' show RadialBoxGradient, RadialMetrics, radialGradientMetrics;
 export 'theme_roles.dart' show RoleColors, ThemeFontFamily, ThemeRole;
 
 /// One theme: the values behind the token names a document refers to.
@@ -36,7 +40,7 @@ class RenderTheme {
     required this.radii,
     required this.typography,
     required this.elevations,
-    this.gradients = const <String, LinearGradient>{},
+    this.gradients = const <String, Gradient>{},
     this.badgeToneRoles = const <BadgeToneToken, ThemeRole>{},
     this.buttonVariantRoles = const <ButtonVariantToken, ThemeRole>{},
     this.id = 'inline',
@@ -217,7 +221,7 @@ class RenderTheme {
   /// An empty map is a normal state: a theme that describes no gradients simply draws none.
   /// Unlike roles, this does not make the theme unusable: without roles the reader does not know
   /// what to draw a badge with, while without a gradient it knows exactly: nothing.
-  final Map<String, LinearGradient> gradients;
+  final Map<String, Gradient> gradients;
 
   /// Semantics to palette. It comes from the theme, not from code.
   final Map<BadgeToneToken, ThemeRole> badgeToneRoles;
@@ -395,28 +399,50 @@ class RenderTheme {
   /// the already overridden font size, which Flutter does by itself since `TextStyle.height` is
   /// also a multiplier. The family always comes from the token; with no token there is no style,
   /// even if overrides are named (there is nothing to override).
-  TextStyle? resolveTypography(TypographyRef ref) {
+  ///
+  /// Letter spacing in shares of the font size ([TypographyRef.letterSpacingEm]) is a share of the EFFECTIVE size, the
+  /// one [textScaler] gives, and replaces the spacing of the token; in pixels it is as written.
+  TextStyle? resolveTypography(TypographyRef ref, {TextScaler textScaler = TextScaler.noScaling}) {
     final base = typography[ref.token];
     if (base == null) return null;
+    final fontSize = ref.fontSize ?? base.fontSize;
+    final em = ref.letterSpacingEm;
     return base.copyWith(
       fontSize: ref.fontSize,
       fontWeight: ref.fontWeight == null ? null : themeFontWeight(ref.fontWeight),
       height: ref.lineHeight,
-      letterSpacing: ref.letterSpacing,
+      letterSpacing: em != null && fontSize != null
+          ? trackingPx(letterSpacingEm: em, effectiveFontSize: textScaler.scale(fontSize))
+          : ref.letterSpacing,
     );
   }
 
-  /// A gradient reference to a [LinearGradient].
+  /// A gradient reference to a [Gradient]: linear, or radial (9.36.0).
   ///
   /// A custom gradient with a stop on an unknown token is not drawn AT ALL, rather than drawn
   /// "without that stop": without it, it is a different gradient that would look intentional.
   /// Unordered stops: `unorderedGradient: 'omit-field'`.
-  LinearGradient? resolveGradient(GradientRef ref) {
+  Gradient? resolveGradient(GradientRef ref) {
     switch (ref) {
       case TokenGradientRef(:final token):
         final value = gradients[token];
         if (value == null) ReportHub.ignored('theme "$id"', 'has no gradient "$token": no background is drawn');
         return value;
+      case RadialGradientRef(:final centerX, :final centerY, :final radius, :final stops):
+        if (!ref.isOrdered) return null;
+        final colors = <Color>[];
+        for (final stop in stops) {
+          final color = resolveColor(stop.color);
+          if (color == null) return null;
+          colors.add(color);
+        }
+        return RadialBoxGradient(
+          centerX: centerX,
+          centerY: centerY,
+          share: radius,
+          colors: colors,
+          stops: [for (final stop in stops) stop.position],
+        );
       case CustomGradientRef(:final angle, :final stops):
         final direction = gradientDirection(angle);
         if (direction == null || !ref.isOrdered) return null;
@@ -476,6 +502,9 @@ class RenderTheme {
         final positions = value.stops;
         if (positions == null || positions.length != colors.length) return null;
         return [for (var i = 0; i < colors.length; i += 1) (color: colors[i], position: positions[i])];
+      // The fill of a scale runs along the scale: an own radial gradient is no gradient there, the colour stays.
+      case RadialGradientRef():
+        return null;
       case CustomGradientRef(:final stops):
         if (!ref.isOrdered) return null;
         final result = <({Color color, double position})>[];
@@ -501,6 +530,8 @@ class RenderTheme {
         for (final layer in layers) {
           final color = resolveColor(layer.color);
           if (color == null) return null;
+          // The OUTER layers only: an inner one is painted inside the box ([resolveInnerShadow]).
+          if (layer.inset) continue;
           shadows.add(
             BoxShadow(
               color: color,
@@ -513,6 +544,56 @@ class RenderTheme {
         // The same reversal as for a theme shadow: `first-is-nearest`.
         return shadows.reversed.toList(growable: false);
     }
+  }
+
+  /// The INNER layers (9.39.0) of a shadow reference in PAINT order, the last of the document first, so the first layer
+  /// of the document ends on top. A theme shadow has none. A layer whose colour does not resolve makes the whole shadow
+  /// nothing (the same rule as for the outer layers), so the answer is empty then.
+  List<InnerShadow> resolveInnerShadow(ShadowRef ref) {
+    if (ref is! CustomShadowRef) return const [];
+    final layers = <InnerShadow>[];
+    for (final layer in ref.layers) {
+      final color = resolveColor(layer.color);
+      if (color == null) return const [];
+      if (!layer.inset) continue;
+      layers.add(
+        InnerShadow(
+          color: color,
+          offset: Offset(layer.offsetX, layer.offsetY),
+          blurRadius: layer.blur,
+          spreadRadius: layer.spread,
+        ),
+      );
+    }
+    return layers.reversed.toList(growable: false);
+  }
+
+  /// The shadow of a text (9.39.0) as `TextStyle.shadows` wants it: the first layer of the document is the nearest and
+  /// on top, and Flutter paints the list from the bottom, so the list is turned round. `null` when a colour does not
+  /// resolve: no shadow, never a shadow with a layer missing.
+  List<Shadow>? resolveTextShadow(TextShadowRef ref) {
+    final layers = <Shadow>[];
+    for (final layer in ref.layers) {
+      final color = resolveColor(layer.color);
+      if (color == null) return null;
+      layers.add(Shadow(color: color, offset: Offset(layer.offsetX, layer.offsetY), blurRadius: layer.blur));
+    }
+    return layers.reversed.toList(growable: false);
+  }
+
+  /// The inner shadow of a node's style as it is DRAWN: the inner layers of [NodeStyle.shadow], tinted by the hue of the
+  /// background with `shadowColor: background` like the outer ones.
+  List<InnerShadow> resolveNodeInnerShadow(NodeStyle style) {
+    final ref = style.shadow;
+    if (ref == null) return const [];
+    final layers = resolveInnerShadow(ref);
+    if (style.shadowColor == null || layers.isEmpty) return layers;
+    final hue = _backgroundHue(style.background);
+    if (hue == null) return layers;
+    return [
+      for (final layer in layers)
+        layer.withColor(Color.from(alpha: layer.color.a, red: hue.r, green: hue.g, blue: hue.b)),
+    ];
   }
 
   /// The shadow of a node's style as it is DRAWN (schema 9.25.0, `style.shadowColor`): the layers of [NodeStyle.shadow],
@@ -538,12 +619,31 @@ class RenderTheme {
     ];
   }
 
+  /// The stops that give a background its hue: those of the fill of a scale, and of an own radial gradient too.
+  List<({Color color, double position})>? _hueStops(GradientRef ref) {
+    if (ref is! RadialGradientRef) {
+      return _progressGradientStops(ref);
+    }
+    if (!ref.isOrdered) {
+      return null;
+    }
+    final result = <({Color color, double position})>[];
+    for (final stop in ref.stops) {
+      final color = resolveColor(stop.color);
+      if (color == null) {
+        return null;
+      }
+      result.add((color: color, position: stop.position));
+    }
+    return result;
+  }
+
   Color? _backgroundHue(NodeBackground? background) {
     switch (background) {
       case ColorBackground(:final color):
         return resolveColor(color);
       case GradientBackground(:final gradient):
-        final stops = _progressGradientStops(gradient);
+        final stops = _hueStops(gradient);
         if (stops == null) return null;
         final index = middleStopIndex([for (final stop in stops) stop.position]);
         return index == null ? null : stops[index].color;
@@ -603,6 +703,8 @@ class RenderTheme {
       backdropBlur: style.backdropBlur,
       // A gradient that does not resolve (an unknown token, stops going backwards) is not applied: the colour stays.
       textGradient: style.textGradient != null && resolveGradient(style.textGradient!) != null ? style.textGradient : null,
+      // A shadow with a colour that does not resolve is not applied: the base shadow stays.
+      textShadow: style.textShadow != null && resolveTextShadow(style.textShadow!) != null ? style.textShadow : null,
     );
     return applicable.isEmpty ? null : applicable;
   }
@@ -611,7 +713,7 @@ class RenderTheme {
   ///
   /// `null` rather than a default: an invented gradient cannot be told from a real one, so
   /// drawing nothing beats drawing the wrong thing.
-  LinearGradient? gradient(GradientToken token) => resolveGradient(TokenGradientRef(token.wire));
+  Gradient? gradient(GradientToken token) => resolveGradient(TokenGradientRef(token.wire));
 
   /// A node background to a decoration WITHOUT the image: a colour or a gradient.
   ///
