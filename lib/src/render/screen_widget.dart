@@ -19,6 +19,7 @@ import 'host_callbacks.dart';
 import 'inputs.dart';
 import 'labels.dart';
 import 'list_budget.dart';
+import 'node_appear.dart';
 import 'node_renderer.dart';
 import 'picture_policy.dart';
 import 'screen_form.dart';
@@ -129,7 +130,11 @@ Widget screenWidget(
   // A countdown that ticks (9.21.0): a screen with a `countdownPart` redraws every second (a minute, with no
   // seconds part) while it is shown. A host that pinned the moment (`now`) drives the time itself.
   final every = now == null ? screen.countdownTick : null;
-  return every == null ? drawn(null) : CountdownClock(every: every, builder: (context, clock) => drawn(clock));
+  // The screen is SHOWN while it is first built: the nodes that ask to appear (9.40.0) play then, and not when they are
+  // mounted later on the same screen.
+  return AppearShow(
+    child: every == null ? drawn(null) : CountdownClock(every: every, builder: (context, clock) => drawn(clock)),
+  );
 }
 
 /// Gives the subtree [scaler] as the text scaler of its `MediaQuery`. The subtree is the same widget on every rebuild

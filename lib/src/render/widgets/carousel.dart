@@ -71,6 +71,7 @@ extension CarouselWidgets on NodeRenderer {
           stopPath: stopPath,
           stopValue: stopPath == null ? null : data.lookup(stopPath),
           onStopWrite: stopPath == null || write == null ? null : (stop) => write(stopPath, stop),
+          autoAdvance: carousel.autoAdvance,
           cards: cards,
           cardWidths: cardWidth == null ? null : widths,
           viewport: viewport,

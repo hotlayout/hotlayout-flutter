@@ -3,8 +3,8 @@
 part of 'screen_flow.dart';
 
 extension _ScreenFlowStack on _ScreenFlowState {
-  Widget _frameAt(_Frame frame, int index) {
-    return KeyedSubtree(
+  Widget _frameAt(_Frame frame, int index, {bool shown = true}) {
+    return ScreenShownScope(shown: shown, child: KeyedSubtree(
       // Keyed by position in the stack, not just `screenId`: returning to the same screen must
       // restore it from scratch rather than show the state of the previous one.
       key: ValueKey('sdui-screen-${index + 1}-${frame.screen.screenId}'),
@@ -37,7 +37,7 @@ extension _ScreenFlowStack on _ScreenFlowState {
           presentation: index == 0 ? ScreenPresentationToken.page : frame.screen.presentation,
         ),
       ),
-    );
+    ));
   }
 
   /// The EFFECTIVE SHOW of the screen of frame [index] (`shownLookOf`): the ONE place that
@@ -49,35 +49,43 @@ extension _ScreenFlowStack on _ScreenFlowState {
   ScreenPresentationToken _presentationAt(int index) =>
       index == 0 ? ScreenPresentationToken.page : _stack[index].screen.presentation;
 
-  /// One modal layer: a scrim over the whole frame and a sheet from the bottom.
+  /// One modal layer: a scrim over the whole frame and a sheet from the bottom, or a window in the middle.
   ///
   /// A tap on the scrim is `navigate.back`, not a separate kind of action: closing a modal and
   /// going back one step are the same thing, and a second way back would diverge from the first
   /// at the first change.
   ///
-  /// The layer SLIDES IN rather than appearing. A sheet that pops up instantly reads as a
-  /// repainted screen, not as something laid OVER it, i.e. the very thing the presentation mode
-  /// exists for disappears. Here motion carries meaning rather than decorating.
-  Widget _modalLayer(_Frame frame, int index, {bool closing = false}) => ModalLayer(
-    // Keyed by the frame: a layer that starts closing keeps its state (scroll, fields) while it
-    // sinks away.
-    key: ObjectKey(frame.memory),
-    placement: frame.screen.placement,
-    backdropBlur: frame.screen.backdropBlur,
-    windowMargin: _windowMargin,
-    dismissible: frame.screen.dismissible,
-    animateIn: identical(frame.memory, _enteringLayer),
-    closing: closing,
-    onClosed: closing ? () => _layerClosed(frame.memory) : null,
-    // The scrim is not a node, so it has no record of its own: the host (if "back" would leave the
-    // flow) gets the layer's record.
-    onDismiss: () => _handleAction(
-      const ButtonAction(ButtonAction.navigateBack),
-      frame.screen.screenId,
-      (record: frame.record, insideListItem: false, read: readNothing, links: frame.links),
-    ),
-    sheet: _frameAt(frame, index),
-  );
+  /// The layer MOVES in and out (the plan of the step: a sheet rises, a window fades in from a slight zoom, `fade` only
+  /// changes the opacity). A sheet that pops up instantly reads as a repainted screen, not as something laid OVER it,
+  /// i.e. the very thing the presentation mode exists for disappears. Here motion carries meaning rather than decorating.
+  Widget _modalLayer(_Frame frame, int index, {bool closing = false, bool shown = false, ScreenTransitionPlan? plan}) =>
+      ModalLayer(
+        // Keyed by the frame: a layer that starts closing keeps its state (scroll, fields) while it
+        // goes away.
+        key: ObjectKey(frame.memory),
+        placement: frame.screen.placement,
+        backdropBlur: frame.screen.backdropBlur,
+        windowMargin: _windowMargin,
+        dismissible: frame.screen.dismissible,
+        animateIn: identical(frame.memory, _enteringLayer),
+        plan: closing
+            ? plan
+            : identical(frame.memory, _enteringLayer)
+            ? _enteringPlan
+            : null,
+        closing: closing,
+        onClosed: closing ? () => _layerClosed(frame.memory) : null,
+        // The finger took the sheet down: it has left, and the step back that follows plays nothing.
+        onDragged: () => _draggedLayer = frame.memory,
+        // The scrim is not a node, so it has no record of its own: the host (if "back" would leave the
+        // flow) gets the layer's record.
+        onDismiss: () => _handleAction(
+          const ButtonAction(ButtonAction.navigateBack),
+          frame.screen.screenId,
+          (record: frame.record, insideListItem: false, read: readNothing, links: frame.links),
+        ),
+        sheet: _frameAt(frame, index, shown: shown),
+      );
 
   /// One scene: the page a list of frames paints at the bottom, and its modal layers over it.
   ///
@@ -99,7 +107,7 @@ extension _ScreenFlowStack on _ScreenFlowState {
     final leaving = current
         ? [
             for (final layer in _leaving)
-              if (identical(layer.base, baseMemory)) _modalLayer(layer.frame, layer.index, closing: true),
+              if (identical(layer.base, baseMemory)) _modalLayer(layer.frame, layer.index, closing: true, plan: layer.plan),
           ]
         : const <Widget>[];
     final atRest = base == frames.length - 1 && leaving.isEmpty;
@@ -115,8 +123,10 @@ extension _ScreenFlowStack on _ScreenFlowState {
       child: Stack(
         fit: atRest ? StackFit.passthrough : StackFit.loose,
         children: [
-          _frameAt(frames[base], base),
-          for (var i = base + 1; i < frames.length; i += 1) _modalLayer(frames[i], i),
+          // What is in front of the person: the top of the stack, in the scene that stays (not the one moving away).
+          _frameAt(frames[base], base, shown: current && base == frames.length - 1 && leaving.isEmpty),
+          for (var i = base + 1; i < frames.length; i += 1)
+            _modalLayer(frames[i], i, shown: current && i == frames.length - 1),
           ...leaving,
         ],
       ),
@@ -134,16 +144,18 @@ extension _ScreenFlowStack on _ScreenFlowState {
     final other = _scene(move.other, current: false);
     final progress = move.controller;
 
-    if (move.kind == _MoveKind.fade) {
+    if (move.kind == _MoveKind.crossfade) {
+      // The old scene lies over the new one, which stands still, and fades out; what is the same on both screens (the app
+      // bar, the navigation bar) is drawn by the one beneath, whole.
       return AnimatedBuilder(
         animation: progress,
         builder: (context, _) {
-          final look = sectionSwitchLook(progress.value);
+          final frame = screenTransitionFrame(move.plan, progress.value * move.plan.durationMs);
           return Stack(
             fit: StackFit.passthrough,
             children: [
-              Opacity(opacity: look.outgoing, child: other),
-              Opacity(opacity: look.incoming, child: current),
+              current,
+              Opacity(opacity: frame.outgoing.opacity.clamp(0.0, 1.0), child: other),
             ],
           );
         },
@@ -151,13 +163,12 @@ extension _ScreenFlowStack on _ScreenFlowState {
     }
 
     final leavingOnTop = move.kind == _MoveKind.pop;
-    final cupertino = cupertinoPagesOf(context);
     Widget page(PageRole role, Widget child) => PageMotion(
       role: role,
       progress: progress,
       forward: move.kind == _MoveKind.push,
-      cupertino: cupertino,
-      linear: _swiping,
+      // A finger drives the motion at its own speed; a step follows the plan.
+      plan: move.fingered ? move.plan.linear : move.plan,
       child: child,
     );
     return Stack(

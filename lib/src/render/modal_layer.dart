@@ -7,9 +7,9 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../model/media_chrome_rules.dart';
+import '../model/screen_transition.dart';
 import '../model/sheet_dismiss.dart';
 import '../model/wide_chrome_rules.dart';
-import 'motion.dart';
 import 'screen_transitions.dart';
 import 'screen_zones.dart';
 import 'sheet_drag.dart';
@@ -20,7 +20,7 @@ const Key kModalLayerKey = ValueKey<String>('hotlayout-modal-layer');
 
 /// The scale a centred window grows from while it fades in.
 @visibleForTesting
-const double kModalWindowStartScale = 0.96;
+const double kModalWindowStartScale = kWindowScaleFrom;
 
 /// A sheet shown on a wide place as a WINDOW (schema 9.18.0): the screen in the layer cannot
 /// tell this from its own width (that is 560, `compact`), so the layer tells it through this
@@ -54,10 +54,11 @@ class SheetWindowScope extends InheritedWidget {
 /// root's `style`. The scrim is black at 0.45 over the whole area; a touch outside the window
 /// is `navigate.back`, like the system "back".
 ///
-/// The sheet slides in from the bottom and the window grows from 96 % while it fades in (the
-/// contract is silent about motion). Closing plays the same in reverse ([closing]): the screen
-/// stack has already dropped the frame, and the flow keeps painting it here, untouchable, only
-/// until [onClosed]; the stack itself never holds an "almost removed" screen.
+/// How the layer comes and goes is the [plan] of the step (`x-screenTransition`): a sheet rises from below and goes
+/// down, a window fades in from a slight zoom and fades out, a layer that asked for `fade` only changes its opacity; the
+/// scrim and the blur under it come and go with it, or stay when another layer is on the other side. While [closing]
+/// the screen stack has already dropped the frame, and the flow keeps painting it here, untouchable, only until
+/// [onClosed]; the stack itself never holds an "almost removed" screen.
 class ModalLayer extends StatefulWidget {
   const ModalLayer({
     super.key,
@@ -67,8 +68,10 @@ class ModalLayer extends StatefulWidget {
     required this.windowMargin,
     this.backdropBlur,
     this.animateIn = true,
+    this.plan,
     this.closing = false,
     this.onClosed,
+    this.onDragged,
     this.dismissible = true,
   });
 
@@ -88,12 +91,19 @@ class ModalLayer extends StatefulWidget {
   /// `null` means only the scrim, as before 9.20.0.
   final int? backdropBlur;
 
-  /// Whether the layer slides in when it is first built. `false` for a layer that was already
+  /// Whether the layer comes in when it is first built. `false` for a layer that was already
   /// open and is only drawn again (the page above it went back), and when there is to be no motion.
   final bool animateIn;
 
-  /// Whether the layer is on its way out: it plays its appearance in reverse, ignores touches, and
-  /// calls [onClosed] when it is gone.
+  /// The motion of the layer: how it comes in (while [animateIn]) or goes out (while [closing]); `null` is no motion,
+  /// the layer is where it stands. When it turns `null` in the middle of a motion, the motion is finished at once.
+  final ScreenTransitionPlan? plan;
+
+  /// Called when the finger has taken the sheet down, just before [onDismiss]: the sheet has already left, so the step
+  /// back that follows plays nothing.
+  final VoidCallback? onDragged;
+
+  /// Whether the layer is on its way out: it plays its [plan], ignores touches, and calls [onClosed] when it is gone.
   final bool closing;
 
   /// Called once the closing motion is over (after the frame, never during a build).
@@ -107,7 +117,9 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
   // The layer moves between sheet and window when the area changes its width class (rotation,
   // split screen): the key keeps the same subtree, so typed text and focus are not lost.
   final GlobalKey _layerSlot = GlobalKey(debugLabel: 'hotlayout-modal-layer');
-  late final AnimationController _controller = AnimationController(vsync: this, duration: Motion.sheet);
+  // The time of the motion of the [ModalLayer.plan]. It runs from 0 to 1 while the layer comes in and from 1 to 0 while it goes
+  // out, and the plan's frame is read at that share of its duration (the curve is the plan's, so the controller is linear).
+  late final AnimationController _controller = AnimationController(vsync: this);
 
   // THE DRAG DOWN (schema 9.26.0). [_offset] is how far the sheet is pulled from its place, logical pixels. The way
   // back or out is [_settle], which moves [_offset] from [_settleFrom] to [_settleTo] along [_settleCurve].
@@ -129,39 +141,41 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _controller.addStatusListener(_onStatus);
-    if (!widget.animateIn) {
+    final plan = widget.plan;
+    if (!widget.animateIn || plan == null || !plan.moves) {
       _controller.value = 1;
       if (widget.closing) _close();
       return;
     }
-    /*
-     * The duration is taken in the first frame, not in the constructor: `MediaQuery` cannot be
-     * read during `initState`. Zero here means "the system asks for no motion": the controller
-     * then jumps to the end and the layer simply appears.
-     */
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.closing) return;
-      _controller.duration = transitionDurationOf(context, Motion.sheet);
-      _controller.forward();
-    });
+    // Where the layer starts at the first frame of its motion: before the frame, so it is never seen at rest first.
+    _controller.duration = plan.duration;
+    _controller.forward();
   }
 
   @override
   void didUpdateWidget(ModalLayer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.closing && !oldWidget.closing) _close();
+    if (widget.closing && !oldWidget.closing) {
+      _close();
+    } else if (!widget.closing && oldWidget.plan != null && widget.plan == null) {
+      // A new step came in the middle of the motion: it ends at once, in its final state.
+      _controller.value = 1;
+    }
   }
 
   void _close() {
+    final plan = widget.plan;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // The sheet already left by a drag: there is nothing to play, it only has to be taken off.
-      if (_exited) {
+      // The sheet already left by a drag, or nothing moves: there is nothing to play, it only has to be taken off.
+      if (_exited || plan == null || !plan.moves) {
         _controller.value = 0;
         return;
       }
-      // Closing from where the appearance is now: a sheet closed half-way sinks from there.
-      _controller.duration = transitionDurationOf(context, Motion.sheet);
+      // The motion out starts from the layer's final state: a layer that was still coming in has finished.
+      _controller
+        ..duration = plan.duration
+        ..value = 1;
       _controller.reverse();
     });
   }
@@ -234,6 +248,7 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
     _moveSheet(_sheetHeight + MediaQuery.viewInsetsOf(context).bottom, kSheetExit, () {
       if (!mounted) return;
       setState(() => _exited = true);
+      widget.onDragged?.call();
       widget.onDismiss();
     });
   }
@@ -284,7 +299,6 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final progress = CurvedAnimation(parent: _controller, curve: Motion.enter, reverseCurve: Motion.exit);
     // The on-screen keyboard (`rules.focus.modal`): the layer rises above it instead of staying
     // under it. The keyboard height comes from the reader's own `MediaQuery` context; a host that
     // has already shrunk the screen gives zero.
@@ -361,59 +375,69 @@ class _ModalLayerState extends State<ModalLayer> with TickerProviderStateMixin {
         final visible = _offset <= 0 || _sheetHeight <= 0 ? 1.0 : (1 - _offset / _sheetHeight).clamp(0.0, 1.0);
 
         return AnimatedBuilder(
-          animation: progress,
-          builder: (context, _) => IgnorePointer(
-            ignoring: widget.closing || _exiting,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    // `dismissible: false`: the scrim still takes the touch, so it does not fall to the page, but does nothing.
-                    onTap: widget.dismissible ? widget.onDismiss : null,
-                    // The scrim thickens along with the layer's appearance: otherwise the screen under it would
-                    // darken before it becomes clear why.
-                    child: _blurUnder(
-                      ColoredBox(color: Colors.black.withValues(alpha: kModalScrimOpacity * progress.value * visible)),
-                      progress.value,
-                    ),
-                  ),
-                ),
-                if (window)
-                  Padding(
-                    padding: EdgeInsets.only(top: safeTop, bottom: lower),
-                    child: Center(
-                      child: Opacity(
-                        opacity: progress.value,
-                        child: Transform.scale(
-                          scale: kModalWindowStartScale + (1 - kModalWindowStartScale) * progress.value,
-                          child: slot,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: EdgeInsets.only(top: safeTop, bottom: keyboard),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      /*
-                     * The offset is in FRACTIONS OF THE LAYER'S OWN HEIGHT, not pixels: a sheet may be three
-                     * rows or half the screen, and both must slide in the same way, from behind their own
-                     * bottom edge. Pixels would give short sheets a long path from nowhere.
-                     */
-                      child: Transform.translate(
-                        offset: Offset(0, _offset),
-                        child: FractionalTranslation(
-                          translation: Offset(0, 1 - progress.value),
-                          child: draggable ? _dragZone(slot) : slot,
-                        ),
+          animation: _controller,
+          builder: (context, _) {
+            // Where the motion of the plan stands: the layer's own frame (the shift of a sheet, the zoom and opacity of a
+            // window, the opacity of a layer that asked for `fade`) and the share of the resting scrim under it. The share of
+            // the motion runs backwards while the layer goes out.
+            final plan = widget.plan;
+            final frame = plan == null || !plan.moves
+                ? null
+                : screenTransitionFrame(
+                    plan,
+                    (widget.closing ? 1 - _controller.value : _controller.value) * plan.durationMs,
+                  );
+            final look = frame == null ? const TransitionLayerFrame() : (widget.closing ? frame.outgoing : frame.incoming);
+            final scrimShare = frame?.scrim ?? 1.0;
+            Widget moved(Widget child) => Opacity(
+              opacity: look.opacity.clamp(0.0, 1.0),
+              child: FractionalTranslation(
+                translation: Offset(0, look.y),
+                child: Transform.scale(scale: look.scale, child: child),
+              ),
+            );
+            return IgnorePointer(
+              ignoring: widget.closing || _exiting,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      // `dismissible: false`: the scrim still takes the touch, so it does not fall to the page, but does nothing.
+                      onTap: widget.dismissible ? widget.onDismiss : null,
+                      // The scrim thickens along with the layer's appearance: otherwise the screen under it would
+                      // darken before it becomes clear why.
+                      child: _blurUnder(
+                        ColoredBox(color: Colors.black.withValues(alpha: kModalScrimOpacity * scrimShare * visible)),
+                        scrimShare,
                       ),
                     ),
                   ),
-              ],
-            ),
-          ),
+                  if (window)
+                    Padding(
+                      padding: EdgeInsets.only(top: safeTop, bottom: lower),
+                      child: Center(child: moved(slot)),
+                    )
+                  else
+                    Padding(
+                      padding: EdgeInsets.only(top: safeTop, bottom: keyboard),
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        /*
+                       * The shift is in FRACTIONS OF THE LAYER'S OWN HEIGHT, not pixels: a sheet may be three
+                       * rows or half the screen, and both must move in the same way, from behind their own
+                       * bottom edge. Pixels would give short sheets a long path from nowhere.
+                       */
+                        child: Transform.translate(
+                          offset: Offset(0, _offset),
+                          child: moved(draggable ? _dragZone(slot) : slot),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         );
       },
     );

@@ -14,21 +14,26 @@ enum _MoveKind {
   /// follows the finger. Nothing has changed in the stack yet.
   peek,
 
-  /// A section switch: the new scene fades in over the old one.
-  fade,
+  /// A cross-dissolve (a section switch, or a page of `transition: 'fade'`): the old scene lies over the new one,
+  /// which stands still, and fades out.
+  crossfade,
 }
 
 /// A scene that is drawn beside the current one while it moves.
 ///
 /// [other] is a COPY of a stack (the one before the step, or the part below the current page),
 /// used only to paint that scene; the flow's stack is never touched by motion. [controller] runs
-/// from 0 to 1 when the page on top comes in and from 1 to 0 when it leaves.
+/// from 0 to 1 when the page on top comes in and from 1 to 0 when it leaves; [plan] is the motion it plays.
 final class _SceneMove {
-  _SceneMove(this.kind, this.other, this.controller);
+  _SceneMove(this.kind, this.other, this.controller, this.plan, {this.fingered = false});
 
   _MoveKind kind;
   List<_Frame> other;
   final AnimationController controller;
+  final ScreenTransitionPlan plan;
+
+  /// A finger drives the motion (an edge swipe, and what follows its release): constant speed, so the page stays under it.
+  final bool fingered;
 }
 
 extension _ScreenFlowMotion on _ScreenFlowState {
@@ -49,65 +54,99 @@ extension _ScreenFlowMotion on _ScreenFlowState {
     return base;
   }
 
-  /// Drops every motion in flight: the next build draws the current stack at rest.
+  /// Drops every motion in flight: the next build draws the current stack at rest. A new step does this to the
+  /// motion before it: the old one is finished at once, and the new one starts from the end state.
   void _settle() {
     final move = _move;
     _move = null;
     move?.controller.dispose();
     _leaving.clear();
     _enteringLayer = null;
+    _enteringPlan = null;
     _swiping = false;
   }
+
+  /// The width of the area the host gave the flow: the shape of a layer follows it.
+  double get _areaWidth => context.size?.width ?? MediaQuery.sizeOf(context).width;
+
+  /// A screen as the transition sees it: the effective presentation (the first screen of a stack is a page).
+  TransitionScreen _transitionScreen(List<_Frame> frames, int index) {
+    final screen = frames[index].screen;
+    return TransitionScreen(
+      modal: index > 0 && screen.presentation == ScreenPresentationToken.modal,
+      placement: screen.modalPlacement?.wire,
+      transition: screen.transition,
+    );
+  }
+
+  /// The motion of a step the stack has just taken from [before]; [dragged]: the sheet that left was already taken
+  /// down by the finger.
+  ScreenTransitionPlan _planOf(StackStep step, List<_Frame> before, {bool dragged = false}) => screenTransitionPlan(
+    step: step,
+    from: _transitionScreen(before, before.length - 1),
+    to: _transitionScreen(_stack, _stack.length - 1),
+    areaWidth: _areaWidth,
+    reducedMotion: widget.transitions == HotlayoutTransitions.none || (MediaQuery.maybeDisableAnimationsOf(context) ?? false),
+    covered: _rippleCovers,
+    dragged: dragged,
+  );
 
   /// Chooses the motion of a step the stack has just taken from [before]. Called inside the
   /// `setState` of the step.
   void _moveOnStep(List<_Frame> before, ScreenShownCause cause) {
-    _enteringLayer = null;
-    if (!_moves) {
-      _settle();
+    final dragged = identical(_draggedLayer, before.last.memory);
+    _draggedLayer = null;
+    // A step back that is the end of an edge swipe goes on from where the finger left the page; every other
+    // step finishes the motion before it at once.
+    final move = _move;
+    final swipe =
+        cause == ScreenShownCause.back &&
+        move != null &&
+        move.kind == _MoveKind.peek &&
+        move.other.length == _stack.length &&
+        identical(move.other.last.memory, _stack.last.memory);
+    if (swipe) {
+      // The page the finger has already revealed is the one that stays.
+      move
+        ..kind = _MoveKind.pop
+        ..other = before;
+      if (!_swiping) _runBack(move);
       return;
     }
+    _settle();
+    final step = switch (cause) {
+      ScreenShownCause.forward => StackStep.push,
+      ScreenShownCause.back => StackStep.pop,
+      ScreenShownCause.switchSection => StackStep.switchSection,
+      ScreenShownCause.entry => StackStep.start,
+    };
+    if (step == StackStep.start) return;
+    final plan = _planOf(step, before, dragged: dragged);
     final oldBase = before[_baseOf(before)].memory;
     final samePage = identical(oldBase, _stack[_baseOf(_stack)].memory);
-    switch (cause) {
-      case ScreenShownCause.forward:
-        // A modal layer over the same page: the layer slides in by itself.
-        if (samePage) {
-          _enteringLayer = _stack.last.memory;
-          return;
-        }
-        _startMove(_MoveKind.push, before);
-      case ScreenShownCause.back:
-        // A modal layer closed: it sinks away over the page it lay on.
-        if (samePage) {
-          _leaving.add((frame: before.last, index: before.length - 1, base: oldBase));
-          return;
-        }
-        final move = _move;
-        if (move != null &&
-            move.kind != _MoveKind.fade &&
-            move.kind != _MoveKind.pop &&
-            move.other.length == _stack.length &&
-            identical(move.other.last.memory, _stack.last.memory)) {
-          // The step back undoes the move in flight (a page that is still coming in, or the edge
-          // swipe): the same motion plays back from where it is, instead of a jump to the end and
-          // a second motion from there.
-          // A page that was only covered is revealed anew, as after any step back; the page the
-          // finger has already revealed is the one that stays.
-          if (move.kind == _MoveKind.push) _revealAnew(_stack);
-          move
-            ..kind = _MoveKind.pop
-            ..other = before;
-          if (!_swiping) _runBack(move);
-          return;
-        }
-        _revealAnew(_stack);
-        _startMove(_MoveKind.pop, before);
-      case ScreenShownCause.switchSection:
-        _startMove(_MoveKind.fade, before);
-      case ScreenShownCause.entry:
-        _settle();
+    if (plan.motion.isLayer && samePage) {
+      if (plan.motion.isLayerIn) {
+        // A layer over the same page: it comes in by itself.
+        _enteringLayer = _stack.last.memory;
+        _enteringPlan = plan;
+      } else {
+        // A layer closed: it goes away over the page it lay on.
+        _leaving.add((frame: before.last, index: before.length - 1, base: oldBase, plan: plan));
+      }
+      return;
     }
+    if (!plan.moves) {
+      // At once; a page revealed by a step back is still built anew, as after any step back.
+      if (step == StackStep.pop && !samePage) _revealAnew(_stack);
+      return;
+    }
+    if (step == StackStep.pop && !samePage) _revealAnew(_stack);
+    final kind = switch (plan.motion) {
+      TransitionMotion.crossfade => _MoveKind.crossfade,
+      TransitionMotion.pop => _MoveKind.pop,
+      _ => _MoveKind.push,
+    };
+    _startMove(kind, before, plan);
   }
 
   /// The key of the scene whose page is the bottom of [frames]: global, because the scene moves
@@ -123,21 +162,18 @@ extension _ScreenFlowMotion on _ScreenFlowState {
   /// while the page is still moving away.
   void _revealAnew(List<_Frame> frames) => _sceneIdentity[frames[_baseOf(frames)].memory] = Object();
 
-  void _startMove(_MoveKind kind, List<_Frame> other) {
+  void _startMove(_MoveKind kind, List<_Frame> other, ScreenTransitionPlan plan, {bool fingered = false}) {
     final previous = _move;
     _move = null;
     previous?.controller.dispose();
     // A layer still sinking away belongs to a scene that is leaving now as a whole.
     _leaving.clear();
-    final controller = AnimationController(
-      vsync: this,
-      duration: kind == _MoveKind.fade ? Motion.sheet : Motion.page,
-    );
-    final move = _SceneMove(kind, other, controller);
+    final controller = AnimationController(vsync: this, duration: plan.duration);
+    final move = _SceneMove(kind, other, controller, plan, fingered: fingered);
     _move = move;
     controller.addStatusListener((status) => _onMoveStatus(move, status));
     switch (kind) {
-      case _MoveKind.push || _MoveKind.fade:
+      case _MoveKind.push || _MoveKind.crossfade:
         controller.forward();
       case _MoveKind.pop:
         controller.value = 1;
@@ -155,7 +191,7 @@ extension _ScreenFlowMotion on _ScreenFlowState {
   void _onMoveStatus(_SceneMove move, AnimationStatus status) {
     if (!identical(_move, move) || _swiping) return;
     final done = switch (move.kind) {
-      _MoveKind.push || _MoveKind.fade || _MoveKind.peek => status == AnimationStatus.completed,
+      _MoveKind.push || _MoveKind.crossfade || _MoveKind.peek => status == AnimationStatus.completed,
       _MoveKind.pop => status == AnimationStatus.dismissed,
     };
     if (done) _endMove(move);
@@ -237,7 +273,14 @@ extension _ScreenFlowMotion on _ScreenFlowState {
       _leaving.clear();
       final below = _stack.sublist(0, _baseOf(_stack));
       _revealAnew(below);
-      _startMove(_MoveKind.peek, below);
+      // The motion of a step back, at the speed of the finger.
+      final plan = screenTransitionPlan(
+        step: StackStep.pop,
+        from: const TransitionScreen(),
+        to: const TransitionScreen(),
+        areaWidth: _areaWidth,
+      ).linear;
+      _startMove(_MoveKind.peek, below, plan, fingered: true);
     });
   }
 

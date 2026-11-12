@@ -13,16 +13,17 @@ import '../model/bottom_zone_rules.dart';
 import '../model/live_record.dart';
 import '../model/locale_resolve.dart';
 import '../model/record_scope.dart';
+import '../model/screen_transition.dart';
 import '../model/tokens.dart';
 import '../model/ui_document.dart';
 import '../model/write_action.dart';
 import '../theme/render_theme.dart';
 import 'carousel.dart';
+import 'carousel_auto_advance.dart' show ScreenShownScope;
 import 'direction.dart';
 import 'host_callbacks.dart';
 import 'labels.dart';
 import 'modal_layer.dart';
-import 'motion.dart';
 import 'picture_policy.dart';
 import 'screen_transitions.dart';
 import 'screen_widget.dart';
@@ -349,10 +350,14 @@ class _ScreenFlowState extends State<ScreenFlow> with TickerProviderStateMixin {
 
   /// Modal layers the stack has dropped and that are still sinking away, with the identity of the
   /// page they lie on.
-  final List<({_Frame frame, int index, CarouselMemory base})> _leaving = [];
+  final List<({_Frame frame, int index, CarouselMemory base, ScreenTransitionPlan plan})> _leaving = [];
 
-  /// The frame whose modal layer was just pushed and slides in; any other layer is drawn in place.
+  /// The frame whose modal layer was just pushed and comes in, and how; any other layer is drawn in place.
   CarouselMemory? _enteringLayer;
+  ScreenTransitionPlan? _enteringPlan;
+
+  /// The layer whose sheet the finger took down before the stack went back: it has already left, so the step plays nothing.
+  CarouselMemory? _draggedLayer;
 
   /// The identity each page's scene is drawn under (see `_revealAnew`).
   final Expando<Object> _sceneIdentity = Expando('hotlayout-scene');

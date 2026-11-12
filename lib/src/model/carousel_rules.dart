@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'carousel_auto_advance.dart';
 import 'carousel_stop.dart';
 import 'progress_rules.dart';
 import 'style_values.dart';
@@ -50,7 +51,7 @@ const String kCarouselActiveColor = 'primary';
 
 /// A carousel as the reader reads it (`readCarousel`).
 final class ReaderCarousel {
-  const ReaderCarousel({this.perView, this.peek, this.dots = true, this.stopPath});
+  const ReaderCarousel({this.perView, this.peek, this.dots = true, this.stopPath, this.autoAdvance});
 
   /// Number of whole cards in the visible area; `null` means natural width.
   final int? perView;
@@ -65,16 +66,21 @@ final class ReaderCarousel {
   /// means there is no readable path, and the carousel neither writes nor follows anything.
   final String? stopPath;
 
+  /// The timer that takes the carousel to the next stop (9.42.0, `carousel.autoAdvance`); `null` means there is no
+  /// field or it is not an object, and only a person moves the carousel.
+  final CarouselAutoAdvance? autoAdvance;
+
   @override
   bool operator ==(Object other) =>
       other is ReaderCarousel &&
       other.perView == perView &&
       other.peek == peek &&
       other.dots == dots &&
-      other.stopPath == stopPath;
+      other.stopPath == stopPath &&
+      other.autoAdvance == autoAdvance;
 
   @override
-  int get hashCode => Object.hash(perView, peek, dots, stopPath);
+  int get hashCode => Object.hash(perView, peek, dots, stopPath, autoAdvance);
 }
 
 /// THE FIELD VALUE AS THE READER READS IT, whatever its shape:
@@ -85,6 +91,8 @@ final class ReaderCarousel {
 ///    a token or an integer 0..128);
 ///  * `indicator`: only `'none'` turns the dots off, anything else means dots;
 ///  * `stopPath` (9.32.0): a non-empty string up to 128 characters, otherwise there is no path;
+///  * `autoAdvance` (9.42.0): an object turns the timer on, its interval clamped to 2000..15000 ms (not a number is the
+///    lower bound), `loop` only as the literal `true`; anything else is no timer;
 ///  * an unknown key is skipped.
 ReaderCarousel? readCarousel(Object? raw) {
   if (raw is! Map) return null;
@@ -101,6 +109,7 @@ ReaderCarousel? readCarousel(Object? raw) {
     peek: readProgressThickness(raw['peek']),
     dots: raw['indicator'] != 'none',
     stopPath: carouselStopPathOf(raw),
+    autoAdvance: carouselAutoAdvanceOf(raw),
   );
 }
 

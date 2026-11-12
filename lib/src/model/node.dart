@@ -16,6 +16,7 @@ import 'long_press.dart' show kLongPressLabelKey;
 import 'localization.dart';
 import 'media_chrome_rules.dart';
 import 'motion_rules.dart';
+import 'node_appear.dart';
 import 'progress_cap.dart';
 import 'repeater_group.dart';
 import 'progress_glow.dart';
@@ -181,6 +182,7 @@ sealed class UiNode {
           weight: node.weight,
           layer: node.layer,
           motion: node.motion,
+          appear: node.appear,
           pull: node.pull,
           pin: node.pin,
           pinTop: node.pinTop,
@@ -204,6 +206,7 @@ sealed class UiNode {
           weight: node.weight,
           layer: node.layer,
           motion: node.motion,
+          appear: node.appear,
           pull: node.pull,
           pin: node.pin,
           pinTop: node.pinTop,
@@ -288,6 +291,7 @@ sealed class ChildNode extends UiNode {
     this.weight,
     this.layer,
     this.motion,
+    this.appear,
     this.pull,
     this.pin = false,
     this.pinTop = false,
@@ -333,6 +337,10 @@ sealed class ChildNode extends UiNode {
   /// AN ENDLESS MOTION of the node (9.20.0, `motion`): `null` means there is no field or it is not a form this
   /// reader can draw, and the node stands. It is a paint transform only; it never changes the layout.
   final NodeMotion? motion;
+
+  /// A ONE-TIME APPEARANCE of the node when its screen is shown (9.40.0, `appear`): `null` means there is no field or it
+  /// is not a form this reader can draw.
+  final NodeAppear? appear;
 
   /// PULLING IN THE FLOW (9.10.0): a spacing reference. `null` means there is no field or it is
   /// unreadable (`unreadablePull`). Whether it is read HERE is decided by [effectivePull].
@@ -384,6 +392,7 @@ final class UnknownNode extends ChildNode {
     super.weight,
     super.layer,
     super.motion,
+    super.appear,
     super.pull,
     super.pin,
     super.pinTop,

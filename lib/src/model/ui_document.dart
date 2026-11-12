@@ -11,6 +11,7 @@ import 'localization.dart';
 import 'media_chrome_rules.dart';
 import 'motion_rules.dart' show backdropBlurOf;
 import 'node.dart';
+import 'screen_transition.dart' show ScreenTransitionWord;
 import 'style_values.dart' show isForbiddenKey;
 import 'tokens.dart';
 import 'width_class.dart';
@@ -32,6 +33,7 @@ final class ScreenEntry {
     this.source,
     this.tooDeep = false,
     this.dismissible = true,
+    this.transition,
   });
 
   /// The tree is deeper than the reader's parse limit ([exceedsParseLimit]): the screen is not drawn, a notice
@@ -76,6 +78,10 @@ final class ScreenEntry {
   /// "back" stays with the host, and `navigate.back` inside the layer still closes it. Only the word `false` is
   /// read, and only for a modal screen (on a page the field means nothing).
   final bool dismissible;
+
+  /// How this screen comes and goes (9.38.0, `transition`): `fade` or `none`; `null` is the default motion of a
+  /// step (an absent field, an unknown word).
+  final ScreenTransitionWord? transition;
 
   /// The status bar icon colour this screen asks the host for (`light` or
   /// `dark`), or `null` when it asks for nothing.
@@ -400,6 +406,7 @@ final class UiDocument {
       statusBarIcons: StatusBarIcons.of(json['statusBarIcons']),
       backdropBlur: backdropBlurOf(json['backdropBlur']),
       dismissible: json['dismissible'] != false,
+      transition: ScreenTransitionWord.of(json['transition']),
     );
   }
 }

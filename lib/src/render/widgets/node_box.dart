@@ -17,6 +17,7 @@ import '../../model/visibility_fade.dart';
 import '../dashed_border.dart';
 import '../inner_shadow.dart';
 import '../layout/styled_size.dart';
+import '../node_appear.dart';
 import '../node_motion.dart';
 import '../visibility_fade_scope.dart';
 import '../node_renderer.dart';
@@ -119,7 +120,7 @@ extension NodeBoxWidgets on NodeRenderer {
       slot: slot,
       paddingInside: (node is RowNode && node.scrollable) || (node is RepeaterNode && node.carousel != null),
       stretchAlign: stretchAlign,
-      around: _withMotion(node, around ?? renderer.pressWrapperOf(node, own)),
+      around: _withAppear(node, _withMotion(node, around ?? renderer.pressWrapperOf(node, own))),
       extraTop: extraTop,
       keepSemantics: _isControl(node),
       clipsContent: !_glowEscapesBox(node),
@@ -143,6 +144,14 @@ extension NodeBoxWidgets on NodeRenderer {
     final motion = node is UnknownNode ? null : node.motion;
     if (motion == null) return around;
     return (box) => NodeMotionBox(motion: motion, child: around == null ? box : around(box));
+  }
+
+  /// [around] with the node's one-time appearance (9.40.0) outside of the motion: the shift and opacity of the appearance
+  /// are laid over the pose of the motion. A node this reader does not understand does not appear.
+  Widget Function(Widget box)? _withAppear(ChildNode node, Widget Function(Widget box)? around) {
+    final appear = node is UnknownNode ? null : node.appear;
+    if (appear == null) return around;
+    return (box) => NodeAppearBox(appear: appear, child: around == null ? box : around(box));
   }
 
   /// THE NODE BOX. One model for all types:

@@ -506,20 +506,22 @@ const Map<String, String> kFeatureCatalog = {
   'radialGradient': '9.36.0',
   // 9.37.0: the chart. An older reader draws a `Chart` as an unknown widget, which has no children.
   'chart': '9.37.0',
-  // 9.38.0: default transitions between screens. Not performed by this reader yet: a screen change keeps its motion.
+  // 9.38.0: default transitions between screens (a page beside, a sheet from below, a window from a slight zoom, the
+  // `transition` field of a screen). An older reader changes the screen at once.
   'screenTransition': '9.38.0',
   // 9.39.0: an inner layer of an own shadow and the shadow of a text. An older reader draws the inner layer as an
   // outer one and shows the text without a shadow.
   'insetShadow': '9.39.0',
   'textShadow': '9.39.0',
-  // 9.40.0: spin and sway of a node and its appearance. Not performed by this reader yet: the node stands at rest.
+  // 9.40.0: spin and sway of a node and its appearance. An older reader leaves a node of an unknown motion at rest and
+  // shows a node that asks to appear at once.
   'motionTurn': '9.40.0',
   'nodeAppear': '9.40.0',
   // 9.41.0: the host actions `copy` and `share`, up to six grid columns. An older reader hands the two actions
   // over as actions of the app, with no `standard`, and draws five or six columns as four.
   'copyShareActions': '9.41.0',
   'gridSixColumns': '9.41.0',
-  // 9.42.0: a carousel that advances by time. Not performed by this reader yet: only a person moves it.
+  // 9.42.0: a carousel that advances by time. An older reader skips the field: only a person moves the carousel.
   'carouselAutoAdvance': '9.42.0',
 };
 

@@ -6,8 +6,10 @@ import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/semantics.dart';
 
+import '../model/carousel_auto_advance.dart';
 import '../model/carousel_rules.dart';
 import '../model/carousel_stop.dart';
+import 'carousel_auto_advance.dart';
 
 /// The carousel: scrolling that snaps to cards, with dots under it (schema 9.11.0,
 /// `x-style.layout.carousel`).
@@ -110,7 +112,13 @@ class Carousel extends StatefulWidget {
     this.stopPath,
     this.stopValue,
     this.onStopWrite,
+    this.autoAdvance,
   });
+
+  /// The timer that takes the carousel to the next stop (9.42.0, `carousel.autoAdvance`); `null` means only a person
+  /// moves it. The step is the reader's own move (it is never written as a person's) and, with a [stopPath], writes
+  /// the number of the new stop.
+  final CarouselAutoAdvance? autoAdvance;
 
   /// The number data path of the active stop (9.32.0, `carousel.stopPath`); `null` means the carousel neither
   /// writes nor follows anything.
@@ -171,9 +179,18 @@ class _CarouselState extends State<Carousel> {
   /// The carousel stands on the stop its value names (set once the stops are laid out).
   bool _placed = true;
 
+  /// The clock of the timer (9.42.0) and the focus node that tells whether keyboard focus is inside.
+  late final CarouselAutoAdvanceDriver _driver = CarouselAutoAdvanceDriver(
+    view: _autoView,
+    onStep: _autoStep,
+    keyboardFocus: () => _focus.hasFocus && FocusManager.instance.highlightMode == FocusHighlightMode.traditional,
+  );
+  final FocusNode _focus = FocusNode(skipTraversal: true, canRequestFocus: false, debugLabel: 'carousel');
+
   @override
   void initState() {
     super.initState();
+    _driver.configure(widget.autoAdvance);
     _lastValue = widget.stopValue;
     final shown = _shownOffset();
     final remembered = shown == null ? _remembered : null;
@@ -234,8 +251,42 @@ class _CarouselState extends State<Carousel> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _driver.surroundings(
+      // Not in front: another screen is on top, a layer covers it, or the host's route is not the current one.
+      screenNotShown:
+          !ScreenShownScope.of(context) || !TickerMode.valuesOf(context).enabled || !(ModalRoute.isCurrentOf(context) ?? true),
+      screenReader: MediaQuery.accessibleNavigationOf(context),
+    );
+  }
+
+  /// What the clock asks: the stop the carousel stands on (the one it is heading for, while it moves) and the number
+  /// of stops; `null` while they are not laid out.
+  AutoAdvanceView _autoView() {
+    if (!_placed || !_controller.hasClients || !mounted) return null;
+    if (widget.cardWidths == null && _measured == null) return null;
+    final stops = _liveStops();
+    return (active: activeCarouselStop(stops, _heading ?? _controller.position.pixels), stopCount: stops.length);
+  }
+
+  /// The timer takes the carousel to [step]: the reader's own move, animated unless the system asks for no motion, and
+  /// the number of the new stop written to the path (once, unless the value already is it).
+  void _autoStep(int step) {
+    if (!mounted || !_controller.hasClients) return;
+    final stops = _liveStops();
+    if (step < 0 || step >= stops.length) return;
+    _moveByReader(stops[step], animate: !MediaQuery.disableAnimationsOf(context));
+    final write = widget.onStopWrite;
+    if (widget.stopPath == null || write == null) return;
+    final value = carouselAutoAdvanceWrite(step, widget.stopValue);
+    if (value != null) write(value);
+  }
+
+  @override
   void didUpdateWidget(Carousel oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _driver.configure(widget.autoAdvance);
     if (widget.stopPath != oldWidget.stopPath) {
       _lastValue = widget.stopValue;
       _placed = widget.stopPath == null;
@@ -264,10 +315,16 @@ class _CarouselState extends State<Carousel> {
   /// A scroll came to rest: remember the open stop, and tell a person's stop to the data.
   bool _onScroll(ScrollNotification notification) {
     if (notification.depth != 0 || notification.metrics.axis != Axis.horizontal) return false;
+    // The timer waits while the scroll moves: a gesture, momentum or the animation of its own step.
+    if (notification is ScrollStartNotification) _driver.moving = true;
+    if (notification is ScrollEndNotification) _driver.moving = false;
     if (notification is ScrollStartNotification && notification.dragDetails != null) {
       _dragging = true;
-      _person = true;
       _heading = null;
+    }
+    // A touch that does not move the row is no move of a person: it writes nothing when it is let go.
+    if (notification is ScrollUpdateNotification && notification.dragDetails != null && notification.scrollDelta != 0) {
+      _person = true;
     }
     if (notification is UserScrollNotification && notification.direction != ScrollDirection.idle) _heading = null;
     if (notification is! ScrollEndNotification) return false;
@@ -301,6 +358,8 @@ class _CarouselState extends State<Carousel> {
 
   @override
   void dispose() {
+    _driver.dispose();
+    _focus.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -406,15 +465,23 @@ class _CarouselState extends State<Carousel> {
           _heading = null;
         }
       },
-      child: NotificationListener<ScrollNotification>(
-        key: _scrollKey,
-        onNotification: _onScroll,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          controller: _controller,
-          padding: widget.padding,
-          physics: CarouselPhysics(stops: _liveStops),
-          child: Semantics(container: true, role: SemanticsRole.list, child: widget.rowBuilder(children)),
+      // A finger or a button held on the carousel holds the timer until it is let go (anywhere: the up event follows
+      // the pointer to where it went down).
+      onPointerDown: (event) => _driver.pointerDown(event.pointer),
+      onPointerUp: (event) => _driver.pointerUp(event.pointer),
+      onPointerCancel: (event) => _driver.pointerUp(event.pointer),
+      child: Focus(
+        focusNode: _focus,
+        child: NotificationListener<ScrollNotification>(
+          key: _scrollKey,
+          onNotification: _onScroll,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: _controller,
+            padding: widget.padding,
+            physics: CarouselPhysics(stops: _liveStops),
+            child: Semantics(container: true, role: SemanticsRole.list, child: widget.rowBuilder(children)),
+          ),
         ),
       ),
     );

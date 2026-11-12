@@ -83,6 +83,8 @@ bool _sameMotion(NodeMotion? read, _Json wire) {
       wire['kind'] == 'pulse' &&
           read.scale == (wire['scale']! as num).toDouble() &&
           read.opacity == (wire['opacity'] as num?)?.toDouble(),
+    SpinMotion() => wire['kind'] == 'spin' && read.direction.name == wire['direction'],
+    SwayMotion() => wire['kind'] == 'sway' && read.angle == wire['angle'] && read.pivot.name == wire['pivot'],
   };
 }
 
@@ -526,7 +528,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1000));
       expect(_painted(tester).x, closeTo(10, 1e-6));
       await tester.tap(find.text('Next'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Back'));
       await tester.pump();
       await tester.pump();

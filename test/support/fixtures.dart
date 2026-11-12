@@ -132,6 +132,12 @@ const List<String> fixtureIds = [
   'shadow-effects-screens',
   // 9.37.0: bars and lines over a row of points, from literals and from a collection.
   'chart-screens',
+  // 9.38.0: a three-page onboarding, a sheet of terms, a window, a page that dissolves in and one that appears at once.
+  'screen-transition-screens',
+  // 9.40.0: a glow of two spinning tiles, a trophy that rises, a bell and a gift that sway, cards that appear in a cascade.
+  'motion-turn-screens',
+  // 9.42.0: stories that turn by themselves with a segmented bar, and a promo banner that goes round.
+  'carousel-auto-advance-screens',
 ];
 
 /// We read fixtures from disk rather than through rootBundle: the test does not depend on

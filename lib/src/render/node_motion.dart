@@ -24,6 +24,12 @@ class PaintRotation extends InheritedWidget {
   bool updateShouldNotify(PaintRotation oldWidget) => oldWidget.degrees != degrees;
 }
 
+Alignment _alignmentOf(TurnPivot pivot) => switch (pivot) {
+  TurnPivot.center => Alignment.center,
+  TurnPivot.top => Alignment.topCenter,
+  TurnPivot.bottom => Alignment.bottomCenter,
+};
+
 /// Draws [child] where [motion] puts it at the moment the node has been on the shown screen.
 ///
 /// The clock starts when this widget is mounted: a node that appears again (back, a visibility condition) is a new
@@ -77,6 +83,7 @@ class _NodeMotionBoxState extends State<NodeMotionBox> with SingleTickerProvider
     final turned = PaintRotation.of(context) * math.pi / 180;
     final motion = widget.motion;
     final fades = motion is PulseMotion && motion.opacity != null;
+    final turns = motion is SpinMotion || motion is SwayMotion;
     return ValueListenableBuilder<double>(
       valueListenable: _elapsedMs,
       child: widget.child,
@@ -85,11 +92,14 @@ class _NodeMotionBoxState extends State<NodeMotionBox> with SingleTickerProvider
         // The shift is in screen axes; undo the rotation the frame was painted with.
         final dx = pose.x * math.cos(turned) + pose.y * math.sin(turned);
         final dy = -pose.x * math.sin(turned) + pose.y * math.cos(turned);
-        Widget moved = Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.translationValues(dx, dy, 0).multiplied(Matrix4.diagonal3Values(pose.scale, pose.scale, 1)),
-          child: child,
-        );
+        // A turn is about a point of the box, after the node's own place: it adds to the rotation of the layer.
+        Widget moved = turns
+            ? Transform.rotate(angle: pose.rotate * math.pi / 180, alignment: _alignmentOf(pose.pivot), child: child)
+            : Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.translationValues(dx, dy, 0).multiplied(Matrix4.diagonal3Values(pose.scale, pose.scale, 1)),
+                child: child,
+              );
         // Opacity multiplies the node's own `style.opacity` (which sits inside). Semantics stay while the node is
         // fully transparent at the peak: it is a node the person can still find.
         if (fades) moved = Opacity(opacity: pose.opacity, alwaysIncludeSemantics: true, child: moved);
