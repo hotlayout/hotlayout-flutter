@@ -11,9 +11,9 @@ Flutter renderer for [HotLayout](https://hotlayout.com) server-driven UI (SDUI).
 [![Docs](https://img.shields.io/badge/docs-hotlayout.com-0a6cc9)](https://hotlayout.com/docs)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hotlayout/.github/main/profile/assets/app-obsidian.png" alt="A rewards screen built in HotLayout, dark theme" width="240">
+  <img src="https://raw.githubusercontent.com/hotlayout/.github/main/profile/assets/app-obsidian.png" alt="A storefront home screen built in HotLayout, light theme" width="240">
   &nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/hotlayout/.github/main/profile/assets/app-sunny.png" alt="The same kind of screen with another theme, light and playful" width="240">
+  <img src="https://raw.githubusercontent.com/hotlayout/.github/main/profile/assets/app-sunny.png" alt="An onboarding screen built in the same editor, dark theme" width="240">
 </p>
 <p align="center"><sub>Two screens built in HotLayout. Try the editor in your browser, no sign-up: <a href="https://hotlayout.com/try">https://hotlayout.com/try</a></sub></p>
 
@@ -85,7 +85,7 @@ You give the renderer three things and get a widget back:
 |---|---|
 | Document | One JSON file: a set of screens built from widgets. Published by the builder as `published.json`. |
 | Theme | One JSON file: token names (`primary`, `md`, `titleM`, and names of your own) and the values behind them. |
-| Data | A `Map<String, Object?>` your app supplies: values for the paths the document is bound to (`user.points`, `tasks`). |
+| Data | A `Map<String, Object?>` your app supplies: values for the paths the document is bound to (`user.name`, `cart.count`, `products`). |
 
 ## Quickstart
 
