@@ -225,7 +225,19 @@ const List<Map<String, Object?>> sampleOffers = [
   },
 ];
 
-/// The whole data dictionary as values: its paths plus seven collections.
+/// Records of the `spending` collection - the `spend` item (dictionary 1.11.0): the points of a chart (schema
+/// 9.37.0), oldest first, so the last record is today - the one `highlight: 'last'` lights up.
+const List<Map<String, Object?>> sampleSpending = [
+  {'day': 'Mon', 'amount': 420},
+  {'day': 'Tue', 'amount': 260},
+  {'day': 'Wed', 'amount': 580},
+  {'day': 'Thu', 'amount': 310},
+  {'day': 'Fri', 'amount': 760},
+  {'day': 'Sat', 'amount': 540},
+  {'day': 'Sun', 'amount': 690},
+];
+
+/// The whole data dictionary as values: its paths plus eight collections.
 const Map<String, Object?> sampleScreenData = {
   // ----------------------------------------------------------------- user.*
   'user.firstName': 'Alex',
@@ -338,6 +350,19 @@ const Map<String, Object?> sampleScreenData = {
   // Dictionary 1.8.0: the stop of a card carousel (schema 9.32.0), the first card until a person moves it.
   'account.cardIndex': 0,
 
+  // Dictionary 1.9.0 and 1.10.0: the answers a person gives in a form. The samples are EMPTY, as in the
+  // dictionary: the form starts empty and the buttons waiting for an answer stay disabled until the first one.
+  'answer.choice': '',
+  'answer.score': '',
+  'answer.name': '',
+  'answer.comment': '',
+  'answer.agreed': false,
+  'answer.ageGroup': '',
+
+  // Dictionary 1.11.0: one point of a spending chart (schema 9.37.0).
+  'spend.day': 'Today',
+  'spend.amount': 640,
+
   // --------------------------------------------------------------- collections
   'tasks': sampleTasks,
   'doneTasks': sampleDoneTasks,
@@ -345,4 +370,5 @@ const Map<String, Object?> sampleScreenData = {
   'taskGroups': sampleTaskGroups,
   'items': sampleItems,
   'offers': sampleOffers,
+  'spending': sampleSpending,
 };

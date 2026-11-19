@@ -224,6 +224,16 @@ final List<({String id, String title})> kFixtures = [
   (id: 'radial-gradient-screens', title: 'Radial gradient'),
   // 9.39.0. Inner shadows (a pressed title, tactile tiles, a well) and the shadow of the letters.
   (id: 'shadow-effects-screens', title: 'Inner shadow and text shadow'),
+  // 9.37.0. Bar and line charts drawn from data.
+  (id: 'chart-screens', title: 'Charts'),
+  // 9.38.0. Default screen transitions: the document's own, a screen's own, a layer on top, and "no motion".
+  (id: 'screen-transition-screens', title: 'Screen transitions'),
+  // 9.40.0. Turning motion: `spin` and `sway`, and a press that adds its scale to the turn.
+  (id: 'motion-turn-screens', title: 'Spin and sway'),
+  // 9.40.0. Nodes that appear on the first show of their screen (`appear`).
+  (id: 'appear-swipe-dot-screens', title: 'Appear'),
+  // 9.42.0. A stories carousel that advances by time (`carousel.autoAdvance`).
+  (id: 'carousel-auto-advance-screens', title: 'Carousel that advances by time'),
   // 9.12.0. Bottom zone: a navigation bar with three sections (`navigate.section`), a button
   // pinned to the bottom above the bar, and a sheet with two pinned buttons; `en`, `uk`, `ar`.
   (id: 'bottom-zone-screens', title: 'Navigation bar and pinned block'),
